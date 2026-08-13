@@ -65,10 +65,14 @@ export function InicioScreen() {
             {enLinea ? "Recibiendo solicitudes cercanas." : "Actívate para recibir solicitudes."}
           </Text>
         </View>
+        {/* thumbColor explícito: sin él Android pinta el pulgar con su color de
+            acento (verde azulado), fuera de la paleta. */}
         <Switch
           value={enLinea}
           onValueChange={toggle}
           trackColor={{ true: colors.exito, false: colors.line }}
+          thumbColor={colors.white}
+          ios_backgroundColor={colors.line}
           accessibilityLabel="Disponibilidad para recibir solicitudes"
         />
       </Card>

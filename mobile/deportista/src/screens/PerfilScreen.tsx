@@ -54,10 +54,14 @@ export function PerfilScreen() {
                 <Text style={[font.body, { fontWeight: "600" }]}>{a.label}</Text>
                 {a.hint ? <Text style={font.tiny}>{a.hint}</Text> : null}
               </View>
+              {/* thumbColor explícito: sin él Android pinta el pulgar con su
+                  color de acento (verde azulado), fuera de la paleta. */}
               <Switch
                 value={ajustes[a.key]}
                 onValueChange={(v) => setAjustes((s) => ({ ...s, [a.key]: v }))}
                 trackColor={{ true: colors.indigo, false: colors.line }}
+                thumbColor={colors.white}
+                ios_backgroundColor={colors.line}
                 accessibilityLabel={a.label}
               />
             </View>
