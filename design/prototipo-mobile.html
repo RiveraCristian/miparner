@@ -1,0 +1,581 @@
+<title>Rumbo — Prototipo apps móviles</title>
+<style>
+  :root{
+    --bg:#E9EFFA; --panel:#DCE6F7;
+    --surface:#FFFFFF; --surface-2:#F5F8FE;
+    --ink:#0C1A33; --ink-2:#48546C; --ink-3:#8A93A6;
+    --line:#E1E8F4; --line-2:#EDF1F9;
+    --brand:#1E5AE6; --brand-strong:#1544B8; --brand-soft:#E7EEFF;
+    --gold:#E4922A; --gold-soft:#FBEED6; --gold-ink:#8A5410;
+    --success:#12A150; --success-soft:#E1F5E9;
+    --danger:#E5484D; --danger-strong:#C42B2F; --danger-soft:#FCE9E9;
+    --bezel:#0A1122; --bezel-2:#050912;
+    --radius:16px; --radius-sm:11px;
+    --shadow:0 18px 40px -18px rgba(12,26,51,.35);
+    --map-land:#DFE7F5; --map-road:#FFFFFF; --map-road-2:#C6D3EC; --map-park:#D6E9D8;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#070C17; --panel:#0C1424;
+      --surface:#121C30; --surface-2:#182541;
+      --ink:#EAF0FB; --ink-2:#A9B6CE; --ink-3:#6C7A94;
+      --line:#24324C; --line-2:#1B283F;
+      --brand:#4C82F7; --brand-strong:#6C9BFB; --brand-soft:#16264A;
+      --gold:#F1B14A; --gold-soft:#3A2C12; --gold-ink:#F1B14A;
+      --success:#2FBE74; --success-soft:#123020;
+      --danger:#F0656A; --danger-strong:#F0656A; --danger-soft:#3A1719;
+      --bezel:#020509; --bezel-2:#000;
+      --shadow:0 24px 50px -20px rgba(0,0,0,.7);
+      --map-land:#16233B; --map-road:#243651; --map-road-2:#1B283F; --map-park:#17321F;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#E9EFFA; --panel:#DCE6F7; --surface:#FFFFFF; --surface-2:#F5F8FE;
+    --ink:#0C1A33; --ink-2:#48546C; --ink-3:#8A93A6; --line:#E1E8F4; --line-2:#EDF1F9;
+    --brand:#1E5AE6; --brand-strong:#1544B8; --brand-soft:#E7EEFF;
+    --gold:#E4922A; --gold-soft:#FBEED6; --gold-ink:#8A5410;
+    --success:#12A150; --success-soft:#E1F5E9; --danger:#E5484D; --danger-strong:#C42B2F; --danger-soft:#FCE9E9;
+    --bezel:#0A1122; --bezel-2:#050912; --shadow:0 18px 40px -18px rgba(12,26,51,.35);
+    --map-land:#DFE7F5; --map-road:#FFFFFF; --map-road-2:#C6D3EC; --map-park:#D6E9D8;
+  }
+  :root[data-theme="dark"]{
+    --bg:#070C17; --panel:#0C1424; --surface:#121C30; --surface-2:#182541;
+    --ink:#EAF0FB; --ink-2:#A9B6CE; --ink-3:#6C7A94; --line:#24324C; --line-2:#1B283F;
+    --brand:#4C82F7; --brand-strong:#6C9BFB; --brand-soft:#16264A;
+    --gold:#F1B14A; --gold-soft:#3A2C12; --gold-ink:#F1B14A;
+    --success:#2FBE74; --success-soft:#123020; --danger:#F0656A; --danger-strong:#F0656A; --danger-soft:#3A1719;
+    --bezel:#020509; --bezel-2:#000; --shadow:0 24px 50px -20px rgba(0,0,0,.7);
+    --map-land:#16233B; --map-road:#243651; --map-road-2:#1B283F; --map-park:#17321F;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0}
+  .wrap{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink); background:var(--bg);
+    min-height:100vh; padding:28px 20px 64px;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  .container{max-width:1160px;margin:0 auto}
+
+  /* ---- Top chrome ---- */
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:12px;background:var(--brand);display:grid;place-items:center;color:#fff;box-shadow:0 8px 18px -8px var(--brand)}
+  .logo svg{width:24px;height:24px}
+  .brand h1{font-size:21px;margin:0;letter-spacing:-.02em;font-weight:700}
+  .brand p{margin:1px 0 0;font-size:12.5px;color:var(--ink-2)}
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--brand);background:var(--brand-soft);padding:3px 8px;border-radius:999px}
+  .theme-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:11px;height:40px;padding:0 14px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .theme-btn:hover{border-color:var(--brand);color:var(--brand)}
+  .theme-btn svg{width:17px;height:17px}
+  .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .palettes{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+  .palettes .lbl{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+  .swatch{width:24px;height:24px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0;position:relative}
+  .swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+  .swatch:hover{transform:scale(1.08)}
+
+  .lede{max-width:640px;margin:14px 0 22px;color:var(--ink-2);font-size:15px;line-height:1.6}
+  .lede b{color:var(--ink);font-weight:600}
+
+  /* ---- App tabs ---- */
+  .tabs{display:inline-flex;background:var(--panel);padding:5px;border-radius:14px;gap:4px;margin-bottom:8px}
+  .tab{border:0;background:transparent;color:var(--ink-2);font:inherit;font-weight:600;font-size:14px;padding:9px 18px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:8px}
+  .tab svg{width:18px;height:18px}
+  .tab[aria-selected="true"]{background:var(--surface);color:var(--brand);box-shadow:0 4px 12px -6px rgba(12,26,51,.25)}
+  .app-caption{color:var(--ink-2);font-size:13.5px;margin:12px 2px 20px;max-width:720px;line-height:1.55}
+
+  /* ---- Phones gallery ---- */
+  .gallery{display:flex;gap:34px 26px;flex-wrap:wrap;justify-content:center}
+  .device{width:288px;flex:0 0 auto}
+  .screencap{display:flex;align-items:baseline;gap:8px;justify-content:center;margin:0 0 10px}
+  .screencap .n{width:20px;height:20px;border-radius:6px;background:var(--brand-soft);color:var(--brand);font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
+  .screencap .t{font-size:13px;font-weight:600;color:var(--ink)}
+  .phone{
+    position:relative;background:var(--bezel);border-radius:42px;padding:11px;
+    box-shadow:var(--shadow), inset 0 0 0 2px var(--bezel-2);
+  }
+  .screen{position:relative;background:var(--surface);border-radius:32px;overflow:hidden;height:592px;display:flex;flex-direction:column}
+  .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:104px;height:22px;background:var(--bezel);border-radius:0 0 14px 14px;z-index:20}
+
+  /* status bar */
+  .sb{display:flex;align-items:center;justify-content:space-between;padding:9px 20px 2px;font-size:12px;font-weight:600;color:var(--ink);flex:none}
+  .sb .r{display:flex;gap:5px;align-items:center}
+  .sb svg{width:15px;height:15px}
+
+  /* app bar */
+  .ab{display:flex;align-items:center;gap:10px;padding:8px 16px 10px;flex:none}
+  .ab .av{width:38px;height:38px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+  .ab .hi{font-size:12px;color:var(--ink-3);line-height:1.1}
+  .ab .nm{font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .ab .ic{margin-left:auto;width:34px;height:34px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;color:var(--ink-2)}
+  .ab .ic svg{width:18px;height:18px}
+  .ab-title{padding:6px 18px 12px;flex:none}
+  .ab-title h2{margin:0;font-size:19px;letter-spacing:-.02em}
+  .ab-title p{margin:3px 0 0;font-size:12.5px;color:var(--ink-2)}
+
+  /* scroll body */
+  .body{flex:1;overflow:hidden;position:relative}
+  .body-pad{padding:2px 16px 16px}
+
+  /* map */
+  .map{position:relative;height:100%;background:var(--map-land)}
+  .map svg{position:absolute;inset:0;width:100%;height:100%}
+  .pin{position:absolute;transform:translate(-50%,-100%);z-index:3}
+  .pin .dot{width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.3)}
+  .pin.me .dot{background:var(--brand)}
+  .pin.vol .dot{background:var(--gold)}
+  .pin.dest{color:var(--danger)}
+  .pulse{position:absolute;width:44px;height:44px;border-radius:50%;background:var(--brand);opacity:.18;transform:translate(-50%,-50%);animation:pulse 2.4s ease-out infinite}
+  @keyframes pulse{0%{transform:translate(-50%,-50%) scale(.5);opacity:.35}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+
+  /* generic ui bits */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px}
+  .card+.card{margin-top:10px}
+  .row{display:flex;align-items:center;gap:11px}
+  .muted{color:var(--ink-2)}
+  .tiny{font-size:11.5px}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:13px;font:inherit;font-weight:700;font-size:14.5px;padding:14px;cursor:default}
+  .btn svg{width:18px;height:18px}
+  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 10px 22px -12px var(--brand)}
+  .btn-ghost{background:var(--surface-2);color:var(--ink);border:1px solid var(--line)}
+  .btn-gold{background:var(--gold);color:#3a2405}
+  .btn-danger{background:var(--danger);color:#fff}
+  .chiprow{display:flex;gap:8px;overflow:hidden}
+  .chip{flex:none;display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .chip svg{width:15px;height:15px;color:var(--brand)}
+  .chip.on{background:var(--brand-soft);border-color:transparent;color:var(--brand)}
+
+  .float{position:absolute;left:14px;right:14px;z-index:6}
+  .float.bottom{bottom:14px}
+  .float.top{top:12px}
+
+  /* tab bar */
+  .tb{display:flex;justify-content:space-around;padding:9px 8px calc(9px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line);flex:none}
+  .tb a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--ink-3)}
+  .tb a svg{width:22px;height:22px}
+  .tb a.on{color:var(--brand)}
+  .home-ind{height:5px;width:120px;background:var(--ink);opacity:.28;border-radius:3px;margin:5px auto 8px}
+
+  /* misc components */
+  .list-item{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .list-item:last-child{border-bottom:0}
+  .ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none}
+  .ico svg{width:19px;height:19px}
+  .ico.b{background:var(--brand-soft);color:var(--brand)}
+  .ico.g{background:var(--gold-soft);color:var(--gold-ink)}
+  .ico.s{background:var(--success-soft);color:var(--success)}
+  .ico.d{background:var(--danger-soft);color:var(--danger)}
+  .badge{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:.02em}
+  .badge.b{background:var(--brand-soft);color:var(--brand)}
+  .badge.g{background:var(--gold-soft);color:var(--gold-ink)}
+  .badge.s{background:var(--success-soft);color:var(--success)}
+  .badge.d{background:var(--danger-soft);color:var(--danger-strong)}
+  .stat{flex:1;background:var(--surface-2);border-radius:13px;padding:11px 12px}
+  .stat .v{font-size:20px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:11px;color:var(--ink-2);margin-top:1px}
+  .prog{height:9px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+  .prog > i{display:block;height:100%;background:var(--gold);border-radius:999px}
+  .prog.b > i{background:var(--brand)}
+  .timeline{position:relative;padding-left:22px}
+  .timeline::before{content:"";position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tl{position:relative;padding:7px 0;font-size:13px}
+  .tl::before{content:"";position:absolute;left:-19px;top:11px;width:11px;height:11px;border-radius:50%;background:var(--line);border:2px solid var(--surface)}
+  .tl.done::before{background:var(--success)}
+  .tl.now::before{background:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+  .tl small{display:block;color:var(--ink-3);font-size:11px}
+  .switch{width:52px;height:31px;border-radius:999px;background:var(--success);position:relative;flex:none}
+  .switch::after{content:"";position:absolute;top:3px;left:24px;width:25px;height:25px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+  .switch.off{background:var(--line)}
+  .switch.off::after{left:3px}
+  .ring{--p:64;width:112px;height:112px;border-radius:50%;background:conic-gradient(var(--brand) calc(var(--p)*1%), var(--surface-2) 0);display:grid;place-items:center;margin:2px auto 0}
+  .ring > div{width:88px;height:88px;border-radius:50%;background:var(--surface);display:grid;place-items:center;text-align:center}
+  .ring b{font-size:26px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .ring span{font-size:10.5px;color:var(--ink-2)}
+  .medal{aspect-ratio:1;border-radius:14px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid var(--line)}
+  .medal svg{width:24px;height:24px}
+  .medal.lock{opacity:.45}
+  .medal .lb{font-size:9.5px;font-weight:600;color:var(--ink-2)}
+  .lead{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--line-2)}
+  .lead:last-child{border:0}
+  .lead .pos{width:22px;text-align:center;font-weight:800;font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .lead .av2{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff}
+  .lead.you{background:var(--brand-soft);margin:0 -8px;padding:9px 8px;border-radius:11px;border:0}
+
+  .foot{max-width:1160px;margin:44px auto 0;padding-top:22px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;line-height:1.6;text-align:center}
+  .foot b{color:var(--ink-2);font-weight:600}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  [hidden]{display:none !important}
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only">Prototipo de las apps móviles Rumbo para deportistas y voluntarios, en azul.</h2>
+  <div class="container">
+
+    <div class="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 5 21l7-4 7 4z"/></svg>
+        </div>
+        <div>
+          <h1>Rumbo <span class="tag">placeholder</span></h1>
+          <p>Movilidad accesible · deportistas + voluntarios</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="palettes" role="group" aria-label="Elegir paleta de azul">
+          <span class="lbl">Azul</span>
+          <button class="swatch" data-pal="confianza" title="Confianza" aria-pressed="true" style="background:#1E5AE6"></button>
+          <button class="swatch" data-pal="electrico" title="Eléctrico" aria-pressed="false" style="background:#2F6BFF"></button>
+          <button class="swatch" data-pal="indigo" title="Índigo" aria-pressed="false" style="background:#4F46E5"></button>
+          <button class="swatch" data-pal="oceano" title="Océano" aria-pressed="false" style="background:#0E7FB8"></button>
+        </div>
+        <button class="theme-btn" id="themeBtn" aria-label="Cambiar tema">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <span id="themeLbl">Tema</span>
+        </button>
+      </div>
+    </div>
+
+    <p class="lede">Prototipo navegable de las <b>dos apps móviles</b> en azul. Cambia entre <b>Deportista</b> y <b>Voluntario</b> y revisa las pantallas clave. Es una base para <b>iterar el diseño</b>: dime qué mover y lo re-despliego.</p>
+
+    <div class="tabs" role="tablist" aria-label="Elegir app">
+      <button class="tab" role="tab" id="tab-dep" aria-selected="true" aria-controls="app-dep">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.4"/><path d="M12 8v6l-3 6M12 14l3 6M7 11h10"/></svg>
+        Deportista
+      </button>
+      <button class="tab" role="tab" id="tab-vol" aria-selected="false" aria-controls="app-vol">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-5a2 2 0 0 1 1.9-1.3h8.2A2 2 0 0 1 19 8l2 5v5h-3M3 18v-5m0 5h3m9 0H9m-3 0a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0zm9 0a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0z"/></svg>
+        Voluntario
+      </button>
+    </div>
+
+    <!-- ================= APP DEPORTISTA ================= -->
+    <section id="app-dep" role="tabpanel" aria-labelledby="tab-dep">
+      <p class="app-caption">Enfoque en accesibilidad universal: solicitar acompañamiento en pocos toques, seguimiento en vivo, botón de pánico siempre visible y logros que motivan a entrenar.</p>
+      <div class="gallery">
+
+        <!-- D1 Inicio / mapa -->
+        <div class="device">
+          <div class="screencap"><span class="n">1</span><span class="t">Inicio · mapa en vivo</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4C7 4 3 7 1 11l11 9 11-9c-2-4-6-7-11-7z" opacity=".9"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="ab">
+              <div class="av">CV</div>
+              <div><div class="hi">Buenas tardes</div><div class="nm">Camila Vera</div></div>
+              <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+            </div>
+            <div class="body"><div class="map">
+              <svg viewBox="0 0 288 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect x="30" y="40" width="90" height="70" rx="6" fill="var(--map-park)"/>
+                <g stroke="var(--map-road)" stroke-width="13" stroke-linecap="round"><path d="M-10 130H300"/><path d="M-10 250H300"/><path d="M70 -10V420"/><path d="M200 -10V420"/></g>
+                <g stroke="var(--map-road-2)" stroke-width="5"><path d="M-10 190H300"/><path d="M140 -10V420"/></g>
+                <path d="M70 250 L70 190 L140 190 L140 130" fill="none" stroke="var(--brand)" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 11" opacity=".8"/>
+              </svg>
+              <div class="pulse" style="left:70px;top:250px"></div>
+              <div class="pin me" style="left:70px;top:255px"><div class="dot"></div></div>
+              <div class="pin vol" style="left:118px;top:150px"><div class="dot"></div></div>
+              <div class="pin vol" style="left:205px;top:230px"><div class="dot"></div></div>
+              <div class="float top"><div class="card row" style="padding:10px 12px"><div class="ico b" style="width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg></div><div style="line-height:1.25"><div class="tiny muted">Recogida</div><div style="font-size:13px;font-weight:600">Casa · Av. Los Leones 220</div></div></div></div>
+              <div class="float bottom">
+                <div class="chiprow" style="margin-bottom:10px">
+                  <span class="chip on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6l4 2"/><circle cx="12" cy="12" r="10"/></svg>Entrenamiento</span>
+                  <span class="chip">Estadio</span>
+                  <span class="chip">CDA</span>
+                </div>
+                <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Solicitar acompañamiento</button>
+              </div>
+            </div></div>
+            <div class="tb">
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Viajes</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Logros</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Perfil</a>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- D2 Solicitar -->
+        <div class="device">
+          <div class="screencap"><span class="n">2</span><span class="t">Solicitar acompañamiento</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="ab-title"><h2>Nueva solicitud</h2><p>Cuéntanos a dónde y qué apoyo necesitas</p></div>
+            <div class="body"><div class="body-pad" style="height:100%;overflow:hidden">
+              <div class="card" style="padding:0;overflow:hidden">
+                <div class="list-item" style="padding:12px 13px"><div class="ico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/></svg></div><div><div class="tiny muted">Origen</div><div style="font-size:13.5px;font-weight:600">Casa · Av. Los Leones 220</div></div></div>
+                <div class="list-item" style="padding:12px 13px"><div class="ico d"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg></div><div><div class="tiny muted">Destino</div><div style="font-size:13.5px;font-weight:600">Centro de Alto Rendimiento</div></div></div>
+              </div>
+              <p class="tiny muted" style="margin:14px 4px 8px;font-weight:600;letter-spacing:.02em">APOYO QUE NECESITO</p>
+              <div class="chiprow" style="flex-wrap:wrap;gap:8px">
+                <span class="chip on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l3 3M6 12a6 6 0 1 0 9 5"/></svg>Silla de ruedas</span>
+                <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20l6-16 4 9 3-4"/></svg>Guía visual</span>
+                <span class="chip">Rampa</span>
+                <span class="chip">Acompañante</span>
+              </div>
+              <div class="card" style="margin-top:14px"><div class="row"><div class="ico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">Hoy, 17:30</div><div class="tiny muted">Llegar 15 min antes</div></div><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ink-3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div></div>
+            </div></div>
+            <div style="padding:12px 16px;border-top:1px solid var(--line);flex:none"><button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>Buscar voluntario</button></div>
+          </div></div>
+        </div>
+
+        <!-- D3 En viaje + panic -->
+        <div class="device">
+          <div class="screencap"><span class="n">3</span><span class="t">En viaje · pánico visible</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="body">
+              <div class="map" style="height:198px">
+                <svg viewBox="0 0 288 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  <g stroke="var(--map-road)" stroke-width="13" stroke-linecap="round"><path d="M-10 70H300"/><path d="M120 -10V220"/></g>
+                  <g stroke="var(--map-road-2)" stroke-width="5"><path d="M-10 140H300"/></g>
+                  <path d="M40 175 L40 70 L120 70 L120 20" fill="none" stroke="var(--brand)" stroke-width="6" stroke-linecap="round"/>
+                </svg>
+                <div class="pin vol" style="left:40px;top:178px"><div class="dot"></div></div>
+                <div class="pin dest" style="left:120px;top:24px"><svg viewBox="0 0 24 24" width="26" height="26" fill="var(--danger)" stroke="#fff" stroke-width="1.5"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/></svg></div>
+                <div class="float top"><span class="badge b" style="background:var(--surface);border:1px solid var(--line);color:var(--brand);box-shadow:var(--shadow)">En camino · llega en 6 min</span></div>
+              </div>
+              <div class="body-pad" style="padding-top:12px">
+                <div class="card"><div class="row"><div class="av" style="width:44px;height:44px;background:var(--gold);color:#3a2405;border-radius:50%;display:grid;place-items:center;font-weight:700">MP</div><div style="flex:1"><div style="font-size:14.5px;font-weight:700">Marco Peña</div><div class="tiny muted">Toyota Yaris · BCDF·24</div></div><span class="badge g"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" style="vertical-align:-1px"><path d="M12 2l3 7 7 .5-5.5 4.5 2 7L12 17l-6.5 4 2-7L2 9.5 9 9z"/></svg> 4,9</span></div>
+                  <div class="row" style="margin-top:11px;gap:8px"><button class="btn btn-ghost" style="padding:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.8 2z"/></svg>Llamar</button><button class="btn btn-ghost" style="padding:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat</button></div>
+                </div>
+              </div>
+              <div class="float bottom"><div class="row" style="gap:9px">
+                <button class="btn btn-danger" style="flex:2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Botón de pánico</button>
+                <button class="btn btn-ghost" style="flex:1;padding:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v14"/></svg>Compartir</button>
+              </div></div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- D4 Logros -->
+        <div class="device">
+          <div class="screencap"><span class="n">4</span><span class="t">Logros · gamificación</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="ab-title"><h2>Tus logros</h2><p>Nivel 4 · Atleta constante</p></div>
+            <div class="body"><div class="body-pad">
+              <div class="card" style="text-align:center;background:var(--brand);border-color:transparent;color:#fff">
+                <div class="tiny" style="opacity:.85;font-weight:600">PUNTOS RUMBO</div>
+                <div style="font-size:34px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0 8px">1.240</div>
+                <div class="prog" style="background:rgba(255,255,255,.25)"><i style="width:62%;background:var(--gold)"></i></div>
+                <div class="tiny" style="opacity:.85;margin-top:6px">160 pts para Nivel 5</div>
+              </div>
+              <p class="tiny muted" style="margin:14px 4px 9px;font-weight:600;letter-spacing:.02em">INSIGNIAS</p>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+                <div class="medal"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold-ink)" stroke-width="2"><circle cx="12" cy="9" r="6"/><path d="M9 14l-2 7 5-3 5 3-2-7"/></svg><span class="lb">10 viajes</span></div>
+                <div class="medal"><svg viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2"><path d="M12 2v6l4 2"/><circle cx="12" cy="14" r="8"/></svg><span class="lb">Puntual</span></div>
+                <div class="medal"><svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg><span class="lb">Racha 7</span></div>
+                <div class="medal lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="lb">Maratón</span></div>
+              </div>
+              <p class="tiny muted" style="margin:16px 4px 6px;font-weight:600;letter-spacing:.02em">RANKING SEMANAL</p>
+              <div class="card" style="padding:4px 12px">
+                <div class="lead"><span class="pos">2</span><span class="av2" style="background:var(--gold)">DR</span><div style="flex:1;font-size:13px;font-weight:600">Daniela R.</div><span class="tiny" style="font-weight:700">1.410</span></div>
+                <div class="lead you"><span class="pos">3</span><span class="av2" style="background:var(--brand)">CV</span><div style="flex:1;font-size:13px;font-weight:700">Tú</div><span class="tiny" style="font-weight:700">1.240</span></div>
+              </div>
+            </div></div>
+            <div class="tb">
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Viajes</a>
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Logros</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Perfil</a>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- D5 Perfil accesible -->
+        <div class="device">
+          <div class="screencap"><span class="n">5</span><span class="t">Perfil · accesibilidad</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="body"><div class="body-pad" style="padding-top:14px">
+              <div style="text-align:center;padding:6px 0 14px">
+                <div class="av" style="width:72px;height:72px;font-size:26px;margin:0 auto;background:var(--brand)">CV</div>
+                <div style="font-size:17px;font-weight:700;margin-top:9px">Camila Vera</div>
+                <div class="tiny muted">Paratletismo · Santiago</div>
+              </div>
+              <p class="tiny muted" style="margin:2px 4px 8px;font-weight:600;letter-spacing:.02em">ACCESIBILIDAD</p>
+              <div class="card" style="padding:2px 13px">
+                <div class="list-item"><div class="ico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div><div style="flex:1;font-size:13.5px;font-weight:600">Lectura por voz<div class="tiny muted" style="font-weight:400">VoiceOver / TalkBack</div></div><div class="switch"></div></div>
+                <div class="list-item"><div class="ico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18" opacity=".4"/><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg></div><div style="flex:1;font-size:13.5px;font-weight:600">Alto contraste</div><div class="switch"></div></div>
+                <div class="list-item"><div class="ico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5h16v2M9 20h6M12 5v15"/></svg></div><div style="flex:1;font-size:13.5px;font-weight:600">Texto grande</div><div class="switch off"></div></div>
+                <div class="list-item"><div class="ico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 6h2"/></svg></div><div style="flex:1;font-size:13.5px;font-weight:600">Vibración de avisos</div><div class="switch"></div></div>
+              </div>
+              <p class="tiny muted" style="margin:14px 4px 8px;font-weight:600;letter-spacing:.02em">CONTACTOS DE EMERGENCIA</p>
+              <div class="card"><div class="row"><div class="ico d"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6-8 11-8 11z"/></svg></div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">Rodrigo Vera</div><div class="tiny muted">Hermano · +56 9 8765 4321</div></div><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ink-3)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div></div>
+            </div></div>
+            <div class="tb">
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Viajes</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Logros</a>
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Perfil</a>
+            </div>
+          </div></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= APP VOLUNTARIO ================= -->
+    <section id="app-vol" role="tabpanel" aria-labelledby="tab-vol" hidden>
+      <p class="app-caption">Optimizada para conducir: interruptor en línea/fuera de línea, solicitudes con temporizador, navegación con hitos del viaje y reconocimiento por su aporte.</p>
+      <div class="gallery">
+
+        <!-- V1 Inicio online -->
+        <div class="device">
+          <div class="screencap"><span class="n">1</span><span class="t">Inicio · en línea</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="ab">
+              <div class="av" style="background:var(--gold);color:#3a2405">MP</div>
+              <div><div class="hi">Voluntario</div><div class="nm">Marco Peña</div></div>
+              <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+            </div>
+            <div class="body"><div class="body-pad" style="padding-top:6px">
+              <div class="card" style="background:var(--success-soft);border-color:transparent"><div class="row"><div><div style="font-size:15px;font-weight:700;color:var(--success)">Estás en línea</div><div class="tiny muted">Recibiendo solicitudes cercanas</div></div><div class="switch" style="margin-left:auto" role="switch" aria-checked="true"></div></div></div>
+              <div class="row" style="gap:9px;margin-top:12px">
+                <div class="stat"><div class="v">3</div><div class="k">Viajes hoy</div></div>
+                <div class="stat"><div class="v">28</div><div class="k">km</div></div>
+                <div class="stat"><div class="v">+90</div><div class="k">Puntos</div></div>
+              </div>
+              <div class="map" style="height:196px;border-radius:14px;margin-top:12px;border:1px solid var(--line)">
+                <svg viewBox="0 0 260 196" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g stroke="var(--map-road)" stroke-width="12" stroke-linecap="round"><path d="M-10 60H280"/><path d="M-10 140H280"/><path d="M90 -10V210"/><path d="M180 -10V210"/></g></svg>
+                <div class="pulse" style="left:130px;top:98px"></div>
+                <div class="pin me" style="left:130px;top:103px"><div class="dot" style="background:var(--gold)"></div></div>
+                <div class="pin" style="left:90px;top:60px"><div class="dot" style="background:var(--brand)"></div></div>
+                <div class="pin" style="left:180px;top:140px"><div class="dot" style="background:var(--brand)"></div></div>
+              </div>
+            </div></div>
+            <div class="tb">
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Historial</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Ranking</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Perfil</a>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- V2 Solicitud entrante -->
+        <div class="device">
+          <div class="screencap"><span class="n">2</span><span class="t">Solicitud entrante</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="body" style="background:var(--surface-2)"><div class="body-pad" style="padding-top:18px">
+              <div style="text-align:center;margin-bottom:6px"><span class="badge b" style="font-size:12px">Nueva solicitud</span></div>
+              <div class="ring" style="--p:72"><div><b>18</b><span>seg</span></div></div>
+              <div class="card" style="margin-top:16px">
+                <div class="row"><div class="av" style="width:46px;height:46px;background:var(--brand);border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700">CV</div><div style="flex:1"><div style="font-size:15px;font-weight:700">Camila Vera</div><div class="tiny muted">Paratletismo</div></div><span class="badge g">4,9</span></div>
+                <div style="display:flex;gap:8px;margin:11px 0 2px;flex-wrap:wrap"><span class="badge b"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><circle cx="12" cy="5" r="2"/><path d="M12 7v5M6 12a6 6 0 1 0 9 5"/></svg> Silla de ruedas</span><span class="badge b">Rampa</span></div>
+                <div class="timeline" style="margin-top:13px">
+                  <div class="tl done">Recoger · Av. Los Leones 220<small>2,1 km · 6 min</small></div>
+                  <div class="tl">Dejar · Centro de Alto Rendimiento<small>8,4 km · 21 min</small></div>
+                </div>
+              </div>
+              <div class="row" style="gap:10px;margin-top:14px">
+                <button class="btn btn-ghost" style="flex:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>Rechazar</button>
+                <button class="btn btn-primary" style="flex:1.6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>Aceptar viaje</button>
+              </div>
+            </div></div>
+          </div></div>
+        </div>
+
+        <!-- V3 Navegación / hitos -->
+        <div class="device">
+          <div class="screencap"><span class="n">3</span><span class="t">Viaje activo · hitos</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="body">
+              <div class="map" style="height:236px">
+                <svg viewBox="0 0 288 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g stroke="var(--map-road)" stroke-width="14" stroke-linecap="round"><path d="M-10 90H300"/><path d="M150 -10V260"/></g><path d="M60 220 L60 90 L150 90 L150 30" fill="none" stroke="var(--brand)" stroke-width="7" stroke-linecap="round"/></svg>
+                <div class="pin me" style="left:60px;top:222px"><div class="dot" style="background:var(--gold)"></div></div>
+                <div class="pin dest" style="left:150px;top:34px"><svg viewBox="0 0 24 24" width="26" height="26" fill="var(--danger)" stroke="#fff" stroke-width="1.5"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/></svg></div>
+                <div class="float top"><div class="card row" style="padding:11px 13px;box-shadow:var(--shadow)"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="var(--brand)" stroke-width="2.4"><path d="M12 19V6M6 12l6-6 6 6"/></svg><div style="line-height:1.25"><div style="font-size:15px;font-weight:700">Gira a la izquierda</div><div class="tiny muted">Av. Grecia · 300 m</div></div></div></div>
+              </div>
+              <div class="body-pad" style="padding-top:12px">
+                <p class="tiny muted" style="margin:0 4px 8px;font-weight:600;letter-spacing:.02em">HITOS DEL VIAJE</p>
+                <div class="timeline">
+                  <div class="tl done">Solicitud aceptada<small>17:12</small></div>
+                  <div class="tl done">Deportista a bordo<small>17:24</small></div>
+                  <div class="tl now">En ruta al destino<small>Llegada estimada 17:45</small></div>
+                  <div class="tl">Viaje finalizado</div>
+                </div>
+              </div>
+              <div class="float bottom"><button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>Confirmar llegada</button></div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- V4 Ranking -->
+        <div class="device">
+          <div class="screencap"><span class="n">4</span><span class="t">Ranking · reconocimiento</span></div>
+          <div class="phone"><div class="notch"></div><div class="screen">
+            <div class="sb"><span>9:41</span><span class="r"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h3v-8H2zM9 22h3V6H9zM16 22h3V2h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4"/></svg></span></div>
+            <div class="ab-title"><h2>Ranking de voluntarios</h2><p>Comunidad Santiago · esta semana</p></div>
+            <div class="body"><div class="body-pad">
+              <div class="card" style="background:var(--gold-soft);border-color:transparent">
+                <div class="row"><div class="ico g" style="background:var(--gold);color:#3a2405"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--gold-ink)">Tu posición</div><div style="font-size:19px;font-weight:800;color:var(--gold-ink)">#5 de 128</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:800;font-variant-numeric:tabular-nums">980</div><div class="tiny" style="color:var(--gold-ink)">puntos</div></div></div>
+              </div>
+              <div class="card" style="margin-top:12px;padding:4px 13px">
+                <div class="lead"><span class="pos">1</span><span class="av2" style="background:var(--gold)">LT</span><div style="flex:1;font-size:13px;font-weight:600">Lucía T.</div><span class="tiny" style="font-weight:700">1.320</span></div>
+                <div class="lead"><span class="pos">2</span><span class="av2" style="background:var(--brand)">JS</span><div style="flex:1;font-size:13px;font-weight:600">Javier S.</div><span class="tiny" style="font-weight:700">1.180</span></div>
+                <div class="lead"><span class="pos">3</span><span class="av2" style="background:var(--brand)">PM</span><div style="flex:1;font-size:13px;font-weight:600">Paula M.</div><span class="tiny" style="font-weight:700">1.050</span></div>
+                <div class="lead you"><span class="pos">5</span><span class="av2" style="background:var(--gold);color:#3a2405">MP</span><div style="flex:1;font-size:13px;font-weight:700">Tú · Marco P.</div><span class="tiny" style="font-weight:700">980</span></div>
+              </div>
+              <p class="tiny muted" style="margin:14px 4px 8px;font-weight:600;letter-spacing:.02em">PRÓXIMO PREMIO</p>
+              <div class="card"><div class="row"><div class="ico g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M5 12v9h14v-9M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8M16.5 8a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8"/></svg></div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">Kit deportivo Rumbo</div><div class="tiny muted">1.000 pts · te faltan 20</div></div></div><div class="prog" style="margin-top:10px"><i style="width:96%"></i></div></div>
+            </div></div>
+            <div class="tb">
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Inicio</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Historial</a>
+              <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>Ranking</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Perfil</a>
+            </div>
+          </div></div>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="foot">
+      <b>Rumbo</b> · prototipo de diseño en azul · nombre y logo son placeholder.<br>
+      Base para iterar: dime paleta, tipografía, pantallas o componentes a ajustar y lo actualizo en esta misma vista.
+    </div>
+
+  </div>
+</div>
+
+<script>
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('themeBtn'), lbl=document.getElementById('themeLbl');
+    function cur(){var t=root.getAttribute('data-theme'); if(t) return t; return matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}
+    btn.addEventListener('click',function(){var n=cur()==='dark'?'light':'dark'; root.setAttribute('data-theme',n); lbl.textContent=n==='dark'?'Oscuro':'Claro';});
+
+    // Selector de paleta: cada dirección de azul reescribe los tokens de marca.
+    var PALETAS={
+      confianza:['#1E5AE6','#1544B8','#E7EEFF','#0C447C'],
+      electrico:['#2F6BFF','#1D4FD8','#E6EEFF','#123A8A'],
+      indigo:['#4F46E5','#3B34C4','#ECEBFD','#2E2A7A'],
+      oceano:['#0E7FB8','#0A5E8A','#E1F0FA','#08405E']
+    };
+    var swatches=[].slice.call(document.querySelectorAll('.swatch'));
+    swatches.forEach(function(sw){
+      sw.addEventListener('click',function(){
+        var v=PALETAS[sw.getAttribute('data-pal')]; if(!v) return;
+        root.style.setProperty('--brand',v[0]);
+        root.style.setProperty('--brand-strong',v[1]);
+        root.style.setProperty('--brand-soft',v[2]);
+        swatches.forEach(function(s){s.setAttribute('aria-pressed', s===sw?'true':'false');});
+      });
+    });
+
+    var tabs={dep:document.getElementById('tab-dep'), vol:document.getElementById('tab-vol')};
+    var panels={dep:document.getElementById('app-dep'), vol:document.getElementById('app-vol')};
+    function sel(k){for(var x in tabs){var on=x===k; tabs[x].setAttribute('aria-selected',on?'true':'false'); panels[x].hidden=!on;} window.scrollTo({top:0,behavior:'smooth'});}
+    tabs.dep.addEventListener('click',function(){sel('dep');});
+    tabs.vol.addEventListener('click',function(){sel('vol');});
+  })();
+</script>

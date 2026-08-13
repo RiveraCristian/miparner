@@ -1,0 +1,27 @@
+# ==========================================================================
+# Rumbo — orquestación de contenedores.
+# REGLA: PostgreSQL NO va aquí. La base de datos (PostgreSQL + PostGIS) corre
+# nativa en el host o en Cloud SQL, y se consume vía DATABASE_URL.
+# ==========================================================================
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rumbo-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Dentro del contenedor, "localhost" es el contenedor: apuntar al host.
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-4000}
+    ports:
+      - "${PORT:-4000}:4000"
+    # Permite resolver el PostgreSQL del host desde Linux (en Docker Desktop ya existe).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # frontend (landing pública + panel admin) se agrega en su fase.
+  # data-science: NO se incluye — la app es transaccional + tiempo real.

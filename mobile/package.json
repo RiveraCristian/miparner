@@ -1,0 +1,8 @@
+{
+  "name": "rumbo-mobile",
+  "private": true,
+  "workspaces": [
+    "deportista",
+    "voluntario"
+  ]
+}

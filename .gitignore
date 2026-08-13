@@ -1,0 +1,41 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Builds
+dist/
+build/
+**/dist/
+**/build/
+
+# Entorno / secretos
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Llaves de despliegue (nunca versionar)
+gcp-deployer-key.json
+*.pem
+*.key
+
+# Prisma
+backend/prisma/*.db
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Sistema operativo / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# React Native / móvil
+mobile/**/android/app/build/
+mobile/**/ios/Pods/
+mobile/**/.gradle/
