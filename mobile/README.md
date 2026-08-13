@@ -9,7 +9,7 @@ Dos apps que comparten una capa común en [`shared/`](shared/):
 
 ```
 mobile/
-├── shared/        # tema (azul), api, socket, auth, tipos, componentes UI
+├── shared/        # tema, marca, api, socket, auth, tipos, componentes UI
 ├── deportista/    # RN CLI: config + src/ (App, navegación, pantallas)
 └── voluntario/    # RN CLI: config + src/
 ```
@@ -23,33 +23,71 @@ vez desde `mobile/` (`npm install`), no por app.
 - El backend corriendo (`../backend`). En el emulador Android el host es `10.0.2.2`
   (ya configurado en `shared/config.ts`); en simulador iOS es `localhost`.
 
-## Generar los shells nativos (una vez por app)
+## Proyecto nativo de Android
 
-Estas carpetas traen el código JS/TS y la configuración, pero **no** los proyectos
-nativos `android/` e `ios/` (se generan en tu equipo con las herramientas nativas).
-Para cada app (ejemplo con Deportista):
+`android/` **ya está en el repo** para las dos apps, generado desde la plantilla
+oficial de RN 0.76.5 y adaptado:
 
-```bash
-# 1) Genera un proyecto RN temporal con el MISMO nombre de app
-npx @react-native-community/cli@latest init Deportista --version 0.76.5
+| | Deportista | Voluntario |
+|---|---|---|
+| `applicationId` | `cl.miparner.deportista` | `cl.miparner.voluntario` |
+| Nombre en el launcher | Miparner | Miparner Voluntario |
+| Icono | color sobre lavanda | blanco sobre índigo |
 
-# 2) Copia SOLO las carpetas nativas al proyecto de este repo
-cp -r Deportista/android mobile/deportista/android
-cp -r Deportista/ios     mobile/deportista/ios
-# (repetir con "Voluntario" → mobile/voluntario)
+Los iconos de launcher salen del isotipo del manual, en las cinco densidades. Se
+regeneran con `design/scripts/gen_mipmaps.py`.
+
+`local.properties` (la ruta del SDK) no se versiona: es propia de cada equipo. Si no
+existe, créalo dentro de `<app>/android/`:
+
+```
+sdk.dir=C:\Users\TU_USUARIO\AppData\Local\Android\Sdk
 ```
 
-> El `app.json` de cada carpeta ya define el nombre (`Deportista` / `Voluntario`)
-> para que coincida con `AppRegistry.registerComponent`.
+### Rutas de Gradle en el monorepo
+
+Como las dependencias se hoistean a `mobile/node_modules`, las rutas por defecto de
+la plantilla apuntan un nivel más abajo de donde están. Ya viene corregido:
+
+- `android/settings.gradle` → `../../node_modules/@react-native/gradle-plugin`
+- `android/app/build.gradle`, bloque `react { }` → `root`, `reactNativeDir`,
+  `codegenDir` y `cliFile` con un `../` extra.
+
+### iOS
+
+`ios/` sigue sin generarse: requiere macOS con Xcode. Mismo procedimiento —
+`npx @react-native-community/cli@15.0.1 init Deportista --version 0.76.5`, copiar
+`ios/` y renombrar bundle id y display name.
+
+## Versiones de los módulos nativos: van fijas, sin caret
+
+Los módulos con código nativo están acoplados a la versión de React Native. Con
+rangos `^` entran versiones compiladas contra una RN más nueva y el build falla de
+formas poco obvias:
+
+| Módulo | Fijado | Qué pasa si deriva |
+|---|---|---|
+| `react-native-screens` | `4.4.0` | 4.27 declara props que el codegen de RN 0.76.5 no entiende |
+| `react-native-svg` | `15.9.0` | 15.15 usa `yoga::StyleSizeLength`, que no existe hasta RN 0.77 |
+| `react-native-safe-area-context` | `5.0.0` | — |
+| `@react-native-async-storage/async-storage` | `2.1.0` | — |
+
+Al subir de versión React Native, estas cuatro se suben **a la vez** y se comprueba
+el build nativo, no solo el typecheck.
 
 ## Instalar y correr
 
 ```bash
-cd mobile/deportista        # o mobile/voluntario
+cd mobile                   # el workspace: instala una sola vez, no por app
 npm install
-npm run android             # o: npm run ios
-# En otra terminal, si hace falta: npm start
+
+cd deportista               # o voluntario
+npm start                   # Metro, en una terminal
+npm run android             # en otra
 ```
+
+Si el backend no está en el 4000 (por ejemplo porque el puerto está ocupado), se
+cambia `PUERTO` en [`shared/config.ts`](shared/config.ts): es el único lugar donde vive.
 
 ## Integraciones pendientes de configuración nativa
 - **Mapas**: hoy se usa un `MapPlaceholder`. Para mapas reales, instalar
@@ -59,6 +97,6 @@ npm run android             # o: npm run ios
 - **Íconos**: `lucide-react-native` requiere `react-native-svg` (ya en dependencias).
 
 ## Estado
-Código de UI y lógica completo y cableado al backend real (auth, viajes,
-matchmaking, tiempo real por Socket.io, pánico, gamificación). La compilación
-nativa y ejecución en dispositivo/emulador se realizan en tu entorno.
+UI y lógica completas y cableadas al backend real (auth, viajes, matchmaking,
+tiempo real por Socket.io, pánico, gamificación). Android compila y corre en
+emulador. iOS pendiente de generar en macOS.

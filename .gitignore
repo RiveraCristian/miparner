@@ -37,5 +37,13 @@ Thumbs.db
 
 # React Native / móvil
 mobile/**/android/app/build/
+mobile/**/android/build/
+mobile/**/android/.gradle/
+mobile/**/android/.cxx/
+mobile/**/android/app/.cxx/
+# Ruta del SDK: es propia de cada máquina
+mobile/**/android/local.properties
+# Firma de release (la debug sí se versiona, la genera la plantilla)
+mobile/**/android/app/release.keystore
 mobile/**/ios/Pods/
 mobile/**/.gradle/

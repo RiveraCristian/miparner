@@ -4,5 +4,12 @@
   "workspaces": [
     "deportista",
     "voluntario"
-  ]
+  ],
+  "overrides": {
+    "react-native-screens": "4.4.0",
+    "react-native-svg": "15.9.0",
+    "react-native-safe-area-context": "5.0.0",
+    "@react-native-async-storage/async-storage": "2.1.0"
+  },
+  "comentario-overrides": "Los modulos con codigo nativo estan acoplados a React Native 0.76.5. Sin overrides, los peerDependencies de @react-navigation (react-native-screens >= 4.0.0) hacen que npm instale la ultima version en la raiz del workspace, y entonces el lado JS resuelve una version distinta de la que compilo el lado nativo. Los overrides garantizan una sola copia de cada modulo en todo el arbol. Ver mobile/README.md."
 }
