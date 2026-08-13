@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MapPin } from "lucide-react-native";
-import { colors } from "../../../shared/theme";
+import { Inbox, MapPin } from "lucide-react-native";
+import { colors, font } from "../../../shared/theme";
 import { api } from "../../../shared/api";
-import { Badge, Card, Loading, PrimaryButton, Screen } from "../../../shared/ui";
+import { Card, Estado, Loading, PrimaryButton, Screen, Vacio } from "../../../shared/ui";
 import type { SolicitudCercana } from "../../../shared/types";
 import type { RootStackParams } from "../navigation";
 
@@ -30,34 +30,61 @@ export function SolicitudesScreen() {
 
   return (
     <Screen>
-      {items.length === 0 && <Text style={{ color: colors.ink3, textAlign: "center", marginTop: 40 }}>No hay solicitudes cercanas por ahora.</Text>}
+      {items.length === 0 ? (
+        <Vacio
+          icon={Inbox}
+          titulo="No hay solicitudes cerca"
+          detalle="Mantente en línea: te avisamos en cuanto alguien pida acompañamiento por tu zona."
+        />
+      ) : null}
+
       {items.map((s) => (
-        <Card key={s.viaje_id} style={{ marginBottom: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ color: "#fff", fontWeight: "700" }}>{s.deportista_nombre.slice(0, 2).toUpperCase()}</Text>
+        <Card key={s.viaje_id} style={{ marginBottom: 14 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarTexto}>{s.deportista_nombre.slice(0, 2).toUpperCase()}</Text>
             </View>
-            <View style={{ flex: 1, marginLeft: 11 }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: colors.ink }}>{s.deportista_nombre}</Text>
-              <Text style={{ fontSize: 12.5, color: colors.ink2 }}>a {Math.round(s.distancia_m)} m de ti</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[font.h3]} numberOfLines={1}>{s.deportista_nombre}</Text>
+              <Text style={font.muted}>a {Math.round(s.distancia_m)} m de ti</Text>
             </View>
           </View>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-            {(s.viaje_necesidades ?? []).map((n) => <Badge key={n} text={n} tone="brand" />)}
-          </View>
+          {(s.viaje_necesidades ?? []).length > 0 && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+              {(s.viaje_necesidades ?? []).map((n) => (
+                <Estado key={n} text={n.replace(/_/g, " ")} tipo="indigo" />
+              ))}
+            </View>
+          )}
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 }}>
-            <MapPin color={colors.ink3} size={15} />
-            <Text style={{ fontSize: 13, color: colors.ink2, flex: 1 }} numberOfLines={1}>
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 9, marginTop: 12 }}>
+            <MapPin color={colors.ink4} size={18} style={{ marginTop: 2 }} />
+            <Text style={[font.muted, { flex: 1 }]}>
               {s.viaje_origen_texto ?? "Origen"} → {s.viaje_destino_texto ?? "Destino"}
             </Text>
           </View>
 
-          <View style={{ height: 12 }} />
-          <PrimaryButton title={busy === s.viaje_id ? "Aceptando…" : "Aceptar viaje"} disabled={busy === s.viaje_id} onPress={() => aceptar(s.viaje_id)} />
+          <View style={{ height: 16 }} />
+          <PrimaryButton
+            title={busy === s.viaje_id ? "Aceptando…" : "Aceptar viaje"}
+            disabled={busy === s.viaje_id}
+            onPress={() => aceptar(s.viaje_id)}
+          />
         </Card>
       ))}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.indigo,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarTexto: { color: colors.white, fontSize: 16, fontWeight: "600" },
+});

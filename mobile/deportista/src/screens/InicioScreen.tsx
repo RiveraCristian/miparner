@@ -3,10 +3,20 @@ import { Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Plus, Navigation } from "lucide-react-native";
-import { colors } from "../../../shared/theme";
+import { colors, font } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
-import { Card, MapPlaceholder, PrimaryButton, GhostButton, Pill, Screen, Badge } from "../../../shared/ui";
+import {
+  CardLavanda,
+  Estado,
+  Etiqueta,
+  GhostButton,
+  MapPlaceholder,
+  Pill,
+  PrimaryButton,
+  PuntoMapa,
+  Screen,
+} from "../../../shared/ui";
 import type { RootStackParams } from "../navigation";
 
 interface ViajeItem {
@@ -33,34 +43,44 @@ export function InicioScreen() {
 
   return (
     <Screen>
-      <Text style={{ fontSize: 13, color: colors.ink3 }}>Hola de nuevo</Text>
-      <Text style={{ fontSize: 24, fontWeight: "800", color: colors.ink, marginBottom: 16 }}>{user?.nombre}</Text>
+      <Etiqueta>Hola de nuevo</Etiqueta>
+      <Text style={[font.h1, { marginTop: 4, marginBottom: 20 }]}>{user?.nombre}</Text>
 
       {activo && (
-        <Card style={{ marginBottom: 14, borderColor: colors.brandSoft, backgroundColor: colors.brandSoft }}>
-          <Badge text="Viaje en curso" tone="brand" />
-          <Text style={{ fontSize: 15, fontWeight: "700", color: colors.ink, marginTop: 8 }} numberOfLines={1}>
+        <CardLavanda style={{ marginBottom: 16 }}>
+          <Estado text="Viaje en curso" tipo="indigo" />
+          <Text style={[font.h3, { marginTop: 10 }]} numberOfLines={1}>
             {activo.viajeDestinoTexto ?? "Destino"}
           </Text>
-          <Text style={{ fontSize: 12.5, color: colors.ink2, marginBottom: 12 }}>Estado: {activo.viajeEstado.replace("_", " ")}</Text>
-          <PrimaryButton title="Ver seguimiento" icon={<Navigation color="#fff" size={17} />} onPress={() => nav.navigate("EnViaje", { viajeId: activo.viajeId })} />
-        </Card>
+          <Text style={[font.muted, { marginBottom: 14 }]}>
+            {activo.viajeEstado.replace(/_/g, " ")}
+          </Text>
+          <PrimaryButton
+            title="Ver seguimiento"
+            icon={<Navigation color={colors.white} size={18} />}
+            onPress={() => nav.navigate("EnViaje", { viajeId: activo.viajeId })}
+          />
+        </CardLavanda>
       )}
 
       <MapPlaceholder height={200}>
-        <View style={{ position: "absolute", left: "34%", top: "60%", width: 16, height: 16, borderRadius: 8, backgroundColor: colors.brand, borderWidth: 3, borderColor: "#fff" }} />
-        <View style={{ position: "absolute", left: "62%", top: "30%", width: 14, height: 14, borderRadius: 7, backgroundColor: colors.gold, borderWidth: 3, borderColor: "#fff" }} />
+        <PuntoMapa left="34%" top="60%" color={colors.indigo} />
+        <PuntoMapa left="62%" top="30%" color={colors.coral} size={14} />
       </MapPlaceholder>
 
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.ink2, marginTop: 18, marginBottom: 10 }}>Destinos frecuentes</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Destinos frecuentes</Etiqueta>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
         <Pill label="Entrenamiento" active onPress={() => nav.navigate("Solicitar")} />
         <Pill label="Estadio" onPress={() => nav.navigate("Solicitar")} />
         <Pill label="Centro médico" onPress={() => nav.navigate("Solicitar")} />
       </View>
 
-      <PrimaryButton title="Solicitar acompañamiento" icon={<Plus color="#fff" size={18} />} onPress={() => nav.navigate("Solicitar")} />
-      <View style={{ height: 10 }} />
+      <PrimaryButton
+        title="Solicitar acompañamiento"
+        icon={<Plus color={colors.white} size={19} />}
+        onPress={() => nav.navigate("Solicitar")}
+      />
+      <View style={{ height: 12 }} />
       <GhostButton title="Ver mis viajes" onPress={() => nav.navigate("Solicitar")} />
     </Screen>
   );

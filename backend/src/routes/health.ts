@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma";
 const router = Router();
 
 router.get("/", async (_req, res) => {
-  res.json({ status: "ok", service: "rumbo-backend", time: new Date().toISOString() });
+  res.json({ status: "ok", service: "miparner-backend", time: new Date().toISOString() });
 });
 
 // Comprobación de conectividad con la base de datos.

@@ -9,7 +9,7 @@ const httpServer = createServer(app);
 initSocket(httpServer);
 
 httpServer.listen(env.PORT, () => {
-  console.log(`Rumbo backend escuchando en http://localhost:${env.PORT} [${env.NODE_ENV}]`);
+  console.log(`Miparner backend escuchando en http://localhost:${env.PORT} [${env.NODE_ENV}]`);
 });
 
 // Cierre ordenado

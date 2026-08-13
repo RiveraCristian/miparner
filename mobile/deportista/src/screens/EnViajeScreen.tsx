@@ -3,11 +3,21 @@ import { Alert, Text, View } from "react-native";
 import { useRoute, useNavigation, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Socket } from "socket.io-client";
-import { ShieldAlert, Share2, X } from "lucide-react-native";
-import { colors } from "../../../shared/theme";
+import { Circle, CircleDot, CheckCircle2, ShieldAlert, Share2, X } from "lucide-react-native";
+import { colors, font } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { connectSocket, joinRide, leaveRide, emitPanic } from "../../../shared/socket";
-import { Badge, Card, DangerButton, GhostButton, Loading, MapPlaceholder, Screen } from "../../../shared/ui";
+import {
+  Card,
+  DangerButton,
+  Estado,
+  Etiqueta,
+  GhostButton,
+  Loading,
+  MapPlaceholder,
+  PuntoMapa,
+  Screen,
+} from "../../../shared/ui";
 import type { Viaje } from "../../../shared/types";
 import type { RootStackParams } from "../navigation";
 
@@ -80,41 +90,60 @@ export function EnViajeScreen() {
   return (
     <Screen>
       <MapPlaceholder height={200}>
-        <View style={{ position: "absolute", left: "20%", top: "78%", width: 16, height: 16, borderRadius: 8, backgroundColor: colors.brand, borderWidth: 3, borderColor: "#fff" }} />
-        <View style={{ position: "absolute", left: "62%", top: "16%", width: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, borderWidth: 3, borderColor: "#fff" }} />
+        <PuntoMapa left="20%" top="78%" color={colors.indigo} />
+        <PuntoMapa left="62%" top="16%" color={colors.coral} size={18} />
       </MapPlaceholder>
 
-      <View style={{ alignItems: "center", marginTop: 14 }}>
-        <Badge text={ETIQUETAS[estado] ?? estado} tone={finalizado ? "success" : cancelado ? "danger" : "brand"} />
+      <View style={{ alignItems: "center", marginTop: 16 }}>
+        <Estado
+          text={ETIQUETAS[estado] ?? estado}
+          tipo={finalizado ? "exito" : cancelado ? "critico" : "indigo"}
+        />
       </View>
 
-      <Card style={{ marginTop: 14 }}>
-        <Text style={{ fontSize: 12, color: colors.ink3 }}>Destino</Text>
-        <Text style={{ fontSize: 15, fontWeight: "700", color: colors.ink }}>{viaje.destino.texto ?? "Destino"}</Text>
+      <Card style={{ marginTop: 16 }}>
+        <Etiqueta>Destino</Etiqueta>
+        <Text style={[font.h3, { marginTop: 4 }]}>{viaje.destino.texto ?? "Destino"}</Text>
       </Card>
 
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.ink2, marginTop: 18, marginBottom: 10 }}>Estado del viaje</Text>
-      <Card style={{ paddingVertical: 6 }}>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Estado del viaje</Etiqueta>
+      <Card style={{ paddingVertical: 8 }}>
         {ORDEN.map((k, i) => {
-          const done = i < idx;
-          const now = i === idx;
+          const hecho = i < idx;
+          const ahora = i === idx;
           return (
-            <View key={k} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
-              <View style={{ width: 12, height: 12, borderRadius: 6, marginRight: 12, backgroundColor: done ? colors.success : now ? colors.brand : colors.line }} />
-              <Text style={{ fontSize: 14, color: now ? colors.ink : colors.ink2, fontWeight: now ? "700" : "400" }}>{ETIQUETAS[k]}</Text>
+            <View key={k} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 9, gap: 12 }}>
+              {/* Icono además del color: el hito no se comunica solo con el punto. */}
+              {hecho ? (
+                <CheckCircle2 size={20} color={colors.exito} />
+              ) : ahora ? (
+                <CircleDot size={20} color={colors.indigo} />
+              ) : (
+                <Circle size={20} color={colors.ink4} />
+              )}
+              <Text
+                style={[
+                  font.body,
+                  { color: ahora || hecho ? colors.ink : colors.ink2, fontWeight: ahora ? "600" : "400" },
+                ]}
+              >
+                {ETIQUETAS[k]}
+              </Text>
+              {ahora ? <Text style={font.tiny}>· ahora</Text> : null}
             </View>
           );
         })}
       </Card>
 
-      <View style={{ height: 18 }} />
+      <View style={{ height: 22 }} />
       {!finalizado && !cancelado && (
         <>
-          <DangerButton title="Botón de pánico" icon={<ShieldAlert color="#fff" size={18} />} onPress={panico} />
-          <View style={{ height: 10 }} />
-          <GhostButton title="Compartir viaje" icon={<Share2 color={colors.ink} size={17} />} onPress={() => Alert.alert("Compartir", "Enlace de seguimiento copiado.")} />
-          <View style={{ height: 10 }} />
-          <GhostButton title="Cancelar viaje" icon={<X color={colors.ink} size={17} />} onPress={cancelar} />
+          {/* El coral es la forma: borde e icono. El texto va en tinta. */}
+          <DangerButton title="Botón de pánico" icon={<ShieldAlert color={colors.coral} size={19} />} onPress={panico} />
+          <View style={{ height: 12 }} />
+          <GhostButton title="Compartir viaje" icon={<Share2 color={colors.indigo} size={18} />} onPress={() => Alert.alert("Compartir", "Enlace de seguimiento copiado.")} />
+          <View style={{ height: 12 }} />
+          <GhostButton title="Cancelar viaje" icon={<X color={colors.indigo} size={18} />} onPress={cancelar} />
         </>
       )}
       {(finalizado || cancelado) && <GhostButton title="Volver al inicio" onPress={() => nav.navigate("Tabs")} />}

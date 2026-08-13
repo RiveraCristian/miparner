@@ -1,8 +1,8 @@
 {
-  "name": "rumbo-backend",
+  "name": "miparner-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "API Gateway y servicio de tiempo real de Rumbo",
+  "description": "API Gateway y servicio de tiempo real de Miparner",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

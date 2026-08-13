@@ -1,129 +1,217 @@
+/**
+ * Página pública.
+ *
+ * Marca aplicada según el manual: índigo plano en las portadas, coral solo como
+ * forma (círculos de icono, subrayados de cifra), lavanda para bloques
+ * destacados, tinta para el cuerpo de texto. Sin degradados de marca.
+ *
+ * Tipografía: texto alineado a la izquierda, nunca justificado ni centrado en
+ * bloques de párrafo; medida máxima de 80 caracteres por línea.
+ */
 import { Link } from "react-router-dom";
 import {
   Accessibility,
   Award,
-  Compass,
-  HeartHandshake,
+  Check,
   MapPin,
   Radio,
   ShieldAlert,
-  Check,
+  Users,
 } from "lucide-react";
+import { Logo } from "../brand/Logo";
 
-const features = [
-  { icon: Accessibility, t: "Accesibilidad universal", d: "Compatible con VoiceOver y TalkBack, alto contraste y texto grande desde el primer toque." },
-  { icon: MapPin, t: "Seguimiento en vivo", d: "Mapa en tiempo real del viaje, con estados y tiempos de llegada para el deportista y su red de apoyo." },
-  { icon: ShieldAlert, t: "Botón de pánico", d: "Alerta crítica inmediata con ubicación, verificación por OTP y aviso a los administradores." },
-  { icon: HeartHandshake, t: "Comunidad de voluntarios", d: "Personas validadas que acompañan a entrenamientos y competencias, con reconocimiento por su aporte." },
-  { icon: Radio, t: "Emparejamiento cercano", d: "Encuentra al voluntario disponible más cercano usando geolocalización precisa." },
-  { icon: Award, t: "Gamificación", d: "Puntos, niveles, insignias, ranking y premios canjeables que motivan a seguir activos." },
+const capacidades = [
+  {
+    icon: Radio,
+    t: "El voluntario más cercano",
+    d: "Miparner busca por geolocalización a quien está disponible y más cerca de ti. Sin llamadas ni esperas largas.",
+  },
+  {
+    icon: MapPin,
+    t: "El viaje, en vivo",
+    d: "Sigues el recorrido en el mapa de principio a fin, con los tiempos de llegada a la vista de tu familia.",
+  },
+  {
+    icon: ShieldAlert,
+    t: "Botón de pánico",
+    d: "Un toque avisa al equipo con tu ubicación exacta. La alerta queda registrada y alguien responde.",
+  },
+  {
+    icon: Accessibility,
+    t: "Accesible de verdad",
+    d: "Funciona con VoiceOver y TalkBack, con alto contraste y texto que puedes ampliar al 200 % sin perder nada.",
+  },
+  {
+    icon: Users,
+    t: "Voluntarios validados",
+    d: "Cada persona que acompaña pasa por una validación del equipo antes de tomar su primer viaje.",
+  },
+  {
+    icon: Award,
+    t: "Se reconoce quien ayuda",
+    d: "Puntos, niveles e insignias para los voluntarios. Acompañar suma, y se nota.",
+  },
+];
+
+const ventajasVoluntario = [
+  "Eliges cuándo estás disponible con un solo interruptor",
+  "Recibes solo las solicitudes cercanas a tu ubicación",
+  "Navegación con los hitos del viaje, paso a paso",
+  "Reconocimiento y premios por tu aporte",
 ];
 
 export function Landing() {
   return (
-    <div style={{ minHeight: "100vh" }}>
-      {/* Nav */}
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 6vw", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 11, background: "var(--brand)", display: "grid", placeItems: "center", color: "#fff" }}>
-            <Compass size={22} />
-          </div>
-          <strong style={{ fontSize: 19, letterSpacing: "-.02em" }}>Rumbo</strong>
-        </div>
-        <Link to="/login" className="btn btn-ghost btn-sm">Acceso administración</Link>
+    <div className="publica">
+      <a href="#contenido" className="salto-contenido">Saltar al contenido</a>
+
+      {/* ---------------------------------------------------------- Cabecera */}
+      <header className="publica__cabecera">
+        <Link to="/" className="logo-enlace" aria-label="Miparner, ir al inicio">
+          <Logo alto={34} />
+        </Link>
+        <Link to="/login" className="btn btn-secundario btn-sm">
+          Acceso del equipo
+        </Link>
       </header>
 
-      {/* Hero */}
-      <section
-        style={{
-          background: "linear-gradient(135deg, var(--brand-strong), var(--brand))",
-          color: "#fff",
-          borderRadius: 28,
-          margin: "8px 4vw 0",
-          maxWidth: 1200,
-          marginInline: "auto",
-          padding: "clamp(40px, 6vw, 76px) clamp(24px, 5vw, 64px)",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ position: "absolute", right: -80, bottom: -120, width: 360, height: 360, borderRadius: "50%", background: "rgba(255,255,255,.08)" }} />
-        <div style={{ position: "relative", maxWidth: 640 }}>
-          <span style={{ display: "inline-block", background: "rgba(255,255,255,.16)", padding: "6px 14px", borderRadius: 999, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
-            Movilidad accesible para el deporte
-          </span>
-          <h1 style={{ fontSize: "clamp(32px, 5vw, 52px)", lineHeight: 1.05, fontWeight: 800, marginBottom: 18 }}>
-            Cada deportista llega a su entrenamiento, acompañado.
-          </h1>
-          <p style={{ fontSize: "clamp(16px, 2vw, 19px)", opacity: 0.9, lineHeight: 1.55, marginBottom: 30 }}>
-            Rumbo conecta a deportistas con voluntarios validados para un traslado seguro,
-            con seguimiento en vivo, botón de pánico y una comunidad que reconoce a quienes ayudan.
-          </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <a href="#voluntarios" className="btn" style={{ background: "#fff", color: "var(--brand-strong)" }}>Súmate como voluntario</a>
-            <a href="#descarga" className="btn" style={{ background: "rgba(255,255,255,.14)", color: "#fff", border: "1px solid rgba(255,255,255,.35)" }}>Descargar la app</a>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "clamp(48px, 7vw, 88px) 4vw" }}>
-        <h2 style={{ fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 700, textAlign: "center", marginBottom: 10 }}>Una plataforma pensada para la inclusión</h2>
-        <p className="muted" style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 40px", fontSize: 16, lineHeight: 1.6 }}>
-          Dos apps móviles — deportista y voluntario — coordinadas en tiempo real, con seguridad y accesibilidad en el centro.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
-          {features.map((f) => (
-            <div key={f.t} className="card" style={{ padding: "22px 22px" }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--brand-soft)", color: "var(--brand)", display: "grid", placeItems: "center", marginBottom: 14 }}>
-                <f.icon size={22} />
-              </div>
-              <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 7 }}>{f.t}</h3>
-              <p className="muted" style={{ fontSize: 14.5, lineHeight: 1.55, margin: 0 }}>{f.d}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Captación voluntarios */}
-      <section id="voluntarios" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 4vw 72px" }}>
-        <div className="card" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24, padding: "clamp(28px, 4vw, 48px)", background: "var(--surface-2)" }}>
-          <div>
-            <h2 style={{ fontSize: "clamp(22px, 3vw, 30px)", fontWeight: 700, marginBottom: 12 }}>Conviértete en voluntario</h2>
-            <p className="muted" style={{ fontSize: 16, lineHeight: 1.6, marginBottom: 20, maxWidth: 620 }}>
-              Regala tiempo y kilómetros. Acompaña a deportistas a sus entrenamientos y competencias,
-              suma puntos, gana insignias y sé parte de una comunidad que transforma vidas.
+      <main id="contenido">
+        {/* ------------------------------------------------------------ Hero */}
+        {/* Índigo plano, logotipo y texto en blanco: 11.4:1 AAA. */}
+        <section className="hero sobre-indigo">
+          <div className="hero__texto">
+            <p className="hero__etiqueta">Disponible en tu comuna</p>
+            <h1 className="hero__titulo">Encuentra tu lugar</h1>
+            <p className="hero__bajada">
+              Dos personas, un mismo lugar. Miparner conecta a cada deportista con
+              un voluntario que lo acompaña hasta su entrenamiento, con el viaje a
+              la vista y ayuda a un toque de distancia.
             </p>
-            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "grid", gap: 10, maxWidth: 520 }}>
-              {["Eliges cuándo estás disponible con un solo interruptor", "Recibes solicitudes cercanas a tu ubicación", "Navegación con hitos del viaje paso a paso", "Reconocimiento y premios por tu aporte"].map((t) => (
-                <li key={t} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 15 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--brand-soft)", color: "var(--brand)", display: "grid", placeItems: "center", flex: "none", marginTop: 1 }}>
-                    <Check size={14} />
-                  </span>
-                  {t}
-                </li>
-              ))}
-            </ul>
-            <a href="#descarga" className="btn btn-primary">Quiero ser voluntario</a>
+            <div className="hero__acciones">
+              <a href="#voluntarios" className="btn btn-blanco">Quiero acompañar</a>
+              <a href="#descarga" className="btn btn-contorno-blanco">Descargar la app</a>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Descarga */}
-      <section id="descarga" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 4vw 88px", textAlign: "center" }}>
-        <h2 style={{ fontSize: "clamp(22px, 3vw, 30px)", fontWeight: 700, marginBottom: 12 }}>Descarga Rumbo</h2>
-        <p className="muted" style={{ marginBottom: 26, fontSize: 16 }}>Disponible próximamente para iOS y Android.</p>
-        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-          <span className="btn btn-ghost" style={{ cursor: "default" }}>App Store</span>
-          <span className="btn btn-ghost" style={{ cursor: "default" }}>Google Play</span>
-        </div>
-      </section>
+        {/* ----------------------------------------------------- Capacidades */}
+        <section className="bloque">
+          <h2>Pensado para que llegar no sea el problema</h2>
+          <p className="bloque__intro">
+            Dos aplicaciones —una para el deportista y otra para el voluntario—
+            coordinadas en tiempo real, con la seguridad y la accesibilidad en el
+            centro.
+          </p>
 
-      <footer style={{ borderTop: "1px solid var(--line)", padding: "28px 4vw", textAlign: "center" }}>
-        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          Rumbo · movilidad accesible para el deporte · nombre y logo son placeholder.
-        </p>
+          <ul className="rejilla-tarjetas">
+            {capacidades.map((c) => (
+              <li key={c.t} className="card tarjeta">
+                {/* El círculo coral es forma; el texto de al lado va en tinta. */}
+                <span className="tarjeta__icono" aria-hidden="true">
+                  <c.icon size={24} />
+                </span>
+                <h3 className="tarjeta__titulo">{c.t}</h3>
+                <p className="sutil">{c.d}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* ------------------------------------------------------ Voluntarios */}
+        <section id="voluntarios" className="bloque">
+          <div className="card card-lavanda voluntarios">
+            <div>
+              <h2>Regala tiempo y kilómetros</h2>
+              <p className="voluntarios__texto">
+                Acompaña a deportistas a sus entrenamientos y competencias. Tú
+                decides cuándo, la app hace el resto y la comunidad lo reconoce.
+              </p>
+              <ul className="lista-check">
+                {ventajasVoluntario.map((v) => (
+                  <li key={v}>
+                    <span className="lista-check__marca" aria-hidden="true">
+                      <Check size={14} strokeWidth={3} />
+                    </span>
+                    {v}
+                  </li>
+                ))}
+              </ul>
+              <a href="#descarga" className="btn btn-primario">Quiero ser voluntario</a>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------- Descarga */}
+        <section id="descarga" className="bloque">
+          <h2>Descarga Miparner</h2>
+          <p className="bloque__intro">Muy pronto en App Store y Google Play.</p>
+          <div className="descarga__botones">
+            <span className="btn btn-fantasma" aria-disabled="true">App Store</span>
+            <span className="btn btn-fantasma" aria-disabled="true">Google Play</span>
+          </div>
+        </section>
+      </main>
+
+      {/* ------------------------------------------------------------- Pie */}
+      <footer className="publica__pie">
+        {/* El nombre no está en texto al lado, así que el logo lo describe. */}
+        <Logo alto={26} version="negro" alt="Miparner" />
+        <p className="tenue">Movilidad acompañada para el deporte · Chile</p>
       </footer>
+
+      <style>{`
+        .publica{max-width:72rem;margin:0 auto;padding:0 clamp(18px,4vw,32px)}
+
+        .publica__cabecera{
+          display:flex;align-items:center;justify-content:space-between;
+          gap:16px;padding:20px 0;
+        }
+
+        /* Índigo plano. El manual no admite el color aclarado ni en degradado. */
+        .hero{
+          background:var(--indigo);color:#fff;border-radius:24px;
+          padding:clamp(36px,6vw,72px) clamp(24px,5vw,60px);
+        }
+        .hero__texto{max-width:38rem}
+        .hero__etiqueta{
+          font-size:12px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;
+          color:var(--lav-300);margin-bottom:18px;
+        }
+        .hero__titulo{font-size:clamp(34px,6vw,56px);margin-bottom:18px}
+        .hero__bajada{font-size:clamp(16px,1.6vw,19px);line-height:1.6;color:var(--lav-200)}
+        .hero__acciones{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+
+        .bloque{padding:clamp(48px,7vw,88px) 0 0}
+        .bloque__intro{margin-top:14px;font-size:17px;color:var(--ink-2)}
+
+        .rejilla-tarjetas{
+          list-style:none;padding:0;margin:36px 0 0;
+          display:grid;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));gap:18px;
+        }
+        .tarjeta{display:grid;gap:10px;align-content:start}
+        .tarjeta__icono{
+          width:46px;height:46px;border-radius:var(--r);margin-bottom:4px;
+          background:var(--coral);color:#fff;display:grid;place-items:center;
+        }
+        .tarjeta__titulo{font-size:18px}
+
+        .voluntarios{padding:clamp(28px,4vw,48px)}
+        .voluntarios__texto{margin:14px 0 22px;font-size:17px;color:var(--ink-2)}
+        .lista-check{list-style:none;padding:0;margin:0 0 28px;display:grid;gap:12px}
+        .lista-check li{display:flex;gap:11px;align-items:flex-start;font-size:16px;line-height:1.5}
+        .lista-check__marca{
+          flex:none;width:24px;height:24px;border-radius:50%;margin-top:1px;
+          background:var(--indigo);color:#fff;display:grid;place-items:center;
+        }
+
+        .descarga__botones{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+
+        .publica__pie{
+          display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+          border-top:1px solid var(--line);
+          margin-top:clamp(56px,8vw,96px);padding:28px 0;
+        }
+      `}</style>
     </div>
   );
 }

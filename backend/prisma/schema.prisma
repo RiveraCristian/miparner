@@ -1,4 +1,4 @@
-// Rumbo — esquema de datos.
+// Miparner — esquema de datos.
 // Convención: identificadores DB en snake_case (prefijo_entidad_atributo),
 // mapeados con @map / @@map. Auditoría universal sin prefijo.
 // Geolocalización: columnas geography(Point,4326) declaradas como Unsupported

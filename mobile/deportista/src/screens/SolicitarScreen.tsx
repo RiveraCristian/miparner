@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { MapPin, Send } from "lucide-react-native";
-import { colors } from "../../../shared/theme";
+import { colors, font } from "../../../shared/theme";
 import { api } from "../../../shared/api";
-import { Card, Pill, PrimaryButton, Screen } from "../../../shared/ui";
+import { Card, Etiqueta, Pill, PrimaryButton, Screen } from "../../../shared/ui";
 import type { Viaje } from "../../../shared/types";
 import type { RootStackParams } from "../navigation";
 
@@ -57,42 +57,60 @@ export function SolicitarScreen() {
   return (
     <Screen>
       <Card style={{ padding: 0, overflow: "hidden" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderBottomWidth: 1, borderBottomColor: colors.line2 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.brandSoft, alignItems: "center", justifyContent: "center" }}>
-            <MapPin color={colors.brand} size={18} />
-          </View>
-          <View>
-            <Text style={{ fontSize: 11.5, color: colors.ink3 }}>Origen</Text>
-            <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.ink }}>{ORIGEN.texto}</Text>
-          </View>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 11, padding: 13 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colors.dangerSoft, alignItems: "center", justifyContent: "center" }}>
-            <MapPin color={colors.danger} size={18} />
+        {/* Origen en índigo, destino en coral: dos formas distintas, no dos matices. */}
+        <View style={styles.punto}>
+          <View style={[styles.puntoIcono, { backgroundColor: colors.lavanda }]}>
+            <MapPin color={colors.indigo} size={19} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11.5, color: colors.ink3 }}>Destino</Text>
-            <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.ink }}>{destino.texto}</Text>
+            <Etiqueta>Origen</Etiqueta>
+            <Text style={[font.body, { fontWeight: "600", marginTop: 2 }]}>{ORIGEN.texto}</Text>
+          </View>
+        </View>
+        <View style={[styles.punto, { borderBottomWidth: 0 }]}>
+          <View style={[styles.puntoIcono, { backgroundColor: colors.coralBg }]}>
+            <MapPin color={colors.coral} size={19} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Etiqueta>Destino</Etiqueta>
+            <Text style={[font.body, { fontWeight: "600", marginTop: 2 }]}>{destino.texto}</Text>
           </View>
         </View>
       </Card>
 
-      <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.ink2, marginTop: 16, marginBottom: 8 }}>¿A dónde vas?</Text>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>¿A dónde vas?</Etiqueta>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {DESTINOS.map((d) => (
           <Pill key={d.texto} label={d.texto} active={destino.texto === d.texto} onPress={() => setDestino(d)} />
         ))}
       </View>
 
-      <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.ink2, marginTop: 18, marginBottom: 8 }}>Apoyo que necesito</Text>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Apoyo que necesito</Etiqueta>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {NECESIDADES.map((n) => (
           <Pill key={n.key} label={n.label} active={necesidades.includes(n.key)} onPress={() => toggle(n.key)} />
         ))}
       </View>
 
-      <View style={{ height: 24 }} />
-      <PrimaryButton title={busy ? "Buscando voluntario…" : "Buscar voluntario"} icon={<Send color="#fff" size={17} />} disabled={busy} onPress={solicitar} />
+      <View style={{ height: 28 }} />
+      <PrimaryButton
+        title={busy ? "Buscando voluntario…" : "Buscar voluntario"}
+        icon={<Send color={colors.white} size={18} />}
+        disabled={busy}
+        onPress={solicitar}
+      />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  punto: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line2,
+  },
+  puntoIcono: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+});

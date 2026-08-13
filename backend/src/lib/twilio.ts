@@ -9,7 +9,7 @@ const client = configurado
 
 // Envía el OTP por SMS o voz. Si Twilio no está configurado, cae a log (dev).
 export async function enviarOtp(canal: "sms" | "voz", destino: string, codigo: string): Promise<void> {
-  const mensaje = `Rumbo: tu código de verificación es ${codigo}. Vence en 5 minutos.`;
+  const mensaje = `Miparner: tu código de verificación es ${codigo}. Vence en 5 minutos.`;
 
   if (!client) {
     console.log(`[OTP:${canal}] (Twilio no configurado) → ${destino}: ${codigo}`);

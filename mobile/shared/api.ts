@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "./config";
 
-const TOKEN_KEY = "rumbo_token";
+const TOKEN_KEY = "miparner_token";
 let memToken: string | null = null;
 
 export async function loadToken(): Promise<string | null> {

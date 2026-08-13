@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Trophy } from "lucide-react-native";
-import { colors } from "../../../shared/theme";
+import { colors, font } from "../../../shared/theme";
 import { api } from "../../../shared/api";
-import { Card, Screen } from "../../../shared/ui";
+import { Card, CardLavanda, Etiqueta, Screen } from "../../../shared/ui";
 import type { Progreso } from "../../../shared/types";
 
 interface RankRow { pos: number; nombre: string; puntos: number }
@@ -20,30 +20,59 @@ export function RankingScreen() {
 
   return (
     <Screen>
-      <Text style={{ fontSize: 24, fontWeight: "800", color: colors.ink, marginBottom: 4 }}>Ranking</Text>
-      <Text style={{ color: colors.ink2, marginBottom: 16 }}>Comunidad de voluntarios</Text>
+      <Text style={font.h1}>Ranking</Text>
+      <Text style={[font.muted, { marginTop: 4, marginBottom: 20 }]}>Comunidad de voluntarios</Text>
 
-      <Card style={{ backgroundColor: colors.goldSoft, borderColor: colors.goldSoft, flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center" }}>
-          <Trophy color="#3a2405" size={22} />
+      {/* Coral en el círculo (forma, icono blanco a 3.7:1) y texto en tinta. */}
+      <CardLavanda style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+        <View style={styles.copa}>
+          <Trophy color={colors.white} size={22} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12.5, color: colors.goldInk, fontWeight: "600" }}>Tus puntos</Text>
-          <Text style={{ fontSize: 20, fontWeight: "800", color: colors.goldInk }}>{prog?.puntos ?? 0} · Nivel {prog?.nivel ?? 1}</Text>
+          <Etiqueta>Tus puntos</Etiqueta>
+          <Text style={styles.puntos}>
+            {prog?.puntos ?? 0} · Nivel {prog?.nivel ?? 1}
+          </Text>
         </View>
-      </Card>
+      </CardLavanda>
 
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.ink2, marginTop: 20, marginBottom: 10 }}>Top de la semana</Text>
-      <Card style={{ paddingVertical: 4 }}>
-        {rank.length === 0 && <Text style={{ color: colors.ink3, padding: 12 }}>Sin datos aún.</Text>}
-        {rank.slice(0, 10).map((r) => (
-          <View key={r.pos} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.line2 }}>
-            <Text style={{ width: 24, fontWeight: "800", color: colors.ink3 }}>{r.pos}</Text>
-            <Text style={{ flex: 1, fontSize: 14, fontWeight: "600", color: colors.ink }}>{r.nombre}</Text>
-            <Text style={{ fontWeight: "700", color: colors.ink }}>{r.puntos}</Text>
+      <Etiqueta style={{ marginTop: 26, marginBottom: 12 }}>Top de la semana</Etiqueta>
+      <Card style={{ paddingVertical: 6 }}>
+        {rank.length === 0 ? (
+          <Text style={[font.muted, { padding: 10 }]}>Todavía no hay posiciones esta semana.</Text>
+        ) : null}
+        {rank.slice(0, 10).map((r, i) => (
+          <View
+            key={r.pos}
+            style={[styles.fila, i === Math.min(rank.length, 10) - 1 && { borderBottomWidth: 0 }]}
+          >
+            <Text style={styles.pos}>{r.pos}</Text>
+            <Text style={[font.body, { flex: 1, fontWeight: "600" }]} numberOfLines={1}>{r.nombre}</Text>
+            <Text style={[font.body, { fontWeight: "600" }]}>{r.puntos}</Text>
           </View>
         ))}
       </Card>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  copa: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: colors.coral,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  puntos: { fontSize: 22, fontWeight: "600", color: colors.ink, letterSpacing: -0.3, marginTop: 3 },
+  fila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line2,
+  },
+  pos: { width: 26, fontSize: 16, fontWeight: "600", color: colors.ink3 },
+});

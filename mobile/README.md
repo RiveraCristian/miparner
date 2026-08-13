@@ -1,4 +1,4 @@
-# Rumbo — apps móviles (React Native CLI)
+# Miparner — apps móviles (React Native CLI)
 
 Dos apps que comparten una capa común en [`shared/`](shared/):
 

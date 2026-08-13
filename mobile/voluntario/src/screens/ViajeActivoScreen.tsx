@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useRoute, useNavigation, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Navigation } from "lucide-react-native";
-import { colors } from "../../../shared/theme";
+import { CheckCircle2, Circle, CircleDot, Navigation } from "lucide-react-native";
+import { colors, font } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { connectSocket, joinRide, leaveRide, emitPosition } from "../../../shared/socket";
-import { Card, MapPlaceholder, PrimaryButton, Screen } from "../../../shared/ui";
+import { Card, Etiqueta, MapPlaceholder, PrimaryButton, PuntoMapa, Screen } from "../../../shared/ui";
 import type { Viaje } from "../../../shared/types";
 import type { RootStackParams } from "../navigation";
 
@@ -14,6 +14,14 @@ const PASOS = [
   { key: "en_camino", label: "Voy en camino", siguiente: "en_camino" },
   { key: "a_bordo", label: "Deportista a bordo", siguiente: "a_bordo" },
   { key: "finalizado", label: "Confirmar llegada", siguiente: "finalizado" },
+];
+
+/** Hitos que ve el voluntario, en el orden en que ocurren. */
+const HITOS = [
+  { k: "asignado", l: "Solicitud aceptada" },
+  { k: "en_camino", l: "En camino" },
+  { k: "a_bordo", l: "A bordo" },
+  { k: "finalizado", l: "Finalizado" },
 ];
 
 export function ViajeActivoScreen() {
@@ -46,35 +54,63 @@ export function ViajeActivoScreen() {
   return (
     <Screen>
       <MapPlaceholder height={210}>
-        <View style={{ position: "absolute", left: "18%", top: "82%", width: 16, height: 16, borderRadius: 8, backgroundColor: colors.gold, borderWidth: 3, borderColor: "#fff" }} />
-        <View style={{ position: "absolute", left: "60%", top: "12%", width: 18, height: 18, borderRadius: 9, backgroundColor: colors.danger, borderWidth: 3, borderColor: "#fff" }} />
+        <PuntoMapa left="18%" top="82%" color={colors.indigo} />
+        <PuntoMapa left="60%" top="12%" color={colors.coral} size={18} />
       </MapPlaceholder>
 
-      <Card style={{ marginTop: 12, flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Navigation color={colors.brand} size={26} />
-        <View>
-          <Text style={{ fontSize: 15, fontWeight: "700", color: colors.ink }}>{viaje?.destino.texto ?? "Destino"}</Text>
-          <Text style={{ fontSize: 12.5, color: colors.ink2 }}>Sigue la ruta hasta el destino</Text>
+      <Card style={{ marginTop: 16, flexDirection: "row", alignItems: "center", gap: 14 }}>
+        <View style={styles.iconoDestino}>
+          <Navigation color={colors.indigo} size={22} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={font.h3} numberOfLines={2}>{viaje?.destino.texto ?? "Destino"}</Text>
+          <Text style={font.muted}>Sigue la ruta hasta el destino</Text>
         </View>
       </Card>
 
-      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.ink2, marginTop: 18, marginBottom: 10 }}>Hitos del viaje</Text>
-      <Card style={{ paddingVertical: 6 }}>
-        {[{ k: "asignado", l: "Solicitud aceptada" }, { k: "en_camino", l: "En camino" }, { k: "a_bordo", l: "A bordo" }, { k: "finalizado", l: "Finalizado" }].map((p, i) => {
-          const order = ["asignado", "en_camino", "a_bordo", "finalizado"];
-          const cur = order.indexOf(estado);
-          const done = i < cur, now = i === cur;
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Hitos del viaje</Etiqueta>
+      <Card style={{ paddingVertical: 8 }}>
+        {HITOS.map((p, i) => {
+          const cur = HITOS.findIndex((h) => h.k === estado);
+          const hecho = i < cur;
+          const ahora = i === cur;
           return (
-            <View key={p.k} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
-              <View style={{ width: 12, height: 12, borderRadius: 6, marginRight: 12, backgroundColor: done ? colors.success : now ? colors.brand : colors.line }} />
-              <Text style={{ fontSize: 14, color: now ? colors.ink : colors.ink2, fontWeight: now ? "700" : "400" }}>{p.l}</Text>
+            <View key={p.k} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 9, gap: 12 }}>
+              {/* Icono además del color: el hito no se comunica solo con el punto. */}
+              {hecho ? (
+                <CheckCircle2 size={20} color={colors.exito} />
+              ) : ahora ? (
+                <CircleDot size={20} color={colors.indigo} />
+              ) : (
+                <Circle size={20} color={colors.ink4} />
+              )}
+              <Text
+                style={[
+                  font.body,
+                  { color: ahora || hecho ? colors.ink : colors.ink2, fontWeight: ahora ? "600" : "400" },
+                ]}
+              >
+                {p.l}
+              </Text>
+              {ahora ? <Text style={font.tiny}>· ahora</Text> : null}
             </View>
           );
         })}
       </Card>
 
-      <View style={{ height: 16 }} />
+      <View style={{ height: 20 }} />
       {siguiente && <PrimaryButton title={busy ? "Actualizando…" : siguiente.label} disabled={busy} onPress={avanzar} />}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  iconoDestino: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: colors.lavanda,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

@@ -19,15 +19,27 @@ export type RootStackParams = {
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab = createBottomTabNavigator();
 
+/**
+ * Chrome de navegación en colores de marca.
+ * Pestaña activa en índigo (11.4:1 sobre blanco, AAA) e inactiva en el gris
+ * del manual (5.6:1, AA). La pestaña activa además va en negrita: el color no
+ * es el único indicador del estado seleccionado.
+ */
 function Tabs() {
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.brand,
+        tabBarActiveTintColor: colors.indigo,
         tabBarInactiveTintColor: colors.ink3,
-        tabBarStyle: { borderTopColor: colors.line, height: 60, paddingBottom: 8, paddingTop: 6 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.line,
+          height: 64,
+          paddingBottom: 9,
+          paddingTop: 7,
+        },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
       }}
     >
       <Tab.Screen name="Inicio" component={InicioScreen} options={{ tabBarIcon: ({ color, size }) => <House color={color} size={size} /> }} />
@@ -37,13 +49,21 @@ function Tabs() {
   );
 }
 
+/** Cabecera de pila: índigo plano con título en blanco (11.4:1, AAA). */
+const cabecera = {
+  headerStyle: { backgroundColor: colors.indigo },
+  headerTintColor: colors.white,
+  headerTitleStyle: { fontWeight: "600" as const, fontSize: 17 },
+  headerShadowVisible: false,
+};
+
 export function RootNavigator() {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <LoginScreen />;
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, ...cabecera }}>
       <Stack.Screen name="Tabs" component={Tabs} />
       <Stack.Screen name="Solicitar" component={SolicitarScreen} options={{ headerShown: true, title: "Solicitar acompañamiento" }} />
       <Stack.Screen name="EnViaje" component={EnViajeScreen} options={{ headerShown: true, title: "Tu viaje" }} />

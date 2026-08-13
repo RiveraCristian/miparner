@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
-import { Switch, Text, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Contrast, Heart, LogOut, Type, Vibrate, Volume2 } from "lucide-react-native";
-import { colors, radius } from "../../../shared/theme";
+import { colors, font } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
-import { Card, GhostButton, Screen } from "../../../shared/ui";
+import { Card, Etiqueta, GhostButton, Screen } from "../../../shared/ui";
 
 interface Me {
   deportistaPerfil?: { deportistaDisciplina: string | null; deportistaNecesidades: string[] } | null;
@@ -31,30 +31,33 @@ export function PerfilScreen() {
   return (
     <Screen>
       <View style={{ alignItems: "center", paddingVertical: 12 }}>
-        <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: "#fff", fontSize: 24, fontWeight: "800" }}>{user?.nombre?.slice(0, 2).toUpperCase()}</Text>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarTexto}>{user?.nombre?.slice(0, 2).toUpperCase()}</Text>
         </View>
-        <Text style={{ fontSize: 18, fontWeight: "700", color: colors.ink, marginTop: 10 }}>{user?.nombre}</Text>
-        <Text style={{ color: colors.ink2, fontSize: 13 }}>{perfil?.deportistaDisciplina ?? "Deportista"}</Text>
+        <Text style={[font.h2, { marginTop: 12 }]}>{user?.nombre}</Text>
+        <Text style={font.muted}>{perfil?.deportistaDisciplina ?? "Deportista"}</Text>
       </View>
 
-      <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.ink2, marginTop: 8, marginBottom: 8 }}>ACCESIBILIDAD</Text>
-      <Card style={{ paddingVertical: 2 }}>
+      <Etiqueta style={{ marginTop: 14, marginBottom: 10 }}>Accesibilidad</Etiqueta>
+      <Card style={{ paddingVertical: 4 }}>
         {AJUSTES.map((a, i) => {
-          const Icon = a.icon;
+          const Icono = a.icon;
           return (
-            <View key={a.key} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: i < AJUSTES.length - 1 ? 1 : 0, borderBottomColor: colors.line2 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: colors.brandSoft, alignItems: "center", justifyContent: "center", marginRight: 11 }}>
-                <Icon color={colors.brand} size={19} />
+            <View
+              key={a.key}
+              style={[styles.fila, i === AJUSTES.length - 1 && { borderBottomWidth: 0 }]}
+            >
+              <View style={[styles.filaIcono, { backgroundColor: colors.lavanda }]}>
+                <Icono color={colors.indigo} size={20} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.ink }}>{a.label}</Text>
-                {a.hint ? <Text style={{ fontSize: 11.5, color: colors.ink3 }}>{a.hint}</Text> : null}
+                <Text style={[font.body, { fontWeight: "600" }]}>{a.label}</Text>
+                {a.hint ? <Text style={font.tiny}>{a.hint}</Text> : null}
               </View>
               <Switch
                 value={ajustes[a.key]}
                 onValueChange={(v) => setAjustes((s) => ({ ...s, [a.key]: v }))}
-                trackColor={{ true: colors.brand, false: colors.line }}
+                trackColor={{ true: colors.indigo, false: colors.line }}
                 accessibilityLabel={a.label}
               />
             </View>
@@ -62,22 +65,43 @@ export function PerfilScreen() {
         })}
       </Card>
 
-      <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.ink2, marginTop: 16, marginBottom: 8 }}>CONTACTO DE EMERGENCIA</Text>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Contacto de emergencia</Etiqueta>
       <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: colors.dangerSoft, alignItems: "center", justifyContent: "center" }}>
-          <Heart color={colors.danger} size={19} />
+        {/* Coral como forma: el icono. El texto va en tinta. */}
+        <View style={[styles.filaIcono, { backgroundColor: colors.coralBg }]}>
+          <Heart color={colors.coral} size={20} />
         </View>
-        <View>
-          <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.ink }}>Agregar contacto</Text>
-          <Text style={{ fontSize: 11.5, color: colors.ink3 }}>Se avisa al activar el botón de pánico</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[font.body, { fontWeight: "600" }]}>Agregar contacto</Text>
+          <Text style={font.tiny}>Se le avisa al activar el botón de pánico</Text>
         </View>
       </Card>
 
-      <View style={{ height: 24 }} />
-      <GhostButton title="Cerrar sesión" icon={<LogOut color={colors.ink} size={17} />} onPress={logout} />
-      <View style={{ height: 16 }} />
-      <Text style={{ textAlign: "center", color: colors.ink3, fontSize: 11 }}>Rumbo · versión 0.1.0</Text>
-      <View style={{ borderRadius: radius.sm }} />
+      <View style={{ height: 28 }} />
+      <GhostButton title="Cerrar sesión" icon={<LogOut color={colors.indigo} size={18} />} onPress={logout} />
+      <View style={{ height: 18 }} />
+      <Text style={[font.tiny, { textAlign: "center" }]}>Miparner · versión 0.1.0</Text>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.indigo,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarTexto: { color: colors.white, fontSize: 26, fontWeight: "600" },
+  fila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line2,
+  },
+  filaIcono: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+});

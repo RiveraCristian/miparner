@@ -1,9 +1,28 @@
-import { useState, type FormEvent } from "react";
+/**
+ * Login · patrón split-screen.
+ *
+ * Panel de marca en índigo plano con el logotipo en blanco, tal como la portada
+ * del manual: sobre índigo el logotipo va en blanco, nunca en color (un globo
+ * desaparecería). Blanco sobre índigo mide 11.4:1 → AAA.
+ *
+ * La estructura del panel izquierdo no cambia entre Fase 1 (correo y contraseña)
+ * y Fase 2 (Google SSO): solo cambia el contenido del panel derecho.
+ */
+import { Suspense, lazy, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Compass, Check } from "lucide-react";
+import { AlertCircle, Check } from "lucide-react";
 import { useAuth } from "../lib/auth";
+import { Logo } from "../brand/Logo";
 
-const features = ["Gestión de usuarios y voluntarios", "Auditoría de viajes en tiempo real", "Monitoreo del botón de pánico", "Métricas de la flota y la comunidad"];
+// Three.js va aparte y se carga tarde: no bloquea el formulario.
+const FondoConstelacion = lazy(() => import("../brand/FondoConstelacion"));
+
+const claves = [
+  "Encuentra al voluntario disponible más cerca de ti",
+  "Sigue el viaje en vivo, de principio a fin",
+  "Botón de pánico con aviso inmediato",
+  "Reconocimiento para quienes acompañan",
+];
 
 export function Login() {
   const { login } = useAuth();
@@ -11,89 +30,170 @@ export function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    setBusy(true);
+    setEnviando(true);
     try {
       const u = await login(correo, password);
       nav(u.rol === "admin" ? "/admin" : "/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+      // Tono de voz: el error dice qué pasó y qué hacer, nunca solo «error».
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "No pudimos iniciar tu sesión. Revisa tu correo y contraseña, y vuelve a intentar.",
+      );
     } finally {
-      setBusy(false);
+      setEnviando(false);
     }
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: "100vh" }} className="login-grid">
-      {/* Panel izquierdo (branding) */}
-      <div
-        style={{
-          background: "linear-gradient(150deg, var(--brand-strong), var(--brand))",
-          color: "#fff",
-          padding: "clamp(32px, 5vw, 64px)",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ position: "absolute", right: -100, bottom: -140, width: 380, height: 380, borderRadius: "50%", background: "rgba(255,255,255,.08)" }} />
-        <div style={{ position: "relative", maxWidth: 420 }}>
-          <div style={{ background: "#fff", width: 200, height: 68, borderRadius: 16, display: "flex", alignItems: "center", gap: 10, padding: "0 18px", marginBottom: 30, boxShadow: "0 12px 30px -12px rgba(0,0,0,.4)" }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--brand)", display: "grid", placeItems: "center", color: "#fff" }}>
-              <Compass size={22} />
-            </div>
-            <strong style={{ color: "var(--brand-strong)", fontSize: 20 }}>Rumbo</strong>
-          </div>
-          <h1 style={{ fontSize: "clamp(28px, 3.4vw, 38px)", fontWeight: 800, lineHeight: 1.1, marginBottom: 14 }}>
-            Panel de administración
-          </h1>
-          <p style={{ opacity: 0.8, fontSize: 16, lineHeight: 1.55, marginBottom: 28 }}>
-            Gestión centralizada de la comunidad, los viajes y la seguridad de la plataforma.
+    <div className="login">
+      {/* ---------- Panel de marca ---------- */}
+      <section className="login__marca sobre-indigo">
+        <Suspense fallback={null}>
+          <FondoConstelacion />
+        </Suspense>
+
+        <div className="login__marca-contenido">
+          {/* El nombre está en el arte del logotipo, así que el alt va vacío. */}
+          <Logo alto={64} version="blanco" alt="" className="login__logo" />
+
+          <h1 className="login__titulo">Encuentra tu lugar</h1>
+          <p className="login__bajada">
+            Dos personas, un mismo lugar. Miparner acompaña a cada deportista
+            hasta su entrenamiento.
           </p>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 12 }}>
-            {features.map((f) => (
-              <li key={f} style={{ display: "flex", gap: 11, alignItems: "center", fontSize: 15 }}>
-                <span style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(228,146,42,.9)", color: "#3a2405", display: "grid", placeItems: "center", flex: "none" }}>
-                  <Check size={15} />
+
+          <ul className="login__claves">
+            {claves.map((c) => (
+              <li key={c}>
+                <span className="login__check" aria-hidden="true">
+                  <Check size={15} strokeWidth={3} />
                 </span>
-                {f}
+                {c}
               </li>
             ))}
           </ul>
         </div>
-      </div>
+      </section>
 
-      {/* Panel derecho (formulario) */}
-      <div style={{ display: "grid", placeItems: "center", padding: "clamp(28px, 5vw, 56px)", background: "var(--bg)" }}>
-        <form onSubmit={onSubmit} style={{ width: "100%", maxWidth: 400 }}>
-          <h2 style={{ fontSize: 30, fontWeight: 800, marginBottom: 8 }}>Bienvenido</h2>
-          <p className="muted" style={{ marginBottom: 28, fontSize: 15 }}>Ingresa con tu correo y contraseña.</p>
+      {/* ---------- Panel de acceso ---------- */}
+      <section className="login__acceso">
+        <form onSubmit={onSubmit} className="login__form" noValidate>
+          <p className="etiqueta">Panel de administración</p>
+          <h2 className="login__bienvenido">Bienvenido</h2>
+          <p className="tenue login__intro">Ingresa con tu correo y contraseña.</p>
 
+          {/* El estado de error lleva icono y texto: el color no informa solo. */}
           {error && (
-            <div className="badge-d" style={{ display: "block", padding: "11px 13px", borderRadius: 10, marginBottom: 16, fontSize: 13.5 }}>
-              {error}
-            </div>
+            <p className="login__error" role="alert">
+              <AlertCircle size={19} aria-hidden="true" />
+              <span>{error}</span>
+            </p>
           )}
 
-          <label className="label" htmlFor="correo">Correo</label>
-          <input id="correo" className="input" type="email" autoComplete="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="admin@rumbo.cl" required style={{ marginBottom: 16 }} />
+          <div className="login__campo">
+            <label className="campo" htmlFor="correo">Correo</label>
+            <input
+              id="correo"
+              className="input"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              placeholder="tu.correo@miparner.cl"
+              aria-invalid={error ? true : undefined}
+              required
+            />
+          </div>
 
-          <label className="label" htmlFor="pass">Contraseña</label>
-          <input id="pass" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required style={{ marginBottom: 24 }} />
+          <div className="login__campo">
+            <label className="campo" htmlFor="password">Contraseña</label>
+            <input
+              id="password"
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Tu contraseña"
+              aria-invalid={error ? true : undefined}
+              required
+            />
+          </div>
 
-          <button className="btn btn-primary" style={{ width: "100%" }} disabled={busy}>
-            {busy ? "Ingresando…" : "Iniciar sesión"}
+          <button className="btn btn-primario login__enviar" disabled={enviando}>
+            {enviando ? "Ingresando…" : "Iniciar sesión"}
           </button>
         </form>
-      </div>
+      </section>
 
-      <style>{`@media (max-width: 860px){.login-grid{grid-template-columns:1fr !important}.login-grid > div:first-child{min-height:220px}}`}</style>
+      <style>{`
+        .login{display:grid;grid-template-columns:1fr 1fr;min-height:100vh}
+
+        /* Índigo plano: el manual no admite versiones aclaradas del color. */
+        .login__marca{
+          position:relative;overflow:hidden;background:var(--indigo);color:#fff;
+          display:flex;align-items:center;
+          padding:clamp(32px,5vw,72px);
+        }
+        .login__marca-contenido{position:relative;max-width:30rem}
+        .login__logo{
+          display:block;height:clamp(44px,5vw,64px);width:auto;
+          /* Espacio libre reservado alrededor del logotipo: x por los 4 lados. */
+          margin-bottom:calc(28px + var(--logo-x));
+        }
+        .login__titulo{font-size:clamp(30px,3.6vw,40px);margin-bottom:14px}
+        .login__bajada{font-size:17px;line-height:1.6;color:var(--lav-200);margin-bottom:34px}
+
+        .login__claves{list-style:none;padding:0;margin:0;display:grid;gap:15px}
+        .login__claves li{display:flex;gap:12px;align-items:flex-start;font-size:16px;line-height:1.5}
+        /* El coral es color de forma. El texto de al lado va en blanco. */
+        .login__check{
+          flex:none;width:26px;height:26px;border-radius:50%;margin-top:1px;
+          background:var(--coral);color:#fff;display:grid;place-items:center;
+        }
+
+        /* Flex, no grid: en una pista «auto» el width:100% del formulario se
+           resolvería contra su max-width y desbordaría en pantallas angostas. */
+        .login__acceso{
+          display:flex;align-items:center;justify-content:center;
+          background:var(--surface);padding:clamp(24px,5vw,56px);
+        }
+        .login__form{flex:1 1 auto;min-width:0;max-width:26rem}
+        .login__bienvenido{font-size:clamp(26px,3vw,32px);margin:10px 0 8px}
+        .login__intro{margin-bottom:28px}
+        .login__campo{margin-bottom:18px}
+        .login__enviar{width:100%;margin-top:6px}
+
+        .login__error{
+          display:flex;gap:10px;align-items:flex-start;
+          background:var(--coral-bg);color:var(--ink);
+          border-left:3px solid var(--coral);
+          border-radius:var(--r-sm);padding:13px 15px;margin-bottom:22px;
+          font-size:15px;line-height:1.5;max-width:none;
+        }
+        .login__error svg{flex:none;margin-top:1px;color:var(--coral)}
+
+        /* Tablet: el panel de marca se comprime. */
+        @media (max-width:1023px){.login{grid-template-columns:2fr 3fr}}
+
+        /* Móvil: el panel de marca pasa a cabecera y las claves se ocultan. */
+        @media (max-width:767px){
+          .login{grid-template-columns:1fr}
+          .login__marca{min-height:200px;padding:28px 24px}
+          .login__claves{display:none}
+          .login__titulo{font-size:26px;margin-bottom:8px}
+          .login__bajada{font-size:15px;margin-bottom:0}
+          .login__logo{margin-bottom:20px;height:38px}
+        }
+      `}</style>
     </div>
   );
 }

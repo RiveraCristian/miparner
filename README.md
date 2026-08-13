@@ -1,11 +1,12 @@
-# Rumbo — plataforma de movilidad accesible
+# Miparner — plataforma de movilidad accesible
 
 Conecta **deportistas** (con foco en accesibilidad universal) con **voluntarios**
 que los acompañan/transportan a entrenamientos y competencias. Incluye
 seguimiento en vivo, botón de pánico, validación OTP y gamificación.
 
-> El nombre **Rumbo** y el logo son *placeholder*. El branding definitivo es un
-> entregable aparte.
+> Identidad visual: **Manual de Identidad v1.0** (`miparner-logo.pdf`).
+> Cómo está aplicado en el código: [`design/MARCA.md`](design/MARCA.md).
+> Los assets de marca se generan desde el PDF con `design/scripts/gen_brand.py`.
 
 ## Arquitectura
 
@@ -22,7 +23,8 @@ seguimiento en vivo, botón de pánico, validación OTP y gamificación.
 | Despliegue | GCP Cloud Run + Artifact Registry + GitHub Actions |
 
 ```
-Acceso_condominios/
+miparner/
+├── miparner-logo.pdf       # Manual de Identidad v1.0 (fuente de la marca)
 ├── backend/                # API + tiempo real (Node/Express/Prisma)
 │   ├── prisma/             # schema.prisma + migraciones (PostGIS)
 │   └── src/
@@ -31,9 +33,13 @@ Acceso_condominios/
 │       ├── middleware/     # auth (inyecta usuario_id), validación, errores
 │       ├── modules/        # auth, viajes, gamificación, seguridad
 │       └── realtime/       # Socket.io
-├── mobile/                 # Apps React Native (Deportista / Voluntario) — próxima fase
-├── design/                 # Prototipo de diseño (azul)
-├── docker-compose.yml      # backend (sin postgres)
+├── frontend/               # Web pública + panel de administración (React + Vite)
+│   ├── public/brand/       # Logotipo, isotipo, favicon y app icons (SVG)
+│   └── src/brand/          # Trazados del logotipo y componente <Logo>
+├── mobile/                 # Apps React Native (Deportista / Voluntario)
+│   └── shared/brand/       # Mismos trazados, para react-native-svg
+├── design/                 # MARCA.md, prototipo y scripts de generación
+├── docker-compose.yml      # frontend + backend (sin postgres)
 └── .env.example
 ```
 
@@ -43,8 +49,8 @@ Requisitos: Node 20+, PostgreSQL 14+ con PostGIS habilitado.
 
 ```bash
 # 1. Crear la base y habilitar PostGIS (una vez, en el PostgreSQL del host)
-createdb rumbo
-psql -d rumbo -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+createdb miparner
+psql -d miparner -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
 # 2. Variables de entorno
 cp .env.example .env         # completar DATABASE_URL y secretos

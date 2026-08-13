@@ -1,4 +1,4 @@
-const TOKEN_KEY = "rumbo_token";
+const TOKEN_KEY = "miparner_token";
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t);

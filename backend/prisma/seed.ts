@@ -5,13 +5,13 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Administrador inicial (cambiar la contraseña tras el primer ingreso).
-  const adminCorreo = "admin@rumbo.cl";
+  const adminCorreo = "admin@miparner.cl";
   const admin = await prisma.usuario.upsert({
     where: { usuarioCorreo: adminCorreo },
     update: {},
     create: {
       usuarioCorreo: adminCorreo,
-      usuarioNombre: "Administrador Rumbo",
+      usuarioNombre: "Administrador Miparner",
       usuarioPassword: await bcrypt.hash("Cambiar123!", 12),
       usuarioRol: "admin",
     },
@@ -40,7 +40,7 @@ async function main() {
 
   // Catálogo base de premios
   const premios = [
-    { nombre: "Kit deportivo Rumbo", costo: 1000, stock: 25 },
+    { nombre: "Kit deportivo Miparner", costo: 1000, stock: 25 },
     { nombre: "Botella térmica", costo: 400, stock: 100 },
     { nombre: "Sesión de fisioterapia", costo: 1800, stock: 10 },
   ];
