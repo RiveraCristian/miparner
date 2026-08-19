@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { House, Trophy, User } from "lucide-react-native";
-import { colors } from "../../shared/theme";
+import { colors, elevacion, fuente } from "../../shared/theme";
 import { useAuth } from "../../shared/auth";
 import { LoginScreen } from "./screens/LoginScreen";
 import { InicioScreen } from "./screens/InicioScreen";
@@ -33,12 +33,14 @@ function Tabs() {
         tabBarInactiveTintColor: colors.ink3,
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: colors.line,
-          height: 64,
-          paddingBottom: 9,
-          paddingTop: 7,
+          borderTopWidth: 0,
+          height: 70,
+          paddingBottom: 12,
+          paddingTop: 10,
+          ...elevacion.alta,
         },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+        tabBarLabelStyle: { fontSize: 12, fontFamily: fuente.fuerte },
+        tabBarItemStyle: { borderRadius: 14 },
       }}
     >
       <Tab.Screen name="Inicio" component={InicioScreen} options={{ tabBarIcon: ({ color, size }) => <House color={color} size={size} /> }} />
@@ -52,7 +54,7 @@ function Tabs() {
 const cabecera = {
   headerStyle: { backgroundColor: colors.indigo },
   headerTintColor: colors.white,
-  headerTitleStyle: { fontWeight: "600" as const, fontSize: 17 },
+  headerTitleStyle: { fontFamily: fuente.fuerte, fontSize: 17 },
   headerShadowVisible: false,
 };
 
@@ -65,7 +67,7 @@ export function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false, ...cabecera }}>
       <Stack.Screen name="Tabs" component={Tabs} />
       <Stack.Screen name="Solicitudes" component={SolicitudesScreen} options={{ headerShown: true, title: "Solicitudes cercanas" }} />
-      <Stack.Screen name="ViajeActivo" component={ViajeActivoScreen} options={{ headerShown: true, title: "Viaje activo" }} />
+      <Stack.Screen name="ViajeActivo" component={ViajeActivoScreen} options={{ headerShown: true, title: "Acompañamiento activo" }} />
     </Stack.Navigator>
   );
 }

@@ -47,3 +47,7 @@ mobile/**/android/local.properties
 mobile/**/android/app/release.keystore
 mobile/**/ios/Pods/
 mobile/**/.gradle/
+
+# Cache de los scripts de marca (se vuelve a descargar sola)
+design/scripts/_OutfitVF.ttf
+design/scripts/_paths.json

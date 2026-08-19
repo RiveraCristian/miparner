@@ -15,13 +15,16 @@ import {
   View,
 } from "react-native";
 import { AlertCircle } from "lucide-react-native";
-import { colors, font, radius } from "../../../shared/theme";
+import { colors, font, fuente, radius } from "../../../shared/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../shared/auth";
 import { Logo } from "../../../shared/brand/Logo";
-import { GhostButton, PrimaryButton } from "../../../shared/ui";
+import { BarraSobreIndigo, GhostButton, PrimaryButton } from "../../../shared/ui";
 
 export function LoginScreen() {
   const { login, register } = useAuth();
+  // La cabecera se dibuja bajo la barra de estado: hay que reservar su alto.
+  const bordes = useSafeAreaInsets();
   const [modo, setModo] = useState<"login" | "registro">("login");
   const [f, setF] = useState({ nombre: "", correo: "", password: "", telefono: "", disciplina: "" });
   const [error, setError] = useState("");
@@ -58,12 +61,12 @@ export function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.surface }}
+      style={{ flex: 1, backgroundColor: colors.indigo }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
         {/* Índigo plano: el manual no admite el color aclarado ni en degradado. */}
-        <View style={styles.marca}>
+        <View style={[styles.marca, { paddingTop: bordes.top + 34 }]}>
           {/* El nombre está en el arte del logotipo: no se repite en texto. */}
           <Logo alto={40} version="blanco" alt="Miparner" />
           <Text style={styles.lema}>Encuentra tu lugar</Text>
@@ -153,7 +156,6 @@ function Campo({
 const styles = StyleSheet.create({
   marca: {
     backgroundColor: colors.indigo,
-    paddingTop: 72,
     paddingBottom: 34,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 24,
@@ -162,7 +164,7 @@ const styles = StyleSheet.create({
   lema: {
     color: colors.white,
     fontSize: 28,
-    fontWeight: "600",
+    fontFamily: fuente.fuerte,
     lineHeight: 34,
     letterSpacing: -0.5,
     marginTop: 24,
@@ -170,8 +172,8 @@ const styles = StyleSheet.create({
   // lavanda-200 sobre índigo · 8.1:1 AAA
   bajada: { color: colors.lav200, fontSize: 16, lineHeight: 24, marginTop: 8 },
 
-  form: { padding: 24 },
-  etiquetaCampo: { fontSize: 14, fontWeight: "600", color: colors.ink2, marginBottom: 7 },
+  form: { padding: 24, flex: 1, backgroundColor: colors.surface },
+  etiquetaCampo: { fontSize: 14, fontFamily: fuente.fuerte, color: colors.ink2, marginBottom: 7 },
   input: {
     minHeight: 48,
     borderWidth: 1.5,

@@ -26,7 +26,7 @@ const tonoEstado: Record<string, ClaseEstado> = {
 
 export function Viajes() {
   const { data, loading, error } = useFetch<ViajeRow[]>("/admin/viajes");
-  if (loading) return <Loader texto="Cargando viajes…" />;
+  if (loading) return <Loader texto="Cargando acompañamientos…" />;
   if (error) return <ErrorMsg msg={error} />;
 
   const filas = data ?? [];
@@ -34,7 +34,7 @@ export function Viajes() {
   return (
     <>
       <PageHeader
-        title="Viajes"
+        title="Acompañamientos"
         subtitle={`${filas.length} ${filas.length === 1 ? "registro" : "registros"} recientes`}
       />
 
@@ -42,17 +42,17 @@ export function Viajes() {
         {filas.length === 0 ? (
           <Vacio
             icon={RouteIcon}
-            titulo="Todavía no hay viajes"
-            detalle="Cuando un deportista pida su primer viaje, aparecerá en esta auditoría."
+            titulo="Todavía no hay acompañamientos"
+            detalle="Cuando un deportista pida su primer acompañamiento, aparecerá en esta auditoría."
           />
         ) : (
           <table>
             <caption className="solo-lectores">
-              Auditoría de viajes con estado, recorrido y personas involucradas
+              Auditoría de acompañamientos con estado, recorrido y personas involucradas
             </caption>
             <thead>
               <tr>
-                <th scope="col">Viaje</th>
+                <th scope="col">Acompañamiento</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Recorrido</th>
                 <th scope="col">Deportista</th>

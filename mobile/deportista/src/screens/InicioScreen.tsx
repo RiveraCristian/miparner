@@ -48,7 +48,7 @@ export function InicioScreen() {
 
       {activo && (
         <CardLavanda style={{ marginBottom: 16 }}>
-          <Estado text="Viaje en curso" tipo="indigo" />
+          <Estado text="Acompañamiento en curso" tipo="indigo" />
           <Text style={[font.h3, { marginTop: 10 }]} numberOfLines={1}>
             {activo.viajeDestinoTexto ?? "Destino"}
           </Text>
@@ -81,7 +81,7 @@ export function InicioScreen() {
         onPress={() => nav.navigate("Solicitar")}
       />
       <View style={{ height: 12 }} />
-      <GhostButton title="Ver mis viajes" onPress={() => nav.navigate("Solicitar")} />
+      <GhostButton title="Ver mis acompañamientos" onPress={() => nav.navigate("Solicitar")} />
     </Screen>
   );
 }

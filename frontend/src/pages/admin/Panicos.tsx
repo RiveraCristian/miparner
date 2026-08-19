@@ -67,7 +67,7 @@ export function Panicos() {
                 <th scope="col">Alerta</th>
                 <th scope="col">Persona</th>
                 <th scope="col">Teléfono</th>
-                <th scope="col">Viaje</th>
+                <th scope="col">Acompañamiento</th>
                 <th scope="col">Estado</th>
                 <th scope="col">Fecha</th>
                 <th scope="col" style={{ textAlign: "right" }}>Acciones</th>
@@ -86,7 +86,7 @@ export function Panicos() {
                     )}
                   </td>
                   <td className="num">
-                    {p.panicoViajeId ? `#${p.panicoViajeId}` : <span className="tenue">Fuera de viaje</span>}
+                    {p.panicoViajeId ? `#${p.panicoViajeId}` : <span className="tenue">Fuera de acompañamiento</span>}
                   </td>
                   <td>
                     <Estado tipo={tonoEstado[p.panicoEstado] ?? "neutro"}>{p.panicoEstado}</Estado>

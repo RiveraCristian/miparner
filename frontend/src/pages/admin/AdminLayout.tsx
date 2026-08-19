@@ -7,7 +7,7 @@ import { Sidebar, type ItemNav } from "../../components/layout/Sidebar";
 const items: ItemNav[] = [
   { to: "/admin", end: true, icon: LayoutDashboard, label: "Panel" },
   { to: "/admin/usuarios", icon: Users, label: "Personas" },
-  { to: "/admin/viajes", icon: RouteIcon, label: "Viajes" },
+  { to: "/admin/viajes", icon: RouteIcon, label: "Acompañamientos" },
   { to: "/admin/panicos", icon: ShieldAlert, label: "Alertas" },
 ];
 

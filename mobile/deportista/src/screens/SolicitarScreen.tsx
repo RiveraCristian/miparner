@@ -3,7 +3,7 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { MapPin, Send } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { Card, Etiqueta, Pill, PrimaryButton, Screen } from "../../../shared/ui";
 import type { Viaje } from "../../../shared/types";
@@ -64,7 +64,7 @@ export function SolicitarScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Etiqueta>Origen</Etiqueta>
-            <Text style={[font.body, { fontWeight: "600", marginTop: 2 }]}>{ORIGEN.texto}</Text>
+            <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>{ORIGEN.texto}</Text>
           </View>
         </View>
         <View style={[styles.punto, { borderBottomWidth: 0 }]}>
@@ -73,7 +73,7 @@ export function SolicitarScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Etiqueta>Destino</Etiqueta>
-            <Text style={[font.body, { fontWeight: "600", marginTop: 2 }]}>{destino.texto}</Text>
+            <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>{destino.texto}</Text>
           </View>
         </View>
       </Card>

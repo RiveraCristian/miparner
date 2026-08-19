@@ -19,7 +19,7 @@ const FondoConstelacion = lazy(() => import("../brand/FondoConstelacion"));
 
 const claves = [
   "Encuentra al voluntario disponible más cerca de ti",
-  "Sigue el viaje en vivo, de principio a fin",
+  "Sigue el acompañamiento en vivo, de principio a fin",
   "Botón de pánico con aviso inmediato",
   "Reconocimiento para quienes acompañan",
 ];

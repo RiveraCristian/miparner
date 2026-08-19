@@ -79,7 +79,7 @@ export function InicioScreen() {
 
       <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
         <StatCard value={String(nCercanas)} label="Solicitudes cerca" />
-        <StatCard value="0" label="Viajes hoy" />
+        <StatCard value="0" label="Acompañados hoy" />
         <StatCard value="—" label="Puntos hoy" />
       </View>
 

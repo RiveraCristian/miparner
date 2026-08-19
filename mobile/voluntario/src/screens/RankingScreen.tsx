@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Trophy } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { Card, CardLavanda, Etiqueta, Screen } from "../../../shared/ui";
 import type { Progreso } from "../../../shared/types";
@@ -47,8 +47,8 @@ export function RankingScreen() {
             style={[styles.fila, i === Math.min(rank.length, 10) - 1 && { borderBottomWidth: 0 }]}
           >
             <Text style={styles.pos}>{r.pos}</Text>
-            <Text style={[font.body, { flex: 1, fontWeight: "600" }]} numberOfLines={1}>{r.nombre}</Text>
-            <Text style={[font.body, { fontWeight: "600" }]}>{r.puntos}</Text>
+            <Text style={[font.body, { flex: 1, fontFamily: fuente.fuerte }]} numberOfLines={1}>{r.nombre}</Text>
+            <Text style={[font.body, { fontFamily: fuente.fuerte }]}>{r.puntos}</Text>
           </View>
         ))}
       </Card>
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  puntos: { fontSize: 22, fontWeight: "600", color: colors.ink, letterSpacing: -0.3, marginTop: 3 },
+  puntos: { fontSize: 22, fontFamily: fuente.fuerte, color: colors.ink, letterSpacing: -0.3, marginTop: 3 },
   fila: {
     flexDirection: "row",
     alignItems: "center",
@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line2,
   },
-  pos: { width: 26, fontSize: 16, fontWeight: "600", color: colors.ink3 },
+  pos: { width: 26, fontSize: 16, fontFamily: fuente.fuerte, color: colors.ink3 },
 });

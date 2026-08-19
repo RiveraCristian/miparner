@@ -11,7 +11,7 @@ interface Metricas {
   totalViajes: number;
 }
 
-/** Estados de viaje, ordenados como ocurren en la realidad. */
+/** Estados del acompañamiento, ordenados como ocurren en la realidad. */
 const ORDEN_VIAJE = ["solicitado", "asignado", "en_camino", "a_bordo", "finalizado", "cancelado"];
 
 const legible = (s: string) => s.replace(/_/g, " ");
@@ -33,11 +33,14 @@ export function Dashboard() {
     <>
       <PageHeader
         title="Panel"
-        subtitle={`${data.totalViajes} viajes registrados · ${totalPersonas} personas en la comunidad`}
+        subtitle={
+          `${data.totalViajes} ${data.totalViajes === 1 ? "acompañamiento registrado" : "acompañamientos registrados"}` +
+          ` · ${totalPersonas} ${totalPersonas === 1 ? "persona" : "personas"} en la comunidad`
+        }
       />
 
       <div className="rejilla-metricas">
-        <StatCard icon={RouteIcon} value={data.totalViajes} label="Viajes registrados" tono="indigo" />
+        <StatCard icon={RouteIcon} value={data.totalViajes} label="Acompañamientos registrados" tono="indigo" />
         <StatCard icon={Radio} value={data.voluntariosEnLinea} label="Voluntarios en línea" tono="exito" />
         <StatCard
           icon={ShieldAlert}
@@ -64,16 +67,16 @@ export function Dashboard() {
       <div className="rejilla-secciones">
         <SectionBanner
           icon={RouteIcon}
-          title="Viajes por estado"
-          subtitle="Cómo se reparten los viajes ahora mismo"
+          title="Acompañamientos por estado"
+          subtitle="Cómo se reparten los acompañamientos ahora mismo"
           total={data.totalViajes}
           tono="indigo"
         >
           {viajes.length === 0 ? (
             <Vacio
               icon={RouteIcon}
-              titulo="Todavía no hay viajes"
-              detalle="Cuando un deportista pida su primer viaje, aparecerá aquí."
+              titulo="Todavía no hay acompañamientos"
+              detalle="Cuando un deportista pida su primer acompañamiento, aparecerá aquí."
             />
           ) : (
             viajes.map(([estado, n]) => (
@@ -104,7 +107,9 @@ export function Dashboard() {
       <div className="pie-panel">
         <Estado tipo="exito">{data.voluntariosEnLinea} en línea</Estado>
         <Estado tipo={hayAlertas ? "critico" : "neutro"}>
-          {hayAlertas ? `${data.panicosActivos} alertas activas` : "Sin alertas activas"}
+          {hayAlertas
+            ? `${data.panicosActivos} ${data.panicosActivos === 1 ? "alerta activa" : "alertas activas"}`
+            : "Sin alertas activas"}
         </Estado>
       </div>
 

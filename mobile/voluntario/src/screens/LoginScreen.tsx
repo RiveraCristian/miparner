@@ -16,13 +16,16 @@ import {
   View,
 } from "react-native";
 import { AlertCircle } from "lucide-react-native";
-import { colors, font, radius } from "../../../shared/theme";
+import { colors, font, fuente, radius } from "../../../shared/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../shared/auth";
 import { Logo } from "../../../shared/brand/Logo";
-import { GhostButton, PrimaryButton } from "../../../shared/ui";
+import { BarraSobreIndigo, GhostButton, PrimaryButton } from "../../../shared/ui";
 
 export function LoginScreen() {
   const { login, register } = useAuth();
+  // La cabecera se dibuja bajo la barra de estado: hay que reservar su alto.
+  const bordes = useSafeAreaInsets();
   const [modo, setModo] = useState<"login" | "registro">("login");
   const [f, setF] = useState({ nombre: "", correo: "", password: "", telefono: "", vehiculo: "", patente: "" });
   const [error, setError] = useState("");
@@ -59,11 +62,12 @@ export function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.surface }}
+      style={{ flex: 1, backgroundColor: colors.indigo }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView keyboardShouldPersistTaps="handled">
-        <View style={styles.marca}>
+      <BarraSobreIndigo />
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={[styles.marca, { paddingTop: bordes.top + 34 }]}>
           <Logo alto={40} version="blanco" alt="Miparner" />
           <Text style={styles.etiquetaApp}>VOLUNTARIOS</Text>
           <Text style={styles.lema}>Tu tiempo cambia el día de alguien</Text>
@@ -76,7 +80,7 @@ export function LoginScreen() {
           <Text style={font.h1}>{esRegistro ? "Únete como voluntario" : "Bienvenido"}</Text>
           <Text style={[font.muted, { marginTop: 6, marginBottom: 22 }]}>
             {esRegistro
-              ? "El equipo validará tu cuenta antes de tu primer viaje."
+              ? "El equipo validará tu cuenta antes de tu primer acompañamiento."
               : "Ingresa con tu correo y contraseña."}
           </Text>
 
@@ -153,7 +157,6 @@ function Campo({
 const styles = StyleSheet.create({
   marca: {
     backgroundColor: colors.indigo,
-    paddingTop: 72,
     paddingBottom: 34,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 24,
@@ -162,22 +165,22 @@ const styles = StyleSheet.create({
   etiquetaApp: {
     color: colors.lav300,
     fontSize: 12,
-    fontWeight: "500",
+    fontFamily: fuente.medio,
     letterSpacing: 1.8,
     marginTop: 22,
   },
   lema: {
     color: colors.white,
     fontSize: 26,
-    fontWeight: "600",
+    fontFamily: fuente.fuerte,
     lineHeight: 32,
     letterSpacing: -0.4,
     marginTop: 8,
   },
   bajada: { color: colors.lav200, fontSize: 16, lineHeight: 24, marginTop: 8 },
 
-  form: { padding: 24 },
-  etiquetaCampo: { fontSize: 14, fontWeight: "600", color: colors.ink2, marginBottom: 7 },
+  form: { padding: 24, flex: 1, backgroundColor: colors.surface },
+  etiquetaCampo: { fontSize: 14, fontFamily: fuente.fuerte, color: colors.ink2, marginBottom: 7 },
   input: {
     minHeight: 48,
     borderWidth: 1.5,

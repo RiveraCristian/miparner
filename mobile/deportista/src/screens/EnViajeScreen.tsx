@@ -4,7 +4,7 @@ import { useRoute, useNavigation, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Socket } from "socket.io-client";
 import { Circle, CircleDot, CheckCircle2, ShieldAlert, Share2, X } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { connectSocket, joinRide, leaveRide, emitPanic } from "../../../shared/socket";
 import {
@@ -106,7 +106,7 @@ export function EnViajeScreen() {
         <Text style={[font.h3, { marginTop: 4 }]}>{viaje.destino.texto ?? "Destino"}</Text>
       </Card>
 
-      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Estado del viaje</Etiqueta>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Estado del acompañamiento</Etiqueta>
       <Card style={{ paddingVertical: 8 }}>
         {ORDEN.map((k, i) => {
           const hecho = i < idx;
@@ -124,7 +124,7 @@ export function EnViajeScreen() {
               <Text
                 style={[
                   font.body,
-                  { color: ahora || hecho ? colors.ink : colors.ink2, fontWeight: ahora ? "600" : "400" },
+                  { color: ahora || hecho ? colors.ink : colors.ink2, fontFamily: ahora ? fuente.fuerte : fuente.normal },
                 ]}
               >
                 {ETIQUETAS[k]}
@@ -141,9 +141,9 @@ export function EnViajeScreen() {
           {/* El coral es la forma: borde e icono. El texto va en tinta. */}
           <DangerButton title="Botón de pánico" icon={<ShieldAlert color={colors.coral} size={19} />} onPress={panico} />
           <View style={{ height: 12 }} />
-          <GhostButton title="Compartir viaje" icon={<Share2 color={colors.indigo} size={18} />} onPress={() => Alert.alert("Compartir", "Enlace de seguimiento copiado.")} />
+          <GhostButton title="Compartir acompañamiento" icon={<Share2 color={colors.indigo} size={18} />} onPress={() => Alert.alert("Compartir", "Enlace de seguimiento copiado.")} />
           <View style={{ height: 12 }} />
-          <GhostButton title="Cancelar viaje" icon={<X color={colors.indigo} size={18} />} onPress={cancelar} />
+          <GhostButton title="Cancelar acompañamiento" icon={<X color={colors.indigo} size={18} />} onPress={cancelar} />
         </>
       )}
       {(finalizado || cancelado) && <GhostButton title="Volver al inicio" onPress={() => nav.navigate("Tabs")} />}

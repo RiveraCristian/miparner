@@ -28,7 +28,7 @@ const capacidades = [
   },
   {
     icon: MapPin,
-    t: "El viaje, en vivo",
+    t: "El acompañamiento, en vivo",
     d: "Sigues el recorrido en el mapa de principio a fin, con los tiempos de llegada a la vista de tu familia.",
   },
   {
@@ -44,7 +44,7 @@ const capacidades = [
   {
     icon: Users,
     t: "Voluntarios validados",
-    d: "Cada persona que acompaña pasa por una validación del equipo antes de tomar su primer viaje.",
+    d: "Cada persona que acompaña pasa por una validación del equipo antes de tomar su primer acompañamiento.",
   },
   {
     icon: Award,
@@ -56,7 +56,7 @@ const capacidades = [
 const ventajasVoluntario = [
   "Eliges cuándo estás disponible con un solo interruptor",
   "Recibes solo las solicitudes cercanas a tu ubicación",
-  "Navegación con los hitos del viaje, paso a paso",
+  "Navegación con los hitos del acompañamiento, paso a paso",
   "Reconocimiento y premios por tu aporte",
 ];
 
@@ -84,7 +84,7 @@ export function Landing() {
             <h1 className="hero__titulo">Encuentra tu lugar</h1>
             <p className="hero__bajada">
               Dos personas, un mismo lugar. Miparner conecta a cada deportista con
-              un voluntario que lo acompaña hasta su entrenamiento, con el viaje a
+              un voluntario que lo acompaña hasta su entrenamiento, con el recorrido a
               la vista y ayuda a un toque de distancia.
             </p>
             <div className="hero__acciones">

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Award, Clock, Flame, Medal } from "lucide-react-native";
-import { colors, font, radius } from "../../../shared/theme";
+import { colors, font, fuente, radius } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { Card, Etiqueta, PanelIndigo, ProgressBar, Screen, Vacio } from "../../../shared/ui";
 import type { Progreso } from "../../../shared/types";
@@ -38,7 +38,7 @@ export function LogrosScreen() {
         <Text style={styles.etiquetaPanel}>PUNTOS MIPARNER</Text>
         <Text style={styles.puntos}>{prog?.puntos ?? 0}</Text>
         {/* El coral es forma: aquí es la barra, no texto. */}
-        <ProgressBar pct={pct} color={colors.coral} />
+        <ProgressBar pct={pct} color={colors.coral} sobreOscuro />
         <Text style={styles.piePanel}>
           {prog
             ? `${prog.puntosPorNivel - prog.progresoNivel} puntos para el siguiente nivel`
@@ -63,7 +63,7 @@ export function LogrosScreen() {
         <Vacio
           icon={Medal}
           titulo="Aún no tienes insignias"
-          detalle="Completa tu primer viaje para ganar la primera."
+          detalle="Completa tu primer acompañamiento para ganar la primera."
         />
       )}
 
@@ -78,8 +78,8 @@ export function LogrosScreen() {
             style={[styles.filaRank, i === Math.min(rank.length, 10) - 1 && { borderBottomWidth: 0 }]}
           >
             <Text style={styles.rankPos}>{r.pos}</Text>
-            <Text style={[font.body, { flex: 1, fontWeight: "600" }]} numberOfLines={1}>{r.nombre}</Text>
-            <Text style={[font.body, { fontWeight: "600" }]}>{r.puntos}</Text>
+            <Text style={[font.body, { flex: 1, fontFamily: fuente.fuerte }]} numberOfLines={1}>{r.nombre}</Text>
+            <Text style={[font.body, { fontFamily: fuente.fuerte }]}>{r.puntos}</Text>
           </View>
         ))}
       </Card>
@@ -92,13 +92,13 @@ const styles = StyleSheet.create({
   etiquetaPanel: {
     color: colors.lav300,
     fontSize: 12,
-    fontWeight: "500",
+    fontFamily: fuente.medio,
     letterSpacing: 1.6,
   },
   puntos: {
     color: colors.white,
     fontSize: 40,
-    fontWeight: "600",
+    fontFamily: fuente.fuerte,
     letterSpacing: -1,
     marginTop: 6,
     marginBottom: 14,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 6,
   },
-  insigniaNombre: { fontSize: 13, fontWeight: "600", color: colors.ink2, textAlign: "center" },
+  insigniaNombre: { fontSize: 13, fontFamily: fuente.fuerte, color: colors.ink2, textAlign: "center" },
 
   filaRank: {
     flexDirection: "row",
@@ -128,5 +128,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line2,
   },
-  rankPos: { width: 26, fontSize: 16, fontWeight: "600", color: colors.ink3 },
+  rankPos: { width: 26, fontSize: 16, fontFamily: fuente.fuerte, color: colors.ink3 },
 });

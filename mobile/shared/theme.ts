@@ -74,24 +74,63 @@ export const spacing = (n: number) => n * 4;
 export const TOQUE_MIN = 44;
 
 /**
- * Jerarquía tipográfica del manual: display 600/40, título 600/24,
- * cuerpo 400/16, etiqueta 500/12. Interlineado 1.5 en párrafos, 1.2 en títulos.
- * Outfit acompaña al logotipo; se registra en `fontFamily` para cuando las
- * fuentes estén enlazadas en cada plataforma.
+ * Outfit acompaña al logotipo (manual, sección 05).
+ *
+ * En Android `fontFamily` se resuelve por el NOMBRE DEL ARCHIVO en
+ * `android/app/src/main/assets/fonts/`, no por peso: hay que nombrar la variante
+ * exacta. Por eso en toda la app se usa `fuente.*` en vez de `fontWeight`.
+ * Las tres estáticas se generan desde la variable con
+ * `design/scripts/gen_fuentes.py`, en los tres pesos que define el manual.
  */
-export const FUENTE = "Outfit";
+export const fuente = {
+  /** 400 · cuerpo */
+  normal: "Outfit-Regular",
+  /** 500 · etiquetas */
+  medio: "Outfit-Medium",
+  /** 600 · títulos y display */
+  fuerte: "Outfit-SemiBold",
+} as const;
+
+/** Elevación. Sombras muy suaves, teñidas de tinta, nunca de negro puro.
+ *  No aplican al logotipo: el manual prohíbe sombras sobre la marca. */
+export const elevacion = {
+  /** Tarjetas en reposo. */
+  suave: {
+    shadowColor: "#1A1720",
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  /** Elementos destacados: paneles de marca, tarjeta activa. */
+  media: {
+    shadowColor: "#1A1720",
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  /** Barras fijas y hojas superpuestas. */
+  alta: {
+    shadowColor: "#1A1720",
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
+  },
+} as const;
 
 export const font = {
-  display: { fontSize: 34, fontWeight: "600" as const, lineHeight: 41, letterSpacing: -0.6, color: colors.ink },
-  h1: { fontSize: 26, fontWeight: "600" as const, lineHeight: 32, letterSpacing: -0.4, color: colors.ink },
-  h2: { fontSize: 20, fontWeight: "600" as const, lineHeight: 25, letterSpacing: -0.3, color: colors.ink },
-  h3: { fontSize: 17, fontWeight: "600" as const, lineHeight: 22, color: colors.ink },
-  body: { fontSize: 16, fontWeight: "400" as const, lineHeight: 24, color: colors.ink },
-  muted: { fontSize: 15, fontWeight: "400" as const, lineHeight: 22, color: colors.ink2 },
-  tiny: { fontSize: 13, fontWeight: "400" as const, lineHeight: 18, color: colors.ink3 },
+  display: { fontSize: 34, fontFamily: fuente.fuerte, lineHeight: 41, letterSpacing: -0.6, color: colors.ink },
+  h1: { fontSize: 26, fontFamily: fuente.fuerte, lineHeight: 32, letterSpacing: -0.4, color: colors.ink },
+  h2: { fontSize: 20, fontFamily: fuente.fuerte, lineHeight: 25, letterSpacing: -0.3, color: colors.ink },
+  h3: { fontSize: 17, fontFamily: fuente.fuerte, lineHeight: 22, color: colors.ink },
+  body: { fontSize: 16, fontFamily: fuente.normal, lineHeight: 24, color: colors.ink },
+  muted: { fontSize: 15, fontFamily: fuente.normal, lineHeight: 22, color: colors.ink2 },
+  tiny: { fontSize: 13, fontFamily: fuente.normal, lineHeight: 18, color: colors.ink3 },
   etiqueta: {
     fontSize: 12,
-    fontWeight: "500" as const,
+    fontFamily: fuente.medio,
     lineHeight: 16,
     letterSpacing: 1.6,
     textTransform: "uppercase" as const,

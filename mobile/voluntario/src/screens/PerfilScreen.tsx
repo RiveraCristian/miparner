@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Car, LogOut, ShieldCheck } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
 import { Card, Estado, Etiqueta, GhostButton, Screen } from "../../../shared/ui";
@@ -40,7 +40,7 @@ export function PerfilScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Etiqueta>Vehículo</Etiqueta>
-          <Text style={[font.body, { fontWeight: "600", marginTop: 2 }]}>
+          <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>
             {perfil?.voluntarioVehiculo ?? "Sin registrar"}
             {perfil?.voluntarioPatente ? ` · ${perfil.voluntarioPatente}` : ""}
           </Text>
@@ -58,7 +58,7 @@ export function PerfilScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Etiqueta>Estado de la cuenta</Etiqueta>
-          <Text style={[font.body, { fontWeight: "600", marginTop: 2 }]}>
+          <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>
             {perfil?.voluntarioValidado ? "Validada" : "En revisión por el equipo"}
           </Text>
         </View>
@@ -81,6 +81,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarTexto: { color: colors.white, fontSize: 26, fontWeight: "600" },
+  avatarTexto: { color: colors.white, fontSize: 26, fontFamily: fuente.fuerte },
   icono: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });

@@ -185,7 +185,40 @@ Si no hay WebGL, el panel queda en índigo plano y no se pierde nada.
 
 ---
 
-## 6. Archivos de marca
+## 6. Tipografía en las apps móviles
+
+Android resuelve `fontFamily` por el **nombre del archivo** en
+`android/app/src/main/assets/fonts/`, no por peso: no vale poner `fontWeight`
+sobre una familia personalizada, hay que nombrar la variante exacta. Por eso en
+todo el código móvil se usa el token `fuente.*` de `mobile/shared/theme.ts` y no
+queda ni un `fontWeight` suelto:
+
+| Token | Archivo | Peso del manual |
+|---|---|---|
+| `fuente.normal` | `Outfit-Regular.ttf` | 400 · cuerpo |
+| `fuente.medio` | `Outfit-Medium.ttf` | 500 · etiquetas |
+| `fuente.fuerte` | `Outfit-SemiBold.ttf` | 600 · títulos |
+
+Outfit se publica como fuente variable. Las tres estáticas se instancian con
+`design/scripts/gen_fuentes.py`, que descarga la variable y la corta en los tres
+pesos. Si cambian los pesos del manual, se cambia ahí.
+
+> iOS todavía no está generado. Cuando lo esté, las mismas tres fuentes se
+> añaden al target y se referencian por su nombre PostScript.
+
+## 7. Profundidad y movimiento
+
+El manual prohíbe sombras **sobre el logotipo**; no dice nada de la interfaz. Las
+sombras de `elevacion.*` son de profundidad de interfaz: muy suaves, teñidas de
+tinta y nunca de negro puro. Tres niveles: `suave` para tarjetas en reposo,
+`media` para paneles de marca, `alta` para la barra de pestañas.
+
+El movimiento es corto y funcional, nunca decorativo: los botones se hunden un 3 %
+al pulsarse, la barra de progreso crece en 650 ms y los esqueletos de carga laten
+mientras llega el dato. En web, todo esto queda anulado por
+`prefers-reduced-motion`.
+
+## 8. Archivos de marca
 
 `frontend/public/brand/` — SVG, que es el formato para pantalla y web. Nunca JPG del logo.
 

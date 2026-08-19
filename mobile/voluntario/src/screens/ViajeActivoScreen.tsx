@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { useRoute, useNavigation, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { CheckCircle2, Circle, CircleDot, Navigation } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { connectSocket, joinRide, leaveRide, emitPosition } from "../../../shared/socket";
 import { Card, Etiqueta, MapPlaceholder, PrimaryButton, PuntoMapa, Screen } from "../../../shared/ui";
@@ -16,7 +16,7 @@ const PASOS = [
   { key: "finalizado", label: "Confirmar llegada", siguiente: "finalizado" },
 ];
 
-/** Hitos que ve el voluntario, en el orden en que ocurren. */
+/** Hitos del acompañamiento que ve el voluntario, en orden. */
 const HITOS = [
   { k: "asignado", l: "Solicitud aceptada" },
   { k: "en_camino", l: "En camino" },
@@ -68,7 +68,7 @@ export function ViajeActivoScreen() {
         </View>
       </Card>
 
-      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Hitos del viaje</Etiqueta>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Hitos del acompañamiento</Etiqueta>
       <Card style={{ paddingVertical: 8 }}>
         {HITOS.map((p, i) => {
           const cur = HITOS.findIndex((h) => h.k === estado);
@@ -87,7 +87,7 @@ export function ViajeActivoScreen() {
               <Text
                 style={[
                   font.body,
-                  { color: ahora || hecho ? colors.ink : colors.ink2, fontWeight: ahora ? "600" : "400" },
+                  { color: ahora || hecho ? colors.ink : colors.ink2, fontFamily: ahora ? fuente.fuerte : fuente.normal },
                 ]}
               >
                 {p.l}

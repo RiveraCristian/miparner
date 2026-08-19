@@ -3,9 +3,9 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Inbox, MapPin } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
-import { Card, Estado, Loading, PrimaryButton, Screen, Vacio } from "../../../shared/ui";
+import { Card, Estado, EsqueletoTarjeta, PrimaryButton, Screen, Vacio } from "../../../shared/ui";
 import type { SolicitudCercana } from "../../../shared/types";
 import type { RootStackParams } from "../navigation";
 
@@ -26,7 +26,14 @@ export function SolicitudesScreen() {
     finally { setBusy(null); }
   }
 
-  if (!items) return <Screen><Loading /></Screen>;
+  // Esqueletos con la forma de las tarjetas que van a llegar.
+  if (!items)
+    return (
+      <Screen>
+        <EsqueletoTarjeta />
+        <EsqueletoTarjeta />
+      </Screen>
+    );
 
   return (
     <Screen>
@@ -67,7 +74,7 @@ export function SolicitudesScreen() {
 
           <View style={{ height: 16 }} />
           <PrimaryButton
-            title={busy === s.viaje_id ? "Aceptando…" : "Aceptar viaje"}
+            title={busy === s.viaje_id ? "Aceptando…" : "Aceptar acompañamiento"}
             disabled={busy === s.viaje_id}
             onPress={() => aceptar(s.viaje_id)}
           />
@@ -86,5 +93,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarTexto: { color: colors.white, fontSize: 16, fontWeight: "600" },
+  avatarTexto: { color: colors.white, fontSize: 16, fontFamily: fuente.fuerte },
 });

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Contrast, Heart, LogOut, Type, Vibrate, Volume2 } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
 import { Card, Etiqueta, GhostButton, Screen } from "../../../shared/ui";
@@ -51,7 +51,7 @@ export function PerfilScreen() {
                 <Icono color={colors.indigo} size={20} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[font.body, { fontWeight: "600" }]}>{a.label}</Text>
+                <Text style={[font.body, { fontFamily: fuente.fuerte }]}>{a.label}</Text>
                 {a.hint ? <Text style={font.tiny}>{a.hint}</Text> : null}
               </View>
               {/* thumbColor explícito: sin él Android pinta el pulgar con su
@@ -76,7 +76,7 @@ export function PerfilScreen() {
           <Heart color={colors.coral} size={20} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[font.body, { fontWeight: "600" }]}>Agregar contacto</Text>
+          <Text style={[font.body, { fontFamily: fuente.fuerte }]}>Agregar contacto</Text>
           <Text style={font.tiny}>Se le avisa al activar el botón de pánico</Text>
         </View>
       </Card>
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarTexto: { color: colors.white, fontSize: 26, fontWeight: "600" },
+  avatarTexto: { color: colors.white, fontSize: 26, fontFamily: fuente.fuerte },
   fila: {
     flexDirection: "row",
     alignItems: "center",
