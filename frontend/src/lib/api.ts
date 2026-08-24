@@ -25,3 +25,19 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   }
   return json as T;
 }
+
+/**
+ * Descarga un binario protegido (por ejemplo, el documento de validación de
+ * una persona). Una etiqueta <img src> no puede enviar el Bearer token, así
+ * que se pide con fetch y se expone como object URL.
+ *
+ * Quien lo use debe liberar la URL con `URL.revokeObjectURL` al desmontar.
+ */
+export async function apiBlobUrl(path: string): Promise<string> {
+  const token = getToken();
+  const res = await fetch(`/api/v1${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`No se pudo abrir el archivo (${res.status})`);
+  return URL.createObjectURL(await res.blob());
+}

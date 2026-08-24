@@ -5,6 +5,7 @@ import { AppError } from "../../lib/http-error";
 import { hashPassword, verifyPassword } from "../../lib/password";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/jwt";
 import { env } from "../../config/env";
+import { estadoValidacion } from "../documentos/documentos.service";
 import type { LoginDto, RefreshDto, RegisterDto } from "./auth.schemas";
 
 function hashToken(token: string): string {
@@ -30,6 +31,10 @@ export function toPublicUser(u: Usuario) {
     telefono: u.usuarioTelefono,
     rol: u.usuarioRol,
     activo: u.usuarioActivo,
+    // La cuenta nace activa pero pendiente de validación por el panel: las
+    // apps lo necesitan para decidir qué pueden mostrar.
+    estadoValidacion: u.usuarioEstadoValidacion,
+    motivoRechazo: u.usuarioMotivoRechazo,
   };
 }
 
@@ -92,7 +97,12 @@ export async function register(dto: RegisterDto) {
   });
 
   const tokens = await issueTokens(usuario);
-  return { usuario: toPublicUser(usuario), ...tokens };
+  return {
+    usuario: toPublicUser(usuario),
+    ...tokens,
+    // Guía para la app: qué tiene que subir ahora para que lo validen.
+    validacion: await estadoValidacion(usuario.usuarioId),
+  };
 }
 
 export async function login(dto: LoginDto) {
@@ -146,9 +156,22 @@ export async function me(usuarioId: number) {
     include: { deportistaPerfil: true, voluntarioPerfil: true },
   });
   if (!usuario) throw AppError.notFound("Usuario no encontrado");
+
+  // El perfil del voluntario guarda la ubicación en una columna geography que
+  // el cliente Prisma no sabe serializar: se omite del JSON.
+  const voluntarioPerfil = usuario.voluntarioPerfil
+    ? (() => {
+        const { voluntarioUbicacion: _omit, ...resto } = usuario.voluntarioPerfil as
+          typeof usuario.voluntarioPerfil & { voluntarioUbicacion?: unknown };
+        return resto;
+      })()
+    : null;
+
   return {
     ...toPublicUser(usuario),
     deportistaPerfil: usuario.deportistaPerfil,
-    voluntarioPerfil: usuario.voluntarioPerfil,
+    voluntarioPerfil,
+    // Qué documentos le piden, cuáles subió y en qué va su validación.
+    validacion: await estadoValidacion(usuarioId),
   };
 }

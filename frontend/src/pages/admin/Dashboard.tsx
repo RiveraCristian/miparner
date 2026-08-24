@@ -1,4 +1,5 @@
-import { Radio, Route as RouteIcon, ShieldAlert, Users } from "lucide-react";
+import { BadgeCheck, Radio, Route as RouteIcon, ShieldAlert, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useFetch } from "../../lib/useFetch";
 import { ErrorMsg, Loader, PageHeader } from "../../components/layout/PageHeader";
 import { Estado, FilaDato, SectionBanner, StatCard, Vacio } from "../../components/ui";
@@ -9,6 +10,7 @@ interface Metricas {
   voluntariosEnLinea: number;
   panicosActivos: number;
   totalViajes: number;
+  validacionesPendientes: number;
 }
 
 /** Estados del acompañamiento, ordenados como ocurren en la realidad. */
@@ -28,6 +30,7 @@ export function Dashboard() {
     (a, b) => ORDEN_VIAJE.indexOf(a[0]) - ORDEN_VIAJE.indexOf(b[0]),
   );
   const hayAlertas = data.panicosActivos > 0;
+  const porValidar = data.validacionesPendientes;
 
   return (
     <>
@@ -49,6 +52,12 @@ export function Dashboard() {
           tono={hayAlertas ? "coral" : "neutro"}
         />
         <StatCard icon={Users} value={totalPersonas} label="Personas registradas" tono="indigo" />
+        <StatCard
+          icon={BadgeCheck}
+          value={porValidar}
+          label="Cuentas por validar"
+          tono={porValidar > 0 ? "coral" : "neutro"}
+        />
       </div>
 
       {/* Una alerta activa no se comunica solo con color: título, icono y texto. */}
@@ -60,6 +69,20 @@ export function Dashboard() {
               Hay {data.panicosActivos} {data.panicosActivos === 1 ? "alerta" : "alertas"} sin atender.
             </strong>{" "}
             Revísalas en la sección Alertas.
+          </span>
+        </div>
+      )}
+
+      {/* Cola de validación: la cuenta ya existe, pero no puede operar. */}
+      {porValidar > 0 && (
+        <div className="aviso-atencion" role="status">
+          <BadgeCheck size={20} aria-hidden="true" />
+          <span>
+            <strong>
+              {porValidar} {porValidar === 1 ? "cuenta espera" : "cuentas esperan"} validación.
+            </strong>{" "}
+            Hasta que se aprueben no pueden pedir ni aceptar acompañamientos.{" "}
+            <Link to="/admin/validaciones">Revisar ahora</Link>
           </span>
         </div>
       )}
@@ -129,6 +152,13 @@ export function Dashboard() {
           padding:14px 16px;margin-bottom:22px;font-size:15px;line-height:1.5;
         }
         .aviso-critico svg{flex:none;margin-top:2px;color:var(--coral)}
+        .aviso-atencion{
+          display:flex;gap:12px;align-items:flex-start;
+          background:var(--lavanda);color:var(--ink);
+          border-left:3px solid var(--indigo);border-radius:var(--r-sm);
+          padding:14px 16px;margin-bottom:22px;font-size:15px;line-height:1.5;
+        }
+        .aviso-atencion svg{flex:none;margin-top:2px;color:var(--indigo)}
         .pie-panel{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
       `}</style>
     </>

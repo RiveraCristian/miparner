@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Users } from "lucide-react";
 import { api } from "../../lib/api";
 import { useFetch } from "../../lib/useFetch";
 import { ErrorMsg, Loader, PageHeader } from "../../components/layout/PageHeader";
-import { Estado, Vacio } from "../../components/ui";
+import { Estado, Vacio, type ClaseEstado } from "../../components/ui";
 
 interface UsuarioRow {
   usuarioId: number;
@@ -11,8 +12,17 @@ interface UsuarioRow {
   usuarioCorreo: string;
   usuarioRol: string;
   usuarioActivo: boolean;
-  voluntarioPerfil?: { voluntarioValidado: boolean; voluntarioEnLinea: boolean } | null;
+  usuarioEstadoValidacion: string;
+  voluntarioPerfil?: { voluntarioValidado: boolean } | null;
+  _count?: { documentos: number };
 }
+
+/** Cada estado de validación lleva su propio icono a través de <Estado>. */
+const tonoValidacion: Record<string, ClaseEstado> = {
+  pendiente: "atencion",
+  aprobado: "exito",
+  rechazado: "critico",
+};
 
 export function Usuarios() {
   const { data, loading, error, reload } = useFetch<UsuarioRow[]>("/admin/usuarios");
@@ -59,13 +69,15 @@ export function Usuarios() {
                 <th scope="col">Rol</th>
                 <th scope="col">Cuenta</th>
                 <th scope="col">Validación</th>
+                <th scope="col">Documentos</th>
                 <th scope="col" style={{ textAlign: "right" }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filas.map((u) => {
-                const esVoluntario = u.usuarioRol === "voluntario";
-                const validado = u.voluntarioPerfil?.voluntarioValidado ?? false;
+                const esAdmin = u.usuarioRol === "admin";
+                const estado = u.usuarioEstadoValidacion;
+                const pendiente = !esAdmin && estado !== "aprobado";
                 return (
                   <tr key={u.usuarioId}>
                     <td style={{ fontWeight: 600 }}>{u.usuarioNombre}</td>
@@ -77,33 +89,28 @@ export function Usuarios() {
                       </Estado>
                     </td>
                     <td>
-                      {!esVoluntario ? (
+                      {esAdmin ? (
                         <span className="tenue">No aplica</span>
-                      ) : validado ? (
-                        <Estado tipo="indigo">Validado</Estado>
                       ) : (
-                        <Estado tipo="atencion">Pendiente</Estado>
+                        <Estado tipo={tonoValidacion[estado] ?? "neutro"}>{estado}</Estado>
+                      )}
+                    </td>
+                    <td className="num">
+                      {esAdmin ? (
+                        <span className="tenue">—</span>
+                      ) : (
+                        `${u._count?.documentos ?? 0}`
                       )}
                     </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      {esVoluntario && !validado && (
-                        <button
+                      {pendiente && (
+                        <Link
+                          to="/admin/validaciones"
                           className="btn btn-secundario btn-sm"
-                          disabled={ocupado === u.usuarioId}
                           style={{ marginRight: 8 }}
-                          onClick={() =>
-                            accion(
-                              () =>
-                                api(`/admin/voluntarios/${u.usuarioId}/validar`, {
-                                  method: "PATCH",
-                                  body: { validado: true },
-                                }),
-                              u.usuarioId,
-                            )
-                          }
                         >
-                          Validar
-                        </button>
+                          Revisar documentos
+                        </Link>
                       )}
                       <button
                         className={`btn btn-sm ${u.usuarioActivo ? "btn-critico" : "btn-fantasma"}`}
@@ -131,7 +138,8 @@ export function Usuarios() {
       </div>
 
       <p className="tenue" style={{ marginTop: 14 }}>
-        Las cuentas no se eliminan: se desactivan y quedan en el historial.
+        Las cuentas no se eliminan: se desactivan y quedan en el historial. La aprobación
+        de una cuenta se hace en Validaciones, donde están los documentos de respaldo.
       </p>
     </>
   );

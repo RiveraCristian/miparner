@@ -37,6 +37,7 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
       destino_lat: number;
       destino_lng: number;
       viaje_destino_texto: string | null;
+      viaje_comentario: string | null;
       distancia_m: number;
     }[]
   >`
@@ -49,6 +50,7 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
            ST_Y(v.viaje_destino::geometry)     AS "destino_lat",
            ST_X(v.viaje_destino::geometry)     AS "destino_lng",
            v.viaje_destino_texto               AS "viaje_destino_texto",
+           v.viaje_comentario                  AS "viaje_comentario",
            ST_Distance(v.viaje_origen, vp.voluntario_ubicacion)::int AS "distancia_m"
       FROM viajes v
       JOIN voluntario_perfil vp ON vp.voluntario_usuario_id = ${usuarioId}

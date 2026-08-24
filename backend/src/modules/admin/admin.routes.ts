@@ -4,7 +4,11 @@ import { validate } from "../../middleware/validate";
 import {
   atenderPanicoSchema,
   estadoUsuarioSchema,
+  idParamSchema,
   listarUsuariosQuerySchema,
+  listarValidacionesQuerySchema,
+  resolverValidacionSchema,
+  revisarDocumentoSchema,
   validarVoluntarioSchema,
 } from "./admin.schemas";
 import * as admin from "./admin.service";
@@ -35,7 +39,58 @@ const cambiarActivo = [
 router.patch("/usuarios/:id/estado", ...cambiarActivo);
 router.patch("/usuarios/:id/activo", ...cambiarActivo);
 
-// Validación de voluntarios
+// --- Validación de cuentas (deportistas y voluntarios) ---
+
+// Cola de revisión. Por defecto, las cuentas pendientes.
+router.get("/validaciones", validate({ query: listarValidacionesQuerySchema }), async (req, res, next) => {
+  try {
+    res.json(await admin.listarValidaciones(String(req.query.estado ?? "pendiente")));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Aprobar o rechazar la cuenta completa.
+router.patch(
+  "/usuarios/:id/validacion",
+  validate({ params: idParamSchema, body: resolverValidacionSchema }),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await admin.resolverValidacion(
+          actorId(req),
+          Number(req.params.id),
+          req.body.estado,
+          req.body.motivo,
+        ),
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Revisar un documento suelto (permite pedir de nuevo solo ese).
+router.patch(
+  "/documentos/:id",
+  validate({ params: idParamSchema, body: revisarDocumentoSchema }),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await admin.revisarDocumento(
+          actorId(req),
+          Number(req.params.id),
+          req.body.estado,
+          req.body.observacion,
+        ),
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Validación rápida del perfil de voluntario (interruptor heredado)
 router.patch("/voluntarios/:id/validar", validate({ body: validarVoluntarioSchema }), async (req, res, next) => {
   try {
     res.json(await admin.validarVoluntario(actorId(req), Number(req.params.id), req.body.validado));

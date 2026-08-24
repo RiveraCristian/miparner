@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Route as RouteIcon, ShieldAlert, Users } from "lucide-react";
+import { BadgeCheck, LayoutDashboard, Route as RouteIcon, ShieldAlert, Users } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 import { Sidebar, type ItemNav } from "../../components/layout/Sidebar";
 
 const items: ItemNav[] = [
   { to: "/admin", end: true, icon: LayoutDashboard, label: "Panel" },
   { to: "/admin/usuarios", icon: Users, label: "Personas" },
+  { to: "/admin/validaciones", icon: BadgeCheck, label: "Validaciones" },
   { to: "/admin/viajes", icon: RouteIcon, label: "Acompañamientos" },
   { to: "/admin/panicos", icon: ShieldAlert, label: "Alertas" },
 ];

@@ -8,12 +8,14 @@ async function main() {
   const adminCorreo = "admin@miparner.cl";
   const admin = await prisma.usuario.upsert({
     where: { usuarioCorreo: adminCorreo },
-    update: {},
+    update: { usuarioEstadoValidacion: "aprobado" },
     create: {
       usuarioCorreo: adminCorreo,
       usuarioNombre: "Administrador Miparner",
       usuarioPassword: await bcrypt.hash("Cambiar123!", 12),
       usuarioRol: "admin",
+      // El equipo de administración no pasa por la cola de validación.
+      usuarioEstadoValidacion: "aprobado",
     },
   });
 

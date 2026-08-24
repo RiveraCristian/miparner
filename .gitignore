@@ -23,6 +23,10 @@ gcp-deployer-key.json
 # Prisma
 backend/prisma/*.db
 
+# Documentos subidos por los usuarios (datos personales: jamás se versionan)
+backend/uploads/
+uploads/
+
 # Logs
 *.log
 npm-debug.log*

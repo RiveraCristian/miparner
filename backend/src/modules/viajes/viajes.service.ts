@@ -21,6 +21,7 @@ interface ViajeRow {
   viaje_origen_texto: string | null;
   viaje_destino_texto: string | null;
   viaje_necesidades: unknown;
+  viaje_comentario: string | null;
   viaje_solicitado_at: Date;
   viaje_inicio_at: Date | null;
   viaje_fin_at: Date | null;
@@ -42,6 +43,7 @@ async function obtenerFila(viajeId: number): Promise<ViajeRow> {
            ST_Y(v.viaje_destino::geometry) AS destino_lat,
            ST_X(v.viaje_destino::geometry) AS destino_lng,
            v.viaje_origen_texto, v.viaje_destino_texto, v.viaje_necesidades,
+           v.viaje_comentario,
            v.viaje_solicitado_at, v.viaje_inicio_at, v.viaje_fin_at
       FROM viajes v
      WHERE v.viaje_id = ${viajeId} AND v.is_deleted = false`;
@@ -59,6 +61,7 @@ function mapViaje(v: ViajeRow) {
     origen: { lat: v.origen_lat, lng: v.origen_lng, texto: v.viaje_origen_texto },
     destino: { lat: v.destino_lat, lng: v.destino_lng, texto: v.viaje_destino_texto },
     necesidades: v.viaje_necesidades ?? [],
+    comentario: v.viaje_comentario,
     solicitadoAt: v.viaje_solicitado_at,
     inicioAt: v.viaje_inicio_at,
     finAt: v.viaje_fin_at,
@@ -89,13 +92,15 @@ export async function solicitar(deportistaId: number, dto: SolicitarDto) {
   const filas = await prisma.$queryRaw<{ viaje_id: number }[]>`
     INSERT INTO viajes (
       viaje_deportista_id, viaje_estado, viaje_origen, viaje_destino,
-      viaje_origen_texto, viaje_destino_texto, viaje_necesidades, created_by
+      viaje_origen_texto, viaje_destino_texto, viaje_necesidades,
+      viaje_comentario, created_by
     ) VALUES (
       ${deportistaId}, 'solicitado',
       ST_SetSRID(ST_MakePoint(${dto.origen.lng}, ${dto.origen.lat}), 4326),
       ST_SetSRID(ST_MakePoint(${dto.destino.lng}, ${dto.destino.lat}), 4326),
       ${dto.origenTexto ?? null}, ${dto.destinoTexto ?? null},
-      ${JSON.stringify(dto.necesidades ?? [])}::jsonb, ${deportistaId}
+      ${JSON.stringify(dto.necesidades ?? [])}::jsonb,
+      ${dto.comentario?.length ? dto.comentario : null}, ${deportistaId}
     ) RETURNING viaje_id`;
   const viajeId = filas[0].viaje_id;
   await crearEvento(viajeId, "solicitado", deportistaId);
@@ -128,6 +133,7 @@ export async function listarMios(actor: Actor) {
       viajeVoluntarioId: true,
       viajeOrigenTexto: true,
       viajeDestinoTexto: true,
+      viajeComentario: true,
       viajeSolicitadoAt: true,
     },
   });

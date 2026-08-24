@@ -5,6 +5,7 @@ import { Login } from "./pages/Login";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { Usuarios } from "./pages/admin/Usuarios";
+import { Validaciones } from "./pages/admin/Validaciones";
 import { Viajes } from "./pages/admin/Viajes";
 import { Panicos } from "./pages/admin/Panicos";
 import type { ReactNode } from "react";
@@ -38,6 +39,7 @@ export function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="usuarios" element={<Usuarios />} />
+        <Route path="validaciones" element={<Validaciones />} />
         <Route path="viajes" element={<Viajes />} />
         <Route path="panicos" element={<Panicos />} />
       </Route>
