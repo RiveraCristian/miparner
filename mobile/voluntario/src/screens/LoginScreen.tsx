@@ -80,7 +80,7 @@ export function LoginScreen() {
           <Text style={font.h1}>{esRegistro ? "Únete como voluntario" : "Bienvenido"}</Text>
           <Text style={[font.muted, { marginTop: 6, marginBottom: 22 }]}>
             {esRegistro
-              ? "El equipo validará tu cuenta antes de tu primer acompañamiento."
+              ? "Después te pediremos tu cédula y tu certificado de alumno regular: el equipo valida la cuenta antes de tu primer acompañamiento."
               : "Ingresa con tu correo y contraseña."}
           </Text>
 

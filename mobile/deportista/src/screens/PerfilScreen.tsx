@@ -1,11 +1,13 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import { Contrast, Heart, LogOut, Type, Vibrate, Volume2 } from "lucide-react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Contrast, Heart, LogOut, ShieldCheck, Type, Vibrate, Volume2 } from "lucide-react-native";
 import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
-import { Card, Etiqueta, GhostButton, Screen } from "../../../shared/ui";
+import { Card, Estado, Etiqueta, GhostButton, Screen } from "../../../shared/ui";
+import type { RootStackParams } from "../navigation";
 
 interface Me {
   deportistaPerfil?: { deportistaDisciplina: string | null; deportistaNecesidades: string[] } | null;
@@ -18,8 +20,16 @@ const AJUSTES = [
   { key: "vibra", label: "Vibración de avisos", hint: "", icon: Vibrate, def: true },
 ];
 
+/** Cómo se lee cada estado de validación en el perfil. */
+const ESTADO_CUENTA: Record<string, { texto: string; tipo: "exito" | "atencion" | "critico" }> = {
+  aprobado: { texto: "Cuenta validada", tipo: "exito" },
+  pendiente: { texto: "En revisión por el equipo", tipo: "atencion" },
+  rechazado: { texto: "Falta corregir tu documentación", tipo: "critico" },
+};
+
 export function PerfilScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, validacion } = useAuth();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [me, setMe] = useState<Me | null>(null);
   const [ajustes, setAjustes] = useState<Record<string, boolean>>(
     Object.fromEntries(AJUSTES.map((a) => [a.key, a.def])),
@@ -27,6 +37,8 @@ export function PerfilScreen() {
 
   useFocusEffect(useCallback(() => { api<Me>("/auth/me").then(setMe).catch(() => {}); }, []));
   const perfil = me?.deportistaPerfil;
+  const estadoCuenta = validacion?.estadoValidacion ?? user?.estadoValidacion ?? "pendiente";
+  const cuenta = ESTADO_CUENTA[estadoCuenta] ?? ESTADO_CUENTA.pendiente;
 
   return (
     <Screen>
@@ -38,7 +50,36 @@ export function PerfilScreen() {
         <Text style={font.muted}>{perfil?.deportistaDisciplina ?? "Deportista"}</Text>
       </View>
 
-      <Etiqueta style={{ marginTop: 14, marginBottom: 10 }}>Accesibilidad</Etiqueta>
+      <Etiqueta style={{ marginTop: 14, marginBottom: 10 }}>Estado de la cuenta</Etiqueta>
+      <Card style={{ gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View
+            style={[
+              styles.filaIcono,
+              { backgroundColor: cuenta.tipo === "exito" ? colors.exitoBg : colors.coralBg },
+            ]}
+          >
+            <ShieldCheck
+              color={cuenta.tipo === "exito" ? colors.exito : colors.coral}
+              size={20}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Estado text={cuenta.texto} tipo={cuenta.tipo} />
+            <Text style={font.tiny}>
+              {estadoCuenta === "aprobado"
+                ? "Puedes pedir acompañamiento con normalidad."
+                : "Hasta que el equipo valide tu credencial de discapacidad no puedes pedir acompañamiento."}
+            </Text>
+          </View>
+        </View>
+        <GhostButton
+          title={estadoCuenta === "aprobado" ? "Ver mis documentos" : "Subir mis documentos"}
+          onPress={() => nav.navigate("Documentos")}
+        />
+      </Card>
+
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Accesibilidad</Etiqueta>
       <Card style={{ paddingVertical: 4 }}>
         {AJUSTES.map((a, i) => {
           const Icono = a.icon;

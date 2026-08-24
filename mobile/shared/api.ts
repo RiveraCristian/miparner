@@ -38,3 +38,36 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   if (!res.ok) throw new Error(json?.error?.message ?? `Error ${res.status}`);
   return json as T;
 }
+
+/** Archivo elegido en el dispositivo, tal como lo entrega el selector nativo. */
+export interface ArchivoLocal {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+/**
+ * Sube un documento (multipart/form-data).
+ *
+ * No se fija `Content-Type` a mano: `fetch` tiene que poner el boundary del
+ * multipart. Solo viaja el Bearer token.
+ */
+export async function apiUpload<T = unknown>(
+  path: string,
+  archivo: ArchivoLocal,
+  campos: Record<string, string> = {},
+): Promise<T> {
+  const token = await loadToken();
+  const form = new FormData();
+  Object.entries(campos).forEach(([k, v]) => form.append(k, v));
+  form.append("archivo", archivo as unknown as Blob);
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  const json = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+  if (!res.ok) throw new Error(json?.error?.message ?? `Error ${res.status}`);
+  return json as T;
+}

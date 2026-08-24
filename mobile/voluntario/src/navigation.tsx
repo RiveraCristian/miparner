@@ -9,11 +9,15 @@ import { SolicitudesScreen } from "./screens/SolicitudesScreen";
 import { ViajeActivoScreen } from "./screens/ViajeActivoScreen";
 import { RankingScreen } from "./screens/RankingScreen";
 import { PerfilScreen } from "./screens/PerfilScreen";
+import { DocumentosScreen } from "./screens/DocumentosScreen";
+import { ChatScreen } from "./screens/ChatScreen";
 
 export type RootStackParams = {
   Tabs: undefined;
   Solicitudes: undefined;
   ViajeActivo: { viajeId: number };
+  Chat: { viajeId: number };
+  Documentos: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -68,6 +72,8 @@ export function RootNavigator() {
       <Stack.Screen name="Tabs" component={Tabs} />
       <Stack.Screen name="Solicitudes" component={SolicitudesScreen} options={{ headerShown: true, title: "Solicitudes cercanas" }} />
       <Stack.Screen name="ViajeActivo" component={ViajeActivoScreen} options={{ headerShown: true, title: "Acompañamiento activo" }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: true, title: "Mensajes" }} />
+      <Stack.Screen name="Documentos" component={DocumentosScreen} options={{ headerShown: true, title: "Validar mi cuenta" }} />
     </Stack.Navigator>
   );
 }

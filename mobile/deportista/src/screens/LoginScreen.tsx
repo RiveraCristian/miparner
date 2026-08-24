@@ -79,7 +79,7 @@ export function LoginScreen() {
           <Text style={font.h1}>{esRegistro ? "Crea tu cuenta" : "Bienvenido"}</Text>
           <Text style={[font.muted, { marginTop: 6, marginBottom: 22 }]}>
             {esRegistro
-              ? "Cuéntanos quién eres para acompañarte mejor."
+              ? "Cuéntanos quién eres. Después te pediremos tu credencial de discapacidad: el equipo valida la cuenta antes de tu primer acompañamiento."
               : "Ingresa con tu correo y contraseña."}
           </Text>
 
