@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/http-error";
+import { hashPassword } from "../../lib/password";
 import { documentosDelRol } from "../documentos/documentos.catalogo";
 
 export async function listarUsuarios(rol?: string) {
@@ -11,6 +12,7 @@ export async function listarUsuarios(rol?: string) {
       usuarioId: true,
       usuarioCorreo: true,
       usuarioNombre: true,
+      usuarioTelefono: true,
       usuarioRol: true,
       usuarioActivo: true,
       usuarioEstadoValidacion: true,
@@ -33,6 +35,181 @@ export async function setEstadoUsuario(id: number, activo: boolean) {
     },
     select: { usuarioId: true, usuarioActivo: true },
   });
+}
+
+/**
+ * Crea una cuenta desde el panel, con su perfil según el rol. Distinto del
+ * registro público: lo hace un administrador, admite el rol "admin" y no emite
+ * tokens de sesión.
+ */
+export async function crearUsuario(
+  adminId: number,
+  dto: {
+    nombre: string;
+    correo: string;
+    password: string;
+    telefono?: string;
+    rol: "deportista" | "voluntario" | "admin";
+  },
+) {
+  const existe = await prisma.usuario.findUnique({ where: { usuarioCorreo: dto.correo } });
+  if (existe) throw AppError.conflict("El correo ya está registrado");
+
+  const passwordHash = await hashPassword(dto.password);
+
+  return prisma.$transaction(async (tx) => {
+    const nuevo = await tx.usuario.create({
+      data: {
+        usuarioCorreo: dto.correo,
+        usuarioNombre: dto.nombre,
+        usuarioTelefono: dto.telefono ?? null,
+        usuarioPassword: passwordHash,
+        usuarioRol: dto.rol,
+        usuarioProveedorAuth: "local",
+      },
+    });
+
+    if (dto.rol === "deportista") {
+      await tx.deportistaPerfil.create({
+        data: { deportistaUsuarioId: nuevo.usuarioId, deportistaNecesidades: [], createdBy: adminId },
+      });
+    } else if (dto.rol === "voluntario") {
+      await tx.voluntarioPerfil.create({
+        data: { voluntarioUsuarioId: nuevo.usuarioId, createdBy: adminId },
+      });
+    }
+
+    return {
+      usuarioId: nuevo.usuarioId,
+      usuarioNombre: nuevo.usuarioNombre,
+      usuarioCorreo: nuevo.usuarioCorreo,
+      usuarioTelefono: nuevo.usuarioTelefono,
+      usuarioRol: nuevo.usuarioRol,
+      usuarioActivo: nuevo.usuarioActivo,
+    };
+  });
+}
+
+/**
+ * Edita los datos de una cuenta desde el panel (nombre, correo, teléfono, rol).
+ * Si cambia el rol, crea el perfil correspondiente si aún no existe, para que la
+ * cuenta quede consistente. La cuenta nunca se elimina desde aquí.
+ */
+export async function actualizarUsuario(
+  adminId: number,
+  id: number,
+  dto: {
+    nombre?: string;
+    correo?: string;
+    telefono?: string | null;
+    rol?: "deportista" | "voluntario" | "admin";
+  },
+) {
+  const usuario = await prisma.usuario.findUnique({ where: { usuarioId: id } });
+  if (!usuario) throw AppError.notFound("Usuario no encontrado");
+
+  if (dto.correo && dto.correo !== usuario.usuarioCorreo) {
+    const existe = await prisma.usuario.findUnique({ where: { usuarioCorreo: dto.correo } });
+    if (existe) throw AppError.conflict("El correo ya está registrado");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const actualizado = await tx.usuario.update({
+      where: { usuarioId: id },
+      data: {
+        ...(dto.nombre !== undefined ? { usuarioNombre: dto.nombre } : {}),
+        ...(dto.correo !== undefined ? { usuarioCorreo: dto.correo } : {}),
+        ...(dto.telefono !== undefined ? { usuarioTelefono: dto.telefono } : {}),
+        ...(dto.rol !== undefined ? { usuarioRol: dto.rol } : {}),
+      },
+      select: {
+        usuarioId: true,
+        usuarioNombre: true,
+        usuarioCorreo: true,
+        usuarioTelefono: true,
+        usuarioRol: true,
+        usuarioActivo: true,
+      },
+    });
+
+    // Al cambiar de rol, asegura que exista el perfil del nuevo rol.
+    if (dto.rol && dto.rol !== usuario.usuarioRol) {
+      if (dto.rol === "deportista") {
+        const perfil = await tx.deportistaPerfil.findUnique({ where: { deportistaUsuarioId: id } });
+        if (!perfil) {
+          await tx.deportistaPerfil.create({
+            data: { deportistaUsuarioId: id, deportistaNecesidades: [], createdBy: adminId },
+          });
+        }
+      } else if (dto.rol === "voluntario") {
+        const perfil = await tx.voluntarioPerfil.findUnique({ where: { voluntarioUsuarioId: id } });
+        if (!perfil) {
+          await tx.voluntarioPerfil.create({
+            data: { voluntarioUsuarioId: id, createdBy: adminId },
+          });
+        }
+      }
+    }
+
+    return actualizado;
+  });
+}
+
+/**
+ * Elimina una cuenta de forma permanente.
+ *
+ * Reglas de seguridad:
+ *  · No se puede eliminar la propia cuenta ni al último administrador activo.
+ *  · Si la cuenta tiene historial compartido (acompañamientos o alertas), no se
+ *    borra: se pide desactivarla para conservar los registros (un acompañamiento
+ *    pertenece a dos personas). Las cuentas sin historial sí se eliminan, con
+ *    todos sus datos propios.
+ */
+export async function eliminarUsuario(adminId: number, id: number) {
+  if (id === adminId) throw AppError.badRequest("No puedes eliminar tu propia cuenta");
+
+  const usuario = await prisma.usuario.findUnique({ where: { usuarioId: id } });
+  if (!usuario) throw AppError.notFound("Usuario no encontrado");
+
+  if (usuario.usuarioRol === "admin") {
+    const admins = await prisma.usuario.count({
+      where: { usuarioRol: "admin", usuarioActivo: true },
+    });
+    if (admins <= 1) throw AppError.badRequest("No puedes eliminar al único administrador");
+  }
+
+  const [viajes, panicos] = await Promise.all([
+    prisma.viaje.count({ where: { OR: [{ viajeDeportistaId: id }, { viajeVoluntarioId: id }] } }),
+    prisma.panicoAlerta.count({ where: { panicoUsuarioId: id } }),
+  ]);
+  if (viajes > 0 || panicos > 0) {
+    throw AppError.badRequest(
+      "Esta cuenta tiene historial de acompañamientos o alertas. Desactívala en vez de eliminarla para conservar los registros.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Suelta las referencias donde esta persona actuó sobre otras cuentas.
+    await tx.usuario.updateMany({ where: { usuarioValidadoPor: id }, data: { usuarioValidadoPor: null } });
+    await tx.usuarioDocumento.updateMany({
+      where: { documentoRevisadoPor: id },
+      data: { documentoRevisadoPor: null },
+    });
+
+    // Borra lo que le pertenece.
+    await tx.mensaje.deleteMany({ where: { OR: [{ mensajeEmisorId: id }, { mensajeReceptorId: id }] } });
+    await tx.usuarioDocumento.deleteMany({ where: { documentoUsuarioId: id } });
+    await tx.canje.deleteMany({ where: { canjeUsuarioId: id } });
+    await tx.usuarioInsignia.deleteMany({ where: { usuarioInsigniaUsuarioId: id } });
+    await tx.otpCodigo.deleteMany({ where: { otpUsuarioId: id } });
+    await tx.refreshToken.deleteMany({ where: { refreshTokenUsuarioId: id } });
+    await tx.deportistaPerfil.deleteMany({ where: { deportistaUsuarioId: id } });
+    await tx.voluntarioPerfil.deleteMany({ where: { voluntarioUsuarioId: id } });
+
+    await tx.usuario.delete({ where: { usuarioId: id } });
+  });
+
+  return { ok: true, usuarioId: id };
 }
 
 export async function validarVoluntario(adminId: number, usuarioId: number, validado: boolean) {

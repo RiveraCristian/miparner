@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { api, apiBlobUrl } from "../../lib/api";
 import { useFetch } from "../../lib/useFetch";
+import { useToast } from "../../lib/toast";
 import { ErrorMsg, Loader, PageHeader } from "../../components/layout/PageHeader";
 import { Estado, Vacio, type ClaseEstado } from "../../components/ui";
 
@@ -79,18 +80,22 @@ export function Validaciones() {
   const { data, loading, error, reload } = useFetch<Solicitud[]>(`/admin/validaciones?estado=${filtro}`);
   const [ocupado, setOcupado] = useState<number | null>(null);
   const [fallo, setFallo] = useState("");
+  const toast = useToast();
 
   const filas = data ?? [];
+  const nombreDe = (id: number) => filas.find((f) => f.usuarioId === id)?.usuarioNombre ?? "la cuenta";
 
   async function aprobar(usuarioId: number) {
     setOcupado(usuarioId);
     setFallo("");
+    const nombre = nombreDe(usuarioId);
     try {
       await api(`/admin/usuarios/${usuarioId}/validacion`, {
         method: "PATCH",
         body: { estado: "aprobado" },
       });
       reload();
+      toast.exito(`Se aprobó la cuenta de ${nombre}.`);
     } catch (e) {
       setFallo(e instanceof Error ? e.message : "No se pudo aprobar la cuenta");
     } finally {
@@ -101,12 +106,14 @@ export function Validaciones() {
   async function rechazar(usuarioId: number, motivo: string) {
     setOcupado(usuarioId);
     setFallo("");
+    const nombre = nombreDe(usuarioId);
     try {
       await api(`/admin/usuarios/${usuarioId}/validacion`, {
         method: "PATCH",
         body: { estado: "rechazado", motivo },
       });
       reload();
+      toast.exito(`Se rechazó la cuenta de ${nombre}.`);
     } catch (e) {
       setFallo(e instanceof Error ? e.message : "No se pudo rechazar la cuenta");
     } finally {
@@ -117,6 +124,7 @@ export function Validaciones() {
   return (
     <>
       <PageHeader
+        eyebrow="Verificación de cuentas"
         title="Validaciones"
         subtitle={
           filtro === "pendiente"

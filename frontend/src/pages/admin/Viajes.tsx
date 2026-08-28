@@ -35,6 +35,7 @@ export function Viajes() {
   return (
     <>
       <PageHeader
+        eyebrow="Actividad"
         title="Acompañamientos"
         subtitle={`${filas.length} ${filas.length === 1 ? "registro" : "registros"} recientes`}
       />

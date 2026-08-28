@@ -2,8 +2,9 @@ import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { api } from "../../lib/api";
 import { useFetch } from "../../lib/useFetch";
-import { ErrorMsg, Loader, PageHeader } from "../../components/layout/PageHeader";
-import { Estado, Vacio, type ClaseEstado } from "../../components/ui";
+import { useToast } from "../../lib/toast";
+import { ErrorMsg, PageHeader } from "../../components/layout/PageHeader";
+import { Estado, SkeletonTabla, Vacio, type ClaseEstado } from "../../components/ui";
 
 interface PanicoRow {
   panicoId: number;
@@ -22,18 +23,22 @@ const tonoEstado: Record<string, ClaseEstado> = {
 export function Panicos() {
   const { data, loading, error, reload } = useFetch<PanicoRow[]>("/admin/panicos");
   const [ocupado, setOcupado] = useState<number | null>(null);
+  const toast = useToast();
 
   async function marcar(id: number, estado: string) {
     setOcupado(id);
     try {
       await api(`/admin/panicos/${id}`, { method: "PATCH", body: { estado } });
       reload();
+      toast.exito(estado === "atendida" ? `Alerta #${id} atendida.` : `Alerta #${id} marcada como falsa.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo actualizar la alerta.");
     } finally {
       setOcupado(null);
     }
   }
 
-  if (loading) return <Loader texto="Cargando alertas…" />;
+  if (loading) return <SkeletonTabla />;
   if (error) return <ErrorMsg msg={error} />;
 
   const filas = data ?? [];
@@ -42,6 +47,7 @@ export function Panicos() {
   return (
     <>
       <PageHeader
+        eyebrow="Seguridad"
         title="Alertas"
         subtitle={
           activas > 0
@@ -58,7 +64,7 @@ export function Panicos() {
             detalle="Aquí quedará el registro de cada botón de pánico, con su hora y quién lo activó."
           />
         ) : (
-          <table>
+          <table className="tabla-apilada">
             <caption className="solo-lectores">
               Registro de alertas de pánico, con la persona que la activó y su estado
             </caption>
@@ -76,27 +82,27 @@ export function Panicos() {
             <tbody>
               {filas.map((p) => (
                 <tr key={p.panicoId}>
-                  <td className="num" style={{ fontWeight: 600 }}>#{p.panicoId}</td>
-                  <td style={{ fontWeight: 600 }}>{p.usuario.usuarioNombre}</td>
-                  <td className="sutil">
+                  <td data-label="Alerta" className="num" style={{ fontWeight: 600 }}>#{p.panicoId}</td>
+                  <td data-label="Persona" style={{ fontWeight: 600 }}>{p.usuario.usuarioNombre}</td>
+                  <td data-label="Teléfono" className="sutil">
                     {p.usuario.usuarioTelefono ? (
                       <a href={`tel:${p.usuario.usuarioTelefono}`}>{p.usuario.usuarioTelefono}</a>
                     ) : (
                       <span className="tenue">Sin teléfono</span>
                     )}
                   </td>
-                  <td className="num">
+                  <td data-label="Acompañamiento" className="num">
                     {p.panicoViajeId ? `#${p.panicoViajeId}` : <span className="tenue">Fuera de acompañamiento</span>}
                   </td>
-                  <td>
+                  <td data-label="Estado">
                     <Estado tipo={tonoEstado[p.panicoEstado] ?? "neutro"}>{p.panicoEstado}</Estado>
                   </td>
-                  <td className="sutil" style={{ fontSize: 14, whiteSpace: "nowrap" }}>
+                  <td data-label="Fecha" className="sutil" style={{ fontSize: 14, whiteSpace: "nowrap" }}>
                     {new Date(p.createdAt).toLocaleString("es-CL", {
                       day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
                     })}
                   </td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                  <td data-label="Acciones" style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     {p.panicoEstado === "activa" ? (
                       <>
                         <button

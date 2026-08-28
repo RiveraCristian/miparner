@@ -6,7 +6,7 @@
  * va en índigo o tinta, que ya cumplen AAA. Y ningún estado se comunica solo con
  * color: todos llevan icono además del texto (WCAG 1.4.1).
  */
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { CheckCircle2, CircleAlert, CircleDot, Info, MinusCircle } from "lucide-react";
 
@@ -132,6 +132,51 @@ export function FilaDato({ label, value }: { label: string; value: ReactNode }) 
         }
         .fila-dato:last-child{border-bottom:0;padding-bottom:0}
       `}</style>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Skeleton */
+
+/** Barra placeholder con brillo. Decorativa: no anuncia contenido. */
+export function Skeleton({
+  w = "100%",
+  h = 14,
+  r = 8,
+  style,
+}: {
+  w?: number | string;
+  h?: number | string;
+  r?: number;
+  style?: CSSProperties;
+}) {
+  return <span className="sk" aria-hidden="true" style={{ width: w, height: h, borderRadius: r, ...style }} />;
+}
+
+/** Tabla en carga: una tarjeta con filas de placeholders. */
+export function SkeletonTabla({ filas = 5 }: { filas?: number }) {
+  return (
+    <div className="card" style={{ padding: 0 }} role="status" aria-label="Cargando…">
+      <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--line)" }}>
+        <Skeleton w={160} h={12} />
+      </div>
+      {Array.from({ length: filas }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            padding: "16px 18px",
+            borderBottom: i === filas - 1 ? "none" : "1px solid var(--line-2)",
+          }}
+        >
+          <Skeleton w="22%" h={14} />
+          <Skeleton w="26%" h={14} />
+          <Skeleton w="14%" h={14} />
+          <Skeleton w={90} h={26} r={999} style={{ marginLeft: "auto" }} />
+        </div>
+      ))}
     </div>
   );
 }

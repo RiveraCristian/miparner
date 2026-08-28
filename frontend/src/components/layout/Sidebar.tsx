@@ -6,10 +6,17 @@
  * Contrastes: blanco/índigo 11.4:1 AAA · lavanda-200/índigo 8.1:1 AAA ·
  * índigo sobre lavanda (item activo) 9.6:1 AAA.
  */
+import { Suspense, lazy } from "react";
 import { NavLink } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { Isotipo, Logo } from "../../brand/Logo";
+
+// Mismo fondo animado del Login (puntos que se enlazan), cargado aparte para no
+// pesar en el arranque. En columna angosta la máscara desvanece de arriba abajo.
+const FondoConstelacion = lazy(() => import("../../brand/FondoConstelacion"));
+const MASK_LATERAL =
+  "linear-gradient(180deg, transparent 0%, rgba(0,0,0,.22) 34%, rgba(0,0,0,.5) 100%)";
 
 export interface ItemNav {
   to: string;
@@ -37,6 +44,11 @@ export function Sidebar({ items, submodulo, colapsada, onColapsar, usuario, onSa
 
   return (
     <aside className={`lateral sobre-indigo${colapsada ? " lateral--min" : ""}`}>
+      {/* Fondo animado (decoración, detrás del contenido). */}
+      <Suspense fallback={null}>
+        <FondoConstelacion mask={MASK_LATERAL} />
+      </Suspense>
+
       {/* Cabecera: logotipo + submódulo */}
       <div className="lateral__cabecera">
         <NavLink to="/" className="lateral__logo logo-enlace" aria-label="Miparner, ir al inicio">
@@ -92,18 +104,19 @@ export function Sidebar({ items, submodulo, colapsada, onColapsar, usuario, onSa
 
       <style>{`
         .lateral{
-          position:relative;background:var(--indigo);color:#fff;
+          position:relative;isolation:isolate;background:var(--indigo);color:#fff;
           display:flex;flex-direction:column;gap:8px;
           padding:22px 14px 18px;
         }
-        .lateral__cabecera{padding:0 8px 20px}
+        /* El contenido va sobre el fondo animado (que queda en z-index auto). */
+        .lateral__cabecera{position:relative;z-index:1;padding:0 8px 20px}
         .lateral__logo{padding:2px 0}
         .lateral__submodulo{
           font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
           color:var(--lav-300);margin-top:12px;
         }
 
-        .lateral__nav{display:grid;gap:4px;flex:1;align-content:start}
+        .lateral__nav{position:relative;z-index:1;display:grid;gap:4px;flex:1;align-content:start}
         .lateral__item{
           display:flex;align-items:center;gap:12px;
           min-height:44px;padding:10px 12px;border-radius:var(--r);
@@ -118,6 +131,7 @@ export function Sidebar({ items, submodulo, colapsada, onColapsar, usuario, onSa
         .lateral--min .lateral__item{justify-content:center;padding:10px}
 
         .lateral__pie{
+          position:relative;z-index:1;
           display:flex;align-items:center;gap:10px;
           border-top:1px solid rgba(255,255,255,.22);padding-top:14px;
         }

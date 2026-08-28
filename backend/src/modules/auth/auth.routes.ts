@@ -2,7 +2,13 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { validate } from "../../middleware/validate";
 import { authenticate, actorId } from "../../middleware/auth";
-import { loginSchema, refreshSchema, registerSchema } from "./auth.schemas";
+import {
+  actualizarPerfilSchema,
+  cambiarPasswordSchema,
+  loginSchema,
+  refreshSchema,
+  registerSchema,
+} from "./auth.schemas";
 import * as authService from "./auth.service";
 
 const router = Router();
@@ -43,6 +49,24 @@ router.post("/refresh", validate({ body: refreshSchema }), async (req, res, next
 router.get("/me", authenticate, async (req, res, next) => {
   try {
     res.json(await authService.me(actorId(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Edita la propia cuenta.
+router.patch("/me", authenticate, validate({ body: actualizarPerfilSchema }), async (req, res, next) => {
+  try {
+    res.json(await authService.actualizarPerfil(actorId(req), req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cambia la propia contraseña.
+router.patch("/password", authenticate, validate({ body: cambiarPasswordSchema }), async (req, res, next) => {
+  try {
+    res.json(await authService.cambiarPassword(actorId(req), req.body.actual, req.body.nueva));
   } catch (err) {
     next(err);
   }

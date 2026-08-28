@@ -2,6 +2,8 @@ import { Router } from "express";
 import { authenticate, requireRole, actorId } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import {
+  actualizarUsuarioSchema,
+  crearUsuarioSchema,
   atenderPanicoSchema,
   estadoUsuarioSchema,
   idParamSchema,
@@ -25,6 +27,15 @@ router.get("/usuarios", validate({ query: listarUsuariosQuerySchema }), async (r
   }
 });
 
+// Crear una cuenta desde el panel.
+router.post("/usuarios", validate({ body: crearUsuarioSchema }), async (req, res, next) => {
+  try {
+    res.status(201).json(await admin.crearUsuario(actorId(req), req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
 const cambiarActivo = [
   validate({ body: estadoUsuarioSchema }),
   async (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
@@ -38,6 +49,28 @@ const cambiarActivo = [
 // Activar/desactivar usuario. /estado y /activo son equivalentes.
 router.patch("/usuarios/:id/estado", ...cambiarActivo);
 router.patch("/usuarios/:id/activo", ...cambiarActivo);
+
+// Editar datos de la cuenta (nombre, correo, teléfono, rol).
+router.patch(
+  "/usuarios/:id",
+  validate({ params: idParamSchema, body: actualizarUsuarioSchema }),
+  async (req, res, next) => {
+    try {
+      res.json(await admin.actualizarUsuario(actorId(req), Number(req.params.id), req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Eliminar una cuenta de forma permanente (solo sin historial).
+router.delete("/usuarios/:id", validate({ params: idParamSchema }), async (req, res, next) => {
+  try {
+    res.json(await admin.eliminarUsuario(actorId(req), Number(req.params.id)));
+  } catch (err) {
+    next(err);
+  }
+});
 
 // --- Validación de cuentas (deportistas y voluntarios) ---
 

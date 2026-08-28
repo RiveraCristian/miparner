@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "../../lib/password";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/jwt";
 import { env } from "../../config/env";
 import { estadoValidacion } from "../documentos/documentos.service";
-import type { LoginDto, RefreshDto, RegisterDto } from "./auth.schemas";
+import type { ActualizarPerfilDto, LoginDto, RefreshDto, RegisterDto } from "./auth.schemas";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -148,6 +148,42 @@ export async function refresh(dto: RefreshDto) {
 
   const tokens = await issueTokens(usuario);
   return { usuario: toPublicUser(usuario), ...tokens };
+}
+
+/** Edita la propia cuenta (nombre, correo, teléfono). */
+export async function actualizarPerfil(usuarioId: number, dto: ActualizarPerfilDto) {
+  if (dto.correo) {
+    const existe = await prisma.usuario.findFirst({
+      where: { usuarioCorreo: dto.correo, usuarioId: { not: usuarioId } },
+    });
+    if (existe) throw AppError.conflict("El correo ya está registrado");
+  }
+
+  const usuario = await prisma.usuario.update({
+    where: { usuarioId },
+    data: {
+      ...(dto.nombre !== undefined ? { usuarioNombre: dto.nombre } : {}),
+      ...(dto.correo !== undefined ? { usuarioCorreo: dto.correo } : {}),
+      ...(dto.telefono !== undefined ? { usuarioTelefono: dto.telefono } : {}),
+    },
+  });
+  return toPublicUser(usuario);
+}
+
+/** Cambia la contraseña tras verificar la actual. */
+export async function cambiarPassword(usuarioId: number, actual: string, nueva: string) {
+  const usuario = await prisma.usuario.findUnique({ where: { usuarioId } });
+  if (!usuario || !usuario.usuarioPassword) {
+    throw AppError.notFound("Usuario no encontrado");
+  }
+  const ok = await verifyPassword(actual, usuario.usuarioPassword);
+  if (!ok) throw AppError.unauthorized("La contraseña actual no es correcta");
+
+  await prisma.usuario.update({
+    where: { usuarioId },
+    data: { usuarioPassword: await hashPassword(nueva) },
+  });
+  return { ok: true };
 }
 
 export async function me(usuarioId: number) {

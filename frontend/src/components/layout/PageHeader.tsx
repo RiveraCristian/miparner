@@ -5,15 +5,19 @@ import { AlertCircle } from "lucide-react";
 export function PageHeader({
   title,
   subtitle,
+  eyebrow,
   action,
 }: {
   title: string;
   subtitle?: string;
+  eyebrow?: string;
   action?: ReactNode;
 }) {
   return (
     <header className="encabezado">
       <div>
+        {/* Eyebrow con barra coral, como el section-head del landing. */}
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>{title}</h1>
         {subtitle && <p className="tenue encabezado__sub">{subtitle}</p>}
       </div>

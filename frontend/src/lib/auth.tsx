@@ -13,6 +13,8 @@ interface AuthCtx {
   loading: boolean;
   login: (correo: string, password: string) => Promise<Usuario>;
   logout: () => void;
+  /** Recarga los datos del usuario desde /auth/me (tras editar el perfil). */
+  refrescar: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx>(null as unknown as AuthCtx);
@@ -48,5 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  return <Ctx.Provider value={{ user, loading, login, logout }}>{children}</Ctx.Provider>;
+  const refrescar = async () => {
+    if (!getToken()) return;
+    const u = await api<Usuario>("/auth/me");
+    setUser(u);
+  };
+
+  return (
+    <Ctx.Provider value={{ user, loading, login, logout, refrescar }}>{children}</Ctx.Provider>
+  );
 }

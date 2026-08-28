@@ -8,6 +8,28 @@ export const estadoUsuarioSchema = z.object({
   activo: z.boolean(),
 });
 
+/** Alta de una cuenta desde el panel. */
+export const crearUsuarioSchema = z.object({
+  nombre: z.string().trim().min(2).max(255),
+  correo: z.string().trim().email(),
+  password: z.string().min(8).max(128),
+  telefono: z.string().trim().min(6).max(30).optional(),
+  rol: z.enum(["deportista", "voluntario", "admin"]),
+});
+
+/** Edición de los datos de una cuenta desde el panel. Todos los campos son
+ *  opcionales, pero debe venir al menos uno. El teléfono admite null para borrarlo. */
+export const actualizarUsuarioSchema = z
+  .object({
+    nombre: z.string().trim().min(2).max(255).optional(),
+    correo: z.string().trim().email().optional(),
+    telefono: z.string().trim().min(6).max(30).nullable().optional(),
+    rol: z.enum(["deportista", "voluntario", "admin"]).optional(),
+  })
+  .refine((d) => Object.values(d).some((v) => v !== undefined), {
+    message: "No hay cambios que guardar",
+  });
+
 export const validarVoluntarioSchema = z.object({
   validado: z.boolean(),
 });

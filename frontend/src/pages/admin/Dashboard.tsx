@@ -1,8 +1,8 @@
-import { BadgeCheck, Radio, Route as RouteIcon, ShieldAlert, Users } from "lucide-react";
+import { BadgeCheck, HeartHandshake, Radio, Siren, UsersRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useFetch } from "../../lib/useFetch";
-import { ErrorMsg, Loader, PageHeader } from "../../components/layout/PageHeader";
-import { Estado, FilaDato, SectionBanner, StatCard, Vacio } from "../../components/ui";
+import { ErrorMsg, PageHeader } from "../../components/layout/PageHeader";
+import { Estado, FilaDato, SectionBanner, Skeleton, StatCard, Vacio } from "../../components/ui";
 
 interface Metricas {
   usuariosPorRol: Record<string, number>;
@@ -20,7 +20,28 @@ const legible = (s: string) => s.replace(/_/g, " ");
 
 export function Dashboard() {
   const { data, loading, error } = useFetch<Metricas>("/admin/metricas");
-  if (loading) return <Loader texto="Cargando el panel…" />;
+  if (loading) {
+    return (
+      <>
+        <PageHeader eyebrow="Resumen general" title="Panel" />
+        <div
+          role="status"
+          aria-label="Cargando el panel…"
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(15rem,1fr))", gap: 16 }}
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <Skeleton w={44} h={44} r={12} />
+              <div style={{ flex: 1, display: "grid", gap: 8 }}>
+                <Skeleton w={48} h={22} />
+                <Skeleton w="80%" h={12} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
   if (error) return <ErrorMsg msg={error} />;
   if (!data) return null;
 
@@ -35,6 +56,7 @@ export function Dashboard() {
   return (
     <>
       <PageHeader
+        eyebrow="Resumen general"
         title="Panel"
         subtitle={
           `${data.totalViajes} ${data.totalViajes === 1 ? "acompañamiento registrado" : "acompañamientos registrados"}` +
@@ -43,27 +65,27 @@ export function Dashboard() {
       />
 
       <div className="rejilla-metricas">
-        <StatCard icon={RouteIcon} value={data.totalViajes} label="Acompañamientos registrados" tono="indigo" />
-        <StatCard icon={Radio} value={data.voluntariosEnLinea} label="Voluntarios en línea" tono="exito" />
+        <StatCard icon={HeartHandshake} value={data.totalViajes} label="Acompañamientos registrados" tono="indigo" />
+        <StatCard icon={Radio} value={data.voluntariosEnLinea} label="Voluntarios en línea" tono="indigo" />
         <StatCard
-          icon={ShieldAlert}
+          icon={Siren}
           value={data.panicosActivos}
           label="Alertas activas"
-          tono={hayAlertas ? "coral" : "neutro"}
+          tono={hayAlertas ? "coral" : "indigo"}
         />
-        <StatCard icon={Users} value={totalPersonas} label="Personas registradas" tono="indigo" />
+        <StatCard icon={UsersRound} value={totalPersonas} label="Personas registradas" tono="indigo" />
         <StatCard
           icon={BadgeCheck}
           value={porValidar}
           label="Cuentas por validar"
-          tono={porValidar > 0 ? "coral" : "neutro"}
+          tono={porValidar > 0 ? "coral" : "indigo"}
         />
       </div>
 
       {/* Una alerta activa no se comunica solo con color: título, icono y texto. */}
       {hayAlertas && (
         <div className="aviso-critico" role="status">
-          <ShieldAlert size={20} aria-hidden="true" />
+          <Siren size={20} aria-hidden="true" />
           <span>
             <strong>
               Hay {data.panicosActivos} {data.panicosActivos === 1 ? "alerta" : "alertas"} sin atender.
@@ -89,7 +111,7 @@ export function Dashboard() {
 
       <div className="rejilla-secciones">
         <SectionBanner
-          icon={RouteIcon}
+          icon={HeartHandshake}
           title="Acompañamientos por estado"
           subtitle="Cómo se reparten los acompañamientos ahora mismo"
           total={data.totalViajes}
@@ -97,7 +119,7 @@ export function Dashboard() {
         >
           {viajes.length === 0 ? (
             <Vacio
-              icon={RouteIcon}
+              icon={HeartHandshake}
               titulo="Todavía no hay acompañamientos"
               detalle="Cuando un deportista pida su primer acompañamiento, aparecerá aquí."
             />
@@ -113,14 +135,14 @@ export function Dashboard() {
         </SectionBanner>
 
         <SectionBanner
-          icon={Users}
+          icon={UsersRound}
           title="Personas por rol"
           subtitle="Deportistas, voluntarios y equipo"
           total={totalPersonas}
-          tono="neutro"
+          tono="indigo"
         >
           {roles.length === 0 ? (
-            <Vacio icon={Users} titulo="Sin personas registradas" />
+            <Vacio icon={UsersRound} titulo="Sin personas registradas" />
           ) : (
             roles.map(([rol, n]) => <FilaDato key={rol} label={rol} value={n} />)
           )}
