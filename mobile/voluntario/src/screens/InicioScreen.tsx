@@ -2,22 +2,54 @@ import { useCallback, useState } from "react";
 import { Switch, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MapPin } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import {
+  CheckCircle2,
+  CircleAlert,
+  CircleDot,
+  HandHeart,
+  MapPin,
+  MinusCircle,
+  Navigation,
+  Radar,
+  Sparkles,
+} from "lucide-react-native";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
 import { AvisoValidacion } from "../../../shared/Documentos";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
 import { Mapa } from "../../../shared/Mapa";
 import { usePublicarUbicacionVoluntario } from "../../../shared/ubicacion";
-import { Card, Estado, Etiqueta, PrimaryButton, Screen, StatCard } from "../../../shared/ui";
+import { CardLavanda, Estado, PanelIndigo, PrimaryButton, Screen, StatCard } from "../../../shared/ui";
 import type { SolicitudCercana } from "../../../shared/types";
 import type { RootStackParams } from "../navigation";
+
+interface ViajeItem {
+  viajeId: number;
+  viajeEstado: string;
+  viajeDestinoTexto: string | null;
+  viajeFinAt: string | null;
+}
+
+/** Estados en los que el voluntario tiene un acompañamiento activo al que volver. */
+const ACTIVOS_VOL = ["asignado", "en_camino", "a_bordo"];
+
+/** ¿La fecha ISO cae en el día de hoy? */
+function esHoy(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
 
 export function InicioScreen() {
   const { user, aprobado } = useAuth();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [enLinea, setEnLinea] = useState(false);
   const [cercanas, setCercanas] = useState<SolicitudCercana[]>([]);
+  const [activo, setActivo] = useState<ViajeItem | null>(null);
+  const [acompanadosHoy, setAcompanadosHoy] = useState(0);
+  const [puntos, setPuntos] = useState<number | null>(null);
 
   /*
    * Mientras está en línea, el teléfono publica su posición real: es la que
@@ -35,7 +67,23 @@ export function InicioScreen() {
       .then(setCercanas)
       .catch(() => {});
   }, [aprobado]);
-  useFocusEffect(useCallback(() => refrescar(), [refrescar]));
+  useFocusEffect(
+    useCallback(() => {
+      refrescar();
+      api<ViajeItem[]>("/viajes")
+        .then((vs) => {
+          // Acompañamiento en curso al que volver (aunque haya cerrado la pantalla).
+          setActivo(vs.find((v) => ACTIVOS_VOL.includes(v.viajeEstado)) ?? null);
+          // Acompañamientos finalizados hoy.
+          setAcompanadosHoy(vs.filter((v) => v.viajeEstado === "finalizado" && esHoy(v.viajeFinAt)).length);
+        })
+        .catch(() => {});
+      // Puntos reales de gamificación (total acumulado).
+      api<{ puntos: number }>("/gamificacion/mi-progreso")
+        .then((p) => setPuntos(p.puntos))
+        .catch(() => {});
+    }, [refrescar]),
+  );
 
   async function toggle(v: boolean) {
     setEnLinea(v);
@@ -51,66 +99,84 @@ export function InicioScreen() {
   const nCercanas = cercanas.length;
   const esperandoGps = enLinea && aprobado && !miUbicacion && !errorGps;
 
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+
+  // Disponibilidad: icono + título + detalle (el color nunca informa por sí solo).
+  const estado = !aprobado
+    ? { Icono: CircleAlert, titulo: "Cuenta por validar", detalle: "Podrás ponerte en línea cuando el equipo valide tus documentos." }
+    : errorGps
+      ? { Icono: CircleAlert, titulo: "Sin ubicación", detalle: errorGps }
+      : esperandoGps
+        ? { Icono: CircleDot, titulo: "Buscando tu ubicación", detalle: "En cuanto el GPS te ubique empezarás a recibir solicitudes de tu zona." }
+        : enLinea
+          ? { Icono: CheckCircle2, titulo: "Estás en línea", detalle: "Recibiendo solicitudes cercanas a donde estás." }
+          : { Icono: MinusCircle, titulo: "Fuera de línea", detalle: "Actívate para recibir solicitudes." };
+  const EstadoIcono = estado.Icono;
+
   return (
     <Screen>
-      <Etiqueta>Voluntario</Etiqueta>
-      <Text style={[font.h1, { marginTop: 4, marginBottom: 20 }]}>{user?.nombre}</Text>
+      {/* Hero de marca: saludo + disponibilidad en un panel índigo con profundidad. */}
+      <PanelIndigo style={{ marginBottom: 16, overflow: "hidden" }}>
+        <FondoConstelacion />
+        <Text style={{ color: colors.lav300, fontSize: 12, fontFamily: fuente.medio, letterSpacing: 1.6, textTransform: "uppercase", textAlign: "center" }}>
+          {saludo}
+        </Text>
+        <Text style={{ color: colors.white, fontSize: 26, fontFamily: fuente.fuerte, letterSpacing: -0.4, marginTop: 6, textAlign: "center" }}>
+          {user?.nombre}
+        </Text>
+
+        <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.15)", marginVertical: 16 }} />
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+              <EstadoIcono size={16} color={colors.white} />
+              <Text style={{ color: colors.white, fontFamily: fuente.fuerte, fontSize: 16 }}>{estado.titulo}</Text>
+            </View>
+            <Text style={{ color: colors.lav200, fontSize: 14, lineHeight: 20 }}>{estado.detalle}</Text>
+          </View>
+          {/* thumbColor explícito: sin él Android pinta el pulgar con su verde azulado. */}
+          <Switch
+            value={enLinea}
+            onValueChange={toggle}
+            disabled={!aprobado}
+            trackColor={{ true: colors.exito, false: "rgba(255,255,255,0.25)" }}
+            thumbColor={colors.white}
+            ios_backgroundColor="rgba(255,255,255,0.25)"
+            accessibilityLabel="Disponibilidad para recibir solicitudes"
+          />
+        </View>
+      </PanelIndigo>
 
       {/* Sin validación no se puede salir en línea: aquí se explica por qué. */}
       <AvisoValidacion onIr={() => nav.navigate("Documentos")} />
 
-      {/* El estado en línea lleva insignia con icono, no solo un color de fondo. */}
-      <Card
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-          backgroundColor: enLinea ? colors.exitoBg : colors.surface,
-          borderColor: enLinea ? "transparent" : colors.line,
-        }}
-      >
-        <View style={{ flex: 1, gap: 6 }}>
-          <Estado
-            text={
-              !aprobado
-                ? "Cuenta por validar"
-                : esperandoGps
-                  ? "Buscando tu ubicación"
-                  : enLinea
-                    ? "Estás en línea"
-                    : "Fuera de línea"
-            }
-            tipo={!aprobado || esperandoGps ? "atencion" : enLinea ? "exito" : "neutro"}
-          />
-          <Text style={font.muted}>
-            {!aprobado
-              ? "Podrás ponerte en línea cuando el equipo valide tus documentos."
-              : errorGps
-                ? errorGps
-                : esperandoGps
-                  ? "En cuanto el GPS te ubique empezarás a recibir solicitudes de tu zona."
-                  : enLinea
-                    ? "Recibiendo solicitudes cercanas a donde estás."
-                    : "Actívate para recibir solicitudes."}
+      {/* Acompañamiento en curso: permite volver al seguimiento sin pasar por Solicitudes. */}
+      {activo && (
+        <CardLavanda style={{ marginTop: 14 }}>
+          <Estado text="Acompañamiento en curso" tipo="indigo" />
+          <Text style={[font.h3, { marginTop: 10 }]} numberOfLines={1}>
+            {activo.viajeDestinoTexto ?? "Destino"}
           </Text>
-        </View>
-        {/* thumbColor explícito: sin él Android pinta el pulgar con su color de
-            acento (verde azulado), fuera de la paleta. */}
-        <Switch
-          value={enLinea}
-          onValueChange={toggle}
-          disabled={!aprobado}
-          trackColor={{ true: colors.exito, false: colors.line }}
-          thumbColor={colors.white}
-          ios_backgroundColor={colors.line}
-          accessibilityLabel="Disponibilidad para recibir solicitudes"
-        />
-      </Card>
+          <Text style={[font.muted, { marginBottom: 14 }]}>{activo.viajeEstado.replace(/_/g, " ")}</Text>
+          <PrimaryButton
+            title="Volver al seguimiento"
+            icon={<Navigation color={colors.white} size={18} />}
+            onPress={() => nav.navigate("ViajeActivo", { viajeId: activo.viajeId })}
+          />
+        </CardLavanda>
+      )}
 
       <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-        <StatCard value={String(nCercanas)} label="Solicitudes cerca" />
-        <StatCard value="0" label="Acompañados hoy" />
-        <StatCard value="—" label="Puntos hoy" />
+        <StatCard value={String(nCercanas)} label="Solicitudes cerca" icon={Radar} />
+        <StatCard
+          value={String(acompanadosHoy)}
+          label="Acompañados hoy"
+          icon={HandHeart}
+          onPress={() => nav.navigate("Historial")}
+        />
+        <StatCard value={puntos === null ? "—" : String(puntos)} label="Puntos" icon={Sparkles} />
       </View>
 
       <View style={{ height: 16 }} />

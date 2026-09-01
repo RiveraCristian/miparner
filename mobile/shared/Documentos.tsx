@@ -270,14 +270,14 @@ function TarjetaRequisito({
           />
           <View style={{ flexDirection: "row", gap: 10 }}>
             <GhostButton
-              title="Desde la galería"
+              title="Galería"
               icon={<Images color={colors.indigo} size={18} />}
               disabled={bloqueado}
               onPress={conGaleria}
               style={{ flex: 1 }}
             />
             <GhostButton
-              title="Archivo o PDF"
+              title="Archivo"
               icon={<FileUp color={colors.indigo} size={18} />}
               disabled={bloqueado}
               onPress={conArchivo}

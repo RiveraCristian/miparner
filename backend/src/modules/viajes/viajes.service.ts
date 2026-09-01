@@ -135,6 +135,7 @@ export async function listarMios(actor: Actor) {
       viajeDestinoTexto: true,
       viajeComentario: true,
       viajeSolicitadoAt: true,
+      viajeFinAt: true,
     },
   });
   return viajes;

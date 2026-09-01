@@ -5,6 +5,7 @@ import { colors, elevacion, fuente } from "../../shared/theme";
 import { useAuth } from "../../shared/auth";
 import { LoginScreen } from "./screens/LoginScreen";
 import { InicioScreen } from "./screens/InicioScreen";
+import { HistorialScreen } from "./screens/HistorialScreen";
 import { SolicitudesScreen } from "./screens/SolicitudesScreen";
 import { ViajeActivoScreen } from "./screens/ViajeActivoScreen";
 import { RankingScreen } from "./screens/RankingScreen";
@@ -18,6 +19,7 @@ export type RootStackParams = {
   ViajeActivo: { viajeId: number };
   Chat: { viajeId: number };
   Documentos: undefined;
+  Historial: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -74,6 +76,7 @@ export function RootNavigator() {
       <Stack.Screen name="ViajeActivo" component={ViajeActivoScreen} options={{ headerShown: true, title: "Acompañamiento activo" }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: true, title: "Mensajes" }} />
       <Stack.Screen name="Documentos" component={DocumentosScreen} options={{ headerShown: true, title: "Validar mi cuenta" }} />
+      <Stack.Screen name="Historial" component={HistorialScreen} options={{ headerShown: true, title: "Mis acompañamientos" }} />
     </Stack.Navigator>
   );
 }

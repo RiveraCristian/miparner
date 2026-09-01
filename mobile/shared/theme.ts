@@ -12,7 +12,7 @@
 
 /** Paleta de marca. Fija. */
 export const marca = {
-  indigo: "#2E1BA8", // PANTONE 2735 C
+  indigo: "#3A3996", // índigo del logotipo — mismo tono que la web/landing
   coral: "#E8511F", // PANTONE 1665 C
   tinta: "#1A1720", // PANTONE Neutral Black C
   lavanda: "#EDE9FB", // PANTONE 663 C

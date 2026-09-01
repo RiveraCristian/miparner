@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Award, Clock, Flame, Medal } from "lucide-react-native";
 import { colors, font, fuente, radius } from "../../../shared/theme";
 import { api } from "../../../shared/api";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
 import { Card, Etiqueta, PanelIndigo, ProgressBar, Screen, Vacio } from "../../../shared/ui";
 import type { Progreso } from "../../../shared/types";
 
@@ -34,7 +35,8 @@ export function LogrosScreen() {
       <Text style={[font.muted, { marginTop: 4, marginBottom: 20 }]}>Nivel {prog?.nivel ?? 1}</Text>
 
       {/* Índigo plano con texto en blanco y lavanda: 11.4:1 y 8.1:1, ambos AAA. */}
-      <PanelIndigo>
+      <PanelIndigo style={{ overflow: "hidden" }}>
+        <FondoConstelacion />
         <Text style={styles.etiquetaPanel}>PUNTOS MIPARNER</Text>
         <Text style={styles.puntos}>{prog?.puntos ?? 0}</Text>
         {/* El coral es forma: aquí es la barra, no texto. */}
@@ -77,7 +79,18 @@ export function LogrosScreen() {
             key={r.pos}
             style={[styles.filaRank, i === Math.min(rank.length, 10) - 1 && { borderBottomWidth: 0 }]}
           >
-            <Text style={styles.rankPos}>{r.pos}</Text>
+            {r.pos <= 3 ? (
+              <View
+                style={[
+                  styles.medalla,
+                  { backgroundColor: r.pos === 1 ? colors.indigo : r.pos === 2 ? colors.lav300 : colors.lavanda },
+                ]}
+              >
+                <Text style={[styles.medallaNum, { color: r.pos === 1 ? colors.white : colors.indigo }]}>{r.pos}</Text>
+              </View>
+            ) : (
+              <Text style={styles.rankPos}>{r.pos}</Text>
+            )}
             <Text style={[font.body, { flex: 1, fontFamily: fuente.fuerte }]} numberOfLines={1}>{r.nombre}</Text>
             <Text style={[font.body, { fontFamily: fuente.fuerte }]}>{r.puntos}</Text>
           </View>
@@ -128,5 +141,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line2,
   },
-  rankPos: { width: 26, fontSize: 16, fontFamily: fuente.fuerte, color: colors.ink3 },
+  rankPos: { width: 26, fontSize: 16, fontFamily: fuente.fuerte, color: colors.ink3, textAlign: "center" },
+  medalla: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  medallaNum: { fontSize: 14, fontFamily: fuente.fuerte },
 });

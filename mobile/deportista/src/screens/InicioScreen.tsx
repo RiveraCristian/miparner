@@ -3,16 +3,18 @@ import { Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { MessageSquare, Navigation, Plus } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
 import { AvisoValidacion } from "../../../shared/Documentos";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
 import { Mapa } from "../../../shared/Mapa";
 import {
   CardLavanda,
   Estado,
   Etiqueta,
   GhostButton,
+  PanelIndigo,
   Pill,
   PrimaryButton,
   Screen,
@@ -46,10 +48,21 @@ export function InicioScreen() {
     }, []),
   );
 
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+
   return (
     <Screen>
-      <Etiqueta>Hola de nuevo</Etiqueta>
-      <Text style={[font.h1, { marginTop: 4, marginBottom: 20 }]}>{user?.nombre}</Text>
+      {/* Hero de marca: saludo por hora sobre fondo azul con constelación. */}
+      <PanelIndigo style={{ marginBottom: 20, overflow: "hidden" }}>
+        <FondoConstelacion />
+        <Text style={{ color: colors.lav300, fontSize: 12, fontFamily: fuente.medio, letterSpacing: 1.6, textTransform: "uppercase", textAlign: "center" }}>
+          {saludo}
+        </Text>
+        <Text style={{ color: colors.white, fontSize: 26, fontFamily: fuente.fuerte, letterSpacing: -0.4, marginTop: 6, textAlign: "center" }}>
+          {user?.nombre}
+        </Text>
+      </PanelIndigo>
 
       {/* Mientras el panel no valide la cuenta, esto explica qué falta. */}
       <AvisoValidacion onIr={() => nav.navigate("Documentos")} />

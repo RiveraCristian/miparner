@@ -19,6 +19,7 @@ import { colors, font, fuente, radius } from "../../../shared/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../shared/auth";
 import { Logo } from "../../../shared/brand/Logo";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
 import { BarraSobreIndigo, GhostButton, PrimaryButton } from "../../../shared/ui";
 
 export function LoginScreen() {
@@ -67,9 +68,10 @@ export function LoginScreen() {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
         {/* Índigo plano: el manual no admite el color aclarado ni en degradado. */}
         <View style={[styles.marca, { paddingTop: bordes.top + 34 }]}>
+          <FondoConstelacion />
           {/* El nombre está en el arte del logotipo: no se repite en texto. */}
           <Logo alto={40} version="blanco" alt="Miparner" />
-          <Text style={styles.lema}>Encuentra tu lugar</Text>
+          <Text style={styles.lema} numberOfLines={1} adjustsFontSizeToFit>Encuentra tu lugar</Text>
           <Text style={styles.bajada}>
             Dos personas, un mismo lugar. Pide acompañamiento y llega a entrenar.
           </Text>
@@ -129,6 +131,8 @@ export function LoginScreen() {
               setModo(esRegistro ? "login" : "registro");
             }}
           />
+
+          <Text style={styles.pieApp}>App para deportistas</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -160,6 +164,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    overflow: "hidden",
   },
   lema: {
     color: colors.white,
@@ -168,9 +173,19 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     letterSpacing: -0.5,
     marginTop: 24,
+    textAlign: "center",
   },
   // lavanda-200 sobre índigo · 8.1:1 AAA
-  bajada: { color: colors.lav200, fontSize: 16, lineHeight: 24, marginTop: 8 },
+  bajada: { color: colors.lav200, fontSize: 16, lineHeight: 24, marginTop: 8, textAlign: "center" },
+  // Etiqueta de app al pie del formulario.
+  pieApp: {
+    color: colors.ink3,
+    fontSize: 12,
+    fontFamily: fuente.medio,
+    letterSpacing: 1.6,
+    textAlign: "center",
+    marginTop: 22,
+  },
 
   form: { padding: 24, flex: 1, backgroundColor: colors.surface },
   etiquetaCampo: { fontSize: 14, fontFamily: fuente.fuerte, color: colors.ink2, marginBottom: 7 },

@@ -20,6 +20,7 @@ import { colors, font, fuente, radius } from "../../../shared/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../shared/auth";
 import { Logo } from "../../../shared/brand/Logo";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
 import { BarraSobreIndigo, GhostButton, PrimaryButton } from "../../../shared/ui";
 
 export function LoginScreen() {
@@ -68,9 +69,11 @@ export function LoginScreen() {
       <BarraSobreIndigo />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
         <View style={[styles.marca, { paddingTop: bordes.top + 34 }]}>
+          <FondoConstelacion />
           <Logo alto={40} version="blanco" alt="Miparner" />
-          <Text style={styles.etiquetaApp}>VOLUNTARIOS</Text>
-          <Text style={styles.lema}>Tu tiempo cambia el día de alguien</Text>
+          <Text style={styles.lema} numberOfLines={1} adjustsFontSizeToFit>
+            Cambia el día de alguien
+          </Text>
           <Text style={styles.bajada}>
             Acompaña a un deportista hasta su entrenamiento. Tú decides cuándo.
           </Text>
@@ -131,6 +134,8 @@ export function LoginScreen() {
               setModo(esRegistro ? "login" : "registro");
             }}
           />
+
+          <Text style={styles.pieApp}>App para voluntarios</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -161,23 +166,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    overflow: "hidden",
   },
-  etiquetaApp: {
-    color: colors.lav300,
+  // Etiqueta de app al pie del formulario.
+  pieApp: {
+    color: colors.ink3,
     fontSize: 12,
     fontFamily: fuente.medio,
-    letterSpacing: 1.8,
+    letterSpacing: 1.6,
+    textAlign: "center",
     marginTop: 22,
   },
   lema: {
     color: colors.white,
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: fuente.fuerte,
-    lineHeight: 32,
+    lineHeight: 34,
     letterSpacing: -0.4,
-    marginTop: 8,
+    marginTop: 22,
+    textAlign: "center",
   },
-  bajada: { color: colors.lav200, fontSize: 16, lineHeight: 24, marginTop: 8 },
+  bajada: { color: colors.lav200, fontSize: 16, lineHeight: 24, marginTop: 8, textAlign: "center" },
 
   form: { padding: 24, flex: 1, backgroundColor: colors.surface },
   etiquetaCampo: { fontSize: 14, fontFamily: fuente.fuerte, color: colors.ink2, marginBottom: 7 },
