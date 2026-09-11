@@ -15,6 +15,7 @@ import {
   FileText,
   Image as ImageIcon,
   ShieldCheck,
+  Video,
   X,
 } from "lucide-react";
 import { api, apiBlobUrl } from "../../lib/api";
@@ -34,11 +35,23 @@ interface Documento {
   createdAt: string;
 }
 
-interface Requerido {
+interface OpcionDocumento {
   tipo: string;
   titulo: string;
   descripcion: string;
-  obligatorio: boolean;
+}
+
+/** Grupo de acreditación: basta con una de sus opciones. */
+interface Grupo {
+  grupo: string;
+  titulo: string;
+  descripcion: string;
+  opciones: OpcionDocumento[];
+  alternativaVideollamada?: { titulo: string; descripcion: string };
+  tipoCubierto: string | null;
+  cubiertoPorVideollamada: boolean;
+  cubierto: boolean;
+  documento: Documento | null;
 }
 
 interface Solicitud {
@@ -53,9 +66,13 @@ interface Solicitud {
   deportistaPerfil: { deportistaDisciplina: string | null; deportistaNecesidades: string[] } | null;
   voluntarioPerfil: { voluntarioVehiculo: string | null; voluntarioPatente: string | null } | null;
   documentos: Documento[];
-  requeridos: Requerido[];
+  grupos: Grupo[];
   faltantes: string[];
   listaParaRevision: boolean;
+  esperaVideollamada: boolean;
+  usuarioVerificacionVia: string | null;
+  usuarioVerificacionDisponibilidad: string | null;
+  usuarioVerificacionNota: string | null;
 }
 
 type Filtro = "pendiente" | "aprobado" | "rechazado";
@@ -85,14 +102,14 @@ export function Validaciones() {
   const filas = data ?? [];
   const nombreDe = (id: number) => filas.find((f) => f.usuarioId === id)?.usuarioNombre ?? "la cuenta";
 
-  async function aprobar(usuarioId: number) {
+  async function aprobar(usuarioId: number, nota?: string) {
     setOcupado(usuarioId);
     setFallo("");
     const nombre = nombreDe(usuarioId);
     try {
       await api(`/admin/usuarios/${usuarioId}/validacion`, {
         method: "PATCH",
-        body: { estado: "aprobado" },
+        body: { estado: "aprobado", ...(nota ? { nota } : {}) },
       });
       reload();
       toast.exito(`Se aprobó la cuenta de ${nombre}.`);
@@ -172,7 +189,7 @@ export function Validaciones() {
               key={s.usuarioId}
               solicitud={s}
               ocupado={ocupado === s.usuarioId}
-              onAprobar={() => aprobar(s.usuarioId)}
+              onAprobar={(nota) => aprobar(s.usuarioId, nota)}
               onRechazar={(motivo) => rechazar(s.usuarioId, motivo)}
             />
           ))}
@@ -197,13 +214,13 @@ function FichaSolicitud({
 }: {
   solicitud: Solicitud;
   ocupado: boolean;
-  onAprobar: () => void;
+  onAprobar: (nota?: string) => void;
   onRechazar: (motivo: string) => void;
 }) {
   const [rechazando, setRechazando] = useState(false);
   const [motivo, setMotivo] = useState("");
+  const [nota, setNota] = useState("");
 
-  const porTipo = new Map(s.documentos.map((d) => [d.documentoTipo, d]));
   const pendiente = s.usuarioEstadoValidacion === "pendiente";
 
   return (
@@ -242,6 +259,18 @@ function FichaSolicitud({
         </div>
       </header>
 
+      {/* Quien no tiene credencial ni certificado pide una videollamada: aquí
+          está su disponibilidad para que el equipo le llame. */}
+      {s.esperaVideollamada && (
+        <p className="ficha__videollamada">
+          <strong>Pidió acreditarse por videollamada.</strong>{" "}
+          {s.usuarioVerificacionDisponibilidad
+            ? `Disponibilidad: ${s.usuarioVerificacionDisponibilidad}`
+            : "No indicó disponibilidad."}
+          {s.usuarioTelefono ? ` · Teléfono: ${s.usuarioTelefono}` : ""}
+        </p>
+      )}
+
       {s.usuarioMotivoRechazo && (
         <p className="ficha__motivo">
           <strong>Motivo del rechazo anterior:</strong> {s.usuarioMotivoRechazo}
@@ -249,15 +278,38 @@ function FichaSolicitud({
       )}
 
       <div className="ficha__docs">
-        {s.requeridos.map((r) => (
-          <Requisito key={r.tipo} requerido={r} documento={porTipo.get(r.tipo) ?? null} />
+        {s.grupos.map((g) => (
+          <RequisitoGrupo key={g.grupo} grupo={g} />
         ))}
       </div>
 
       {!s.listaParaRevision && (
         <p className="ficha__aviso">
-          Faltan documentos por subir. La persona ya los tiene pedidos en su aplicación.
+          Falta acreditar. La persona ya lo tiene pedido en su aplicación, y puede subir un
+          documento o pedir una videollamada.
         </p>
+      )}
+
+      {/* La nota es la única constancia de una acreditación por videollamada:
+          sin ella no queda registro de que la conversación ocurrió. */}
+      {pendiente && s.listaParaRevision && (
+        <div className="ficha__nota">
+          <label className="campo" htmlFor={`nota-${s.usuarioId}`}>
+            Constancia de la acreditación (opcional)
+          </label>
+          <input
+            id={`nota-${s.usuarioId}`}
+            className="input"
+            value={nota}
+            maxLength={500}
+            placeholder={
+              s.esperaVideollamada
+                ? "Videollamada realizada el 12/09, verificada su situación."
+                : "Documentación revisada y conforme."
+            }
+            onChange={(e) => setNota(e.target.value)}
+          />
+        </div>
       )}
 
       {rechazando ? (
@@ -295,7 +347,7 @@ function FichaSolicitud({
             type="button"
             className="btn btn-primario btn-sm"
             disabled={ocupado || !s.listaParaRevision || s.usuarioEstadoValidacion === "aprobado"}
-            onClick={onAprobar}
+            onClick={() => onAprobar(nota.trim() || undefined)}
           >
             <BadgeCheck size={16} aria-hidden="true" />
             {s.usuarioEstadoValidacion === "aprobado" ? "Cuenta aprobada" : "Aprobar cuenta"}
@@ -332,6 +384,11 @@ function FichaSolicitud({
         }
         .ficha__docs{display:grid;gap:12px}
         .ficha__aviso{font-size:14px;color:var(--ink-2)}
+        .ficha__videollamada{
+          background:var(--lavanda);border-left:3px solid var(--indigo);
+          border-radius:var(--r-sm);padding:12px 14px;font-size:15px;line-height:1.5;
+        }
+        .ficha__nota{display:grid;gap:6px}
         .ficha__acciones{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
         .ficha__rechazo{display:grid;gap:10px}
         .ficha__rechazo textarea{resize:vertical;font:inherit}
@@ -342,23 +399,37 @@ function FichaSolicitud({
 
 /* -------------------------------------------------- Requisito + visor */
 
-function Requisito({ requerido, documento }: { requerido: Requerido; documento: Documento | null }) {
+function RequisitoGrupo({ grupo: g }: { grupo: Grupo }) {
+  const documento = g.documento;
   const esImagen = documento?.documentoMime.startsWith("image/") ?? false;
 
   return (
     <div className="req">
       <span className="req__icono" aria-hidden="true">
-        {esImagen ? <ImageIcon size={20} /> : <FileText size={20} />}
+        {g.cubiertoPorVideollamada ? (
+          <Video size={20} />
+        ) : esImagen ? (
+          <ImageIcon size={20} />
+        ) : (
+          <FileText size={20} />
+        )}
       </span>
       <div className="req__texto">
-        <strong className="req__titulo">{requerido.titulo}</strong>
+        <strong className="req__titulo">{g.titulo}</strong>
         {documento ? (
           <p className="tenue" style={{ fontSize: 14 }}>
             {documento.documentoNombreOriginal} · {kb(documento.documentoTamano)} ·{" "}
             {new Date(documento.createdAt).toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
           </p>
+        ) : g.cubiertoPorVideollamada ? (
+          <p className="tenue" style={{ fontSize: 14 }}>
+            Se acreditará por videollamada, sin documento.
+          </p>
         ) : (
-          <p className="tenue" style={{ fontSize: 14 }}>{requerido.descripcion}</p>
+          <p className="tenue" style={{ fontSize: 14 }}>
+            {g.descripcion} Vale cualquiera de estas:{" "}
+            {g.opciones.map((o) => o.titulo).join(" o ")}.
+          </p>
         )}
         {documento?.documentoObservacion && (
           <p className="tenue" style={{ fontSize: 14 }}>Nota: {documento.documentoObservacion}</p>
@@ -371,8 +442,10 @@ function Requisito({ requerido, documento }: { requerido: Requerido; documento: 
           </Estado>
           <VisorDocumento documento={documento} />
         </div>
+      ) : g.cubiertoPorVideollamada ? (
+        <Estado tipo="indigo">Por videollamada</Estado>
       ) : (
-        <Estado tipo="neutro">Sin subir</Estado>
+        <Estado tipo="neutro">Sin acreditar</Estado>
       )}
 
       <style>{`
