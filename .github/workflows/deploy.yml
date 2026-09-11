@@ -119,17 +119,21 @@ jobs:
 
             # Credenciales de descarga. El token es temporal: caduca al terminar
             # esta ejecución, así que no queda nada reutilizable en el servidor.
-            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USUARIO}" --password-stdin
+            echo "${GHCR_TOKEN:-}" | docker login ghcr.io -u "${GHCR_USUARIO:-}" --password-stdin
 
             # El .env vive solo en el servidor, nunca en el repositorio.
             umask 077
+            # `${VAR:-}` y no `${VAR}`: el script corre con `set -u`, y un secreto
+            # que todavía no existe llega sin definir. Sin el valor por defecto,
+            # el despliegue entero aborta con "unbound variable" en vez de
+            # arrancar con la configuración mínima.
             cat > .env <<EOF
-            DATABASE_URL=${DATABASE_URL}
-            JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
-            JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-            CORS_ORIGINS=${CORS_ORIGINS}
-            MIPARNER_DOMINIO=${MIPARNER_DOMINIO}
-            MIPARNER_EMAIL_TLS=${MIPARNER_EMAIL_TLS}
+            DATABASE_URL=${DATABASE_URL:-}
+            JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-}
+            JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-}
+            CORS_ORIGINS=${CORS_ORIGINS:-}
+            MIPARNER_DOMINIO=${MIPARNER_DOMINIO:-}
+            MIPARNER_EMAIL_TLS=${MIPARNER_EMAIL_TLS:-}
             JWT_ACCESS_TTL=15m
             JWT_REFRESH_TTL=30d
             UPLOAD_MAX_MB=8
