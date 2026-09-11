@@ -1,0 +1,78 @@
+# ==========================================================================
+# Miparner — Caddy: sirve el panel, reenvía al backend y gestiona el HTTPS.
+#
+# Por qué Caddy y no nginx + certbot: saca el certificado de Let's Encrypt en
+# el primer arranque y lo renueva solo, sin tarea programada ni un contenedor
+# aparte. En un droplet de 512 MB, cada pieza que no se levanta cuenta.
+#
+# El dominio llega por la variable MIPARNER_DOMINIO desde el .env del servidor,
+# no va dentro de la imagen: cambiar de dominio no obliga a reconstruir nada.
+# Si la variable queda vacía, Caddy escucha en HTTP y sirve igual (útil para
+# probar por IP antes de que el DNS propague).
+# ==========================================================================
+
+{
+	# Dirección donde Let's Encrypt avisa si un certificado va a caducar.
+	email {$MIPARNER_EMAIL_TLS:admin@localhost}
+	# El panel de administración de Caddy no hace falta y ocupa memoria.
+	admin off
+}
+
+{$MIPARNER_DOMINIO:http://} {
+	root * /srv
+
+	# Los documentos de validación se suben por la API. El tope tiene que ir por
+	# encima del de la aplicación (UPLOAD_MAX_MB=8): si no, el proxy corta la
+	# subida antes y la persona recibe un error sin explicación.
+	request_body {
+		max_size 12MB
+	}
+
+	# --- Tiempo real (Socket.io) ---
+	# Caddy gestiona el upgrade a WebSocket solo; lo que importa es no cortar la
+	# conexión inactiva, o el seguimiento en vivo se caería cada pocos minutos.
+	handle /socket.io/* {
+		reverse_proxy backend:4000 {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	# --- API REST ---
+	handle /api/* {
+		reverse_proxy backend:4000
+	}
+
+	# --- Sonda de salud, para comprobar el despliegue desde fuera ---
+	handle /health {
+		reverse_proxy backend:4000
+	}
+
+	# --- Panel web (SPA) ---
+	handle {
+		# Los assets llevan hash en el nombre: se pueden cachear para siempre.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		# index.html nunca se cachea, o el navegador seguiría pidiendo el bundle
+		# viejo después de cada despliegue.
+		@index path / /index.html
+		header @index Cache-Control "no-cache"
+
+		# react-router resuelve las rutas en el navegador: cualquier ruta que no
+		# sea un archivo devuelve index.html, o recargar /admin/usuarios da 404.
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode gzip
+
+	log {
+		output stderr
+		format console
+		# En un disco de 10 GB no interesa registrar cada archivo servido.
+		level WARN
+	}
+}

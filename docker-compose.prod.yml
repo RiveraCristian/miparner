@@ -1,0 +1,87 @@
+# ==========================================================================
+# Miparner — producción (droplet de DigitalOcean).
+#
+# REGLA DEL PROYECTO: PostgreSQL NO va aquí. La base corre nativa en el droplet
+# y se consume por DATABASE_URL. Ver CLAUDE.md, sección 2.1.
+#
+# Este archivo no construye nada: las imágenes se construyen en GitHub Actions
+# y el servidor solo las descarga. En 512 MB de RAM un `docker build` del
+# frontend se queda sin memoria a mitad.
+#
+# Uso en el droplet (lo hace solo el workflow de despliegue):
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+# ==========================================================================
+name: miparner
+
+services:
+  backend:
+    image: ghcr.io/riveracristian/miparner-backend:latest
+    container_name: miparner-backend
+    restart: unless-stopped
+    # Secretos y configuración: el archivo lo escribe el workflow desde los
+    # GitHub Secrets. Nunca se versiona.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      UPLOADS_DIR: /app/uploads
+      # Techo del heap de V8. Sin esto, Node dimensiona el heap según la RAM
+      # total y el recolector de basura espera demasiado para actuar: en una
+      # máquina de 512 MB eso termina en muerte por OOM en vez de en una
+      # recolección a tiempo.
+      NODE_OPTIONS: --max-old-space-size=192
+    volumes:
+      # Documentos de validación (credenciales de discapacidad, cédulas).
+      # SIN este volumen se pierden en cada despliegue.
+      - uploads:/app/uploads
+    # PostgreSQL vive en el host, fuera de Docker: esto le da al contenedor un
+    # nombre para alcanzarlo.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # No se publica ningún puerto: solo Caddy habla con el backend.
+    expose:
+      - "4000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      # Disco de 10 GB: sin tope, los logs se lo comen y tumban PostgreSQL.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    image: ghcr.io/riveracristian/miparner-frontend:latest
+    container_name: miparner-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # Dominio servido. Si queda vacío, Caddy atiende por HTTP (útil mientras
+      # el DNS propaga). Con dominio, saca y renueva el certificado solo.
+      MIPARNER_DOMINIO: ${MIPARNER_DOMINIO:-http://}
+      MIPARNER_EMAIL_TLS: ${MIPARNER_EMAIL_TLS:-admin@localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificados de Let's Encrypt. SIN este volumen, cada reinicio vuelve a
+      # pedirlos y se agota el límite de peticiones (5 fallos por hora).
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  uploads:
+  caddy_data:
+  caddy_config:

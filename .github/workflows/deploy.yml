@@ -1,0 +1,152 @@
+# ==========================================================================
+# Miparner — despliegue continuo al droplet de DigitalOcean.
+#
+# Un push a main: construye las dos imágenes, las publica en GHCR y el droplet
+# solo las descarga y arranca.
+#
+# Por qué se construye aquí y no en el servidor: el droplet tiene 512 MB de RAM
+# y el build de Vite no cabe. Actions da 4 vCPU y 16 GB gratis.
+#
+# Secretos necesarios (Settings > Secrets and variables > Actions).
+# Los imprime `deploy/bootstrap-droplet.sh` al terminar:
+#   DEPLOY_HOST  DEPLOY_USER  DEPLOY_SSH_KEY
+#   DATABASE_URL  JWT_ACCESS_SECRET  JWT_REFRESH_SECRET
+#   MIPARNER_DOMINIO  CORS_ORIGINS      (los defines tú)
+# ==========================================================================
+name: Desplegar a DigitalOcean
+
+on:
+  push:
+    branches: [main]
+  # Permite relanzar el despliegue a mano sin tocar el código.
+  workflow_dispatch:
+
+env:
+  REGISTRO: ghcr.io
+  # GHCR exige minúsculas en el nombre de la imagen.
+  IMAGEN_BACKEND: ghcr.io/riveracristian/miparner-backend
+  IMAGEN_FRONTEND: ghcr.io/riveracristian/miparner-frontend
+
+jobs:
+  # ------------------------------------------------------------------------
+  construir:
+    name: Construir y publicar imágenes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - componente: backend
+            contexto: ./backend
+            imagen: ghcr.io/riveracristian/miparner-backend
+          - componente: frontend
+            contexto: ./frontend
+            imagen: ghcr.io/riveracristian/miparner-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Entrar a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRO }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir y publicar ${{ matrix.componente }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.contexto }}
+          push: true
+          # Dos etiquetas: `latest` es la que arranca el servidor; la del commit
+          # permite volver atrás con exactitud si un despliegue sale mal.
+          tags: |
+            ${{ matrix.imagen }}:latest
+            ${{ matrix.imagen }}:${{ github.sha }}
+          # Caché entre ejecuciones: sin esto cada despliegue reinstala todas
+          # las dependencias desde cero.
+          cache-from: type=gha,scope=${{ matrix.componente }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.componente }}
+
+  # ------------------------------------------------------------------------
+  desplegar:
+    name: Desplegar en el droplet
+    needs: construir
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copiar docker-compose al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: docker-compose.prod.yml
+          target: /opt/miparner
+          overwrite: true
+
+      - name: Migrar la base y levantar la versión nueva
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Los secretos viajan como variables de entorno, no incrustados en el
+          # texto del script: así no acaban en el registro de la ejecución.
+          envs: DATABASE_URL,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,CORS_ORIGINS,MIPARNER_DOMINIO,MIPARNER_EMAIL_TLS
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/miparner
+
+            # El .env vive solo en el servidor, nunca en el repositorio.
+            umask 077
+            cat > .env <<EOF
+            DATABASE_URL=${DATABASE_URL}
+            JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+            JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+            CORS_ORIGINS=${CORS_ORIGINS}
+            MIPARNER_DOMINIO=${MIPARNER_DOMINIO}
+            MIPARNER_EMAIL_TLS=${MIPARNER_EMAIL_TLS}
+            JWT_ACCESS_TTL=15m
+            JWT_REFRESH_TTL=30d
+            UPLOAD_MAX_MB=8
+            EOF
+
+            docker compose -f docker-compose.prod.yml pull
+
+            # Las migraciones corren DENTRO del droplet, contra el PostgreSQL
+            # local. Hacerlo desde el CI obligaría a exponer la base a internet.
+            # Va antes de levantar la versión nueva: si falla, el sitio sigue
+            # con la versión anterior en pie.
+            docker compose -f docker-compose.prod.yml run --rm --no-deps backend \
+              npx prisma migrate deploy
+
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Disco de 10 GB: las imágenes viejas lo llenan en pocas semanas.
+            docker image prune -af --filter "until=168h"
+
+      - name: Comprobar que responde
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            # El backend tarda unos segundos en aceptar conexiones.
+            for i in $(seq 1 20); do
+              if curl -fsS http://localhost/health >/dev/null 2>&1; then
+                echo "Despliegue correcto: /health responde."
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "El servicio no respondió en 60 segundos. Registro del backend:"
+            docker logs --tail 50 miparner-backend
+            exit 1
