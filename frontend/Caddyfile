@@ -7,8 +7,9 @@
 #
 # El dominio llega por la variable MIPARNER_DOMINIO desde el .env del servidor,
 # no va dentro de la imagen: cambiar de dominio no obliga a reconstruir nada.
-# Si la variable queda vacía, Caddy escucha en HTTP y sirve igual (útil para
-# probar por IP antes de que el DNS propague).
+# Si la variable queda vacía, el valor por defecto es `:80`: Caddy atiende por
+# HTTP en cualquier host, que es lo que hace falta para servir por IP mientras
+# todavía no hay dominio. Al poner el dominio, saca el certificado solo.
 # ==========================================================================
 
 {
@@ -18,7 +19,7 @@
 	admin off
 }
 
-{$MIPARNER_DOMINIO:http://} {
+{$MIPARNER_DOMINIO::80} {
 	root * /srv
 
 	# Los documentos de validación se suben por la API. El tope tiene que ir por
