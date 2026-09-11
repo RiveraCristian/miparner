@@ -1,13 +1,14 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { validate } from "../../middleware/validate";
-import { authenticate, actorId } from "../../middleware/auth";
+import { authenticate, actorId, requireRole } from "../../middleware/auth";
 import {
   actualizarPerfilSchema,
   cambiarPasswordSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
+  perfilDeportistaSchema,
 } from "./auth.schemas";
 import * as authService from "./auth.service";
 
@@ -24,7 +25,12 @@ const authLimiter = rateLimit({
 
 router.post("/register", authLimiter, validate({ body: registerSchema }), async (req, res, next) => {
   try {
-    res.status(201).json(await authService.register(req.body));
+    res.status(201).json(
+      await authService.register(req.body, {
+        canal: (req.get("x-miparner-canal") ?? "web").slice(0, 30),
+        ip: (req.ip ?? "").slice(0, 45),
+      }),
+    );
   } catch (err) {
     next(err);
   }
@@ -71,5 +77,20 @@ router.patch("/password", authenticate, validate({ body: cambiarPasswordSchema }
     next(err);
   }
 });
+
+// Caracterización del deportista (se edita desde el perfil de la app).
+router.patch(
+  "/me/perfil-deportista",
+  authenticate,
+  requireRole("deportista"),
+  validate({ body: perfilDeportistaSchema }),
+  async (req, res, next) => {
+    try {
+      res.json(await authService.actualizarPerfilDeportista(actorId(req), req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 export default router;

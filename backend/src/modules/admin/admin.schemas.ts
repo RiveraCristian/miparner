@@ -47,6 +47,8 @@ export const resolverValidacionSchema = z
   .object({
     estado: z.enum(["aprobado", "rechazado"]),
     motivo: z.string().trim().max(500).optional(),
+    // Constancia de la acreditación, sobre todo cuando fue por videollamada.
+    nota: z.string().trim().max(500).optional(),
   })
   .refine((d) => d.estado !== "rechazado" || (d.motivo?.length ?? 0) >= 5, {
     message: "Explica por qué se rechaza para que la persona pueda corregirlo",

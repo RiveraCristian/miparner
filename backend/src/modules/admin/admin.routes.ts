@@ -95,6 +95,7 @@ router.patch(
           Number(req.params.id),
           req.body.estado,
           req.body.motivo,
+          req.body.nota,
         ),
       );
     } catch (err) {

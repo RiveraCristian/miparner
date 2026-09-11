@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/http-error";
 import { eliminarArchivo, rutaDe } from "../../lib/uploads";
-import { documentosDelRol, tipoPermitidoParaRol } from "./documentos.catalogo";
+import { admiteVideollamada, evaluarGrupos, tipoPermitidoParaRol } from "./documentos.catalogo";
 
 /** Campos que se devuelven al dueño y al panel: nunca la ruta en disco. */
 const SELECT_PUBLICO = {
@@ -36,6 +36,9 @@ export async function estadoValidacion(usuarioId: number) {
       usuarioEstadoValidacion: true,
       usuarioMotivoRechazo: true,
       usuarioValidadoAt: true,
+      usuarioVerificacionVia: true,
+      usuarioVerificacionDisponibilidad: true,
+      usuarioVerificacionNota: true,
     },
   });
   if (!usuario) throw AppError.notFound("Usuario no encontrado");
@@ -43,22 +46,61 @@ export async function estadoValidacion(usuarioId: number) {
   const subidos = await listarMios(usuarioId);
   const porTipo = new Map(subidos.map((d) => [d.documentoTipo, d]));
 
-  const requeridos = documentosDelRol(usuario.usuarioRol).map((req) => ({
-    ...req,
-    documento: porTipo.get(req.tipo) ?? null,
-  }));
-
-  const faltantes = requeridos.filter((r) => r.obligatorio && !r.documento).map((r) => r.tipo);
+  const { grupos, faltantes, completo } = evaluarGrupos(
+    usuario.usuarioRol,
+    subidos.map((d) => d.documentoTipo),
+    usuario.usuarioVerificacionVia,
+  );
 
   return {
     estadoValidacion: usuario.usuarioEstadoValidacion,
     motivoRechazo: usuario.usuarioMotivoRechazo,
     validadoAt: usuario.usuarioValidadoAt,
-    requeridos,
+    verificacionVia: usuario.usuarioVerificacionVia,
+    verificacionDisponibilidad: usuario.usuarioVerificacionDisponibilidad,
+    verificacionNota: usuario.usuarioVerificacionNota,
+    admiteVideollamada: admiteVideollamada(usuario.usuarioRol),
+    // Cada grupo con el documento que lo cubre, si lo hay.
+    grupos: grupos.map((g) => ({
+      ...g,
+      documento: g.tipoCubierto ? (porTipo.get(g.tipoCubierto) ?? null) : null,
+    })),
     faltantes,
-    // Solo cuando no falta nada el equipo puede revisar la cuenta.
-    listaParaRevision: faltantes.length === 0,
+    // Solo cuando no falta ningun grupo el equipo puede revisar la cuenta.
+    listaParaRevision: completo,
   };
+}
+
+/**
+ * Pide acreditarse por videollamada, sin subir documentos.
+ *
+ * No valida la cuenta: la deja lista para que el equipo la revise, con la
+ * disponibilidad horaria que la persona indique. Quien aprueba sigue siendo
+ * un administrador, despues de hablar con ella.
+ */
+export async function pedirVideollamada(usuarioId: number, disponibilidad: string) {
+  const usuario = await prisma.usuario.findUnique({
+    where: { usuarioId },
+    select: { usuarioRol: true, usuarioEstadoValidacion: true },
+  });
+  if (!usuario) throw AppError.notFound("Usuario no encontrado");
+  if (!admiteVideollamada(usuario.usuarioRol)) {
+    throw AppError.badRequest("Tu tipo de cuenta necesita acreditarse con documentos");
+  }
+
+  await prisma.usuario.update({
+    where: { usuarioId },
+    data: {
+      usuarioVerificacionVia: "videollamada",
+      usuarioVerificacionDisponibilidad: disponibilidad,
+      // Pedir la videollamada reabre la revision si la cuenta venia rechazada.
+      ...(usuario.usuarioEstadoValidacion !== "aprobado"
+        ? { usuarioEstadoValidacion: "pendiente", usuarioMotivoRechazo: null }
+        : {}),
+    },
+  });
+
+  return estadoValidacion(usuarioId);
 }
 
 interface ArchivoSubido {
@@ -113,11 +155,16 @@ export async function subir(usuarioId: number, tipo: string, archivo: ArchivoSub
       select: SELECT_PUBLICO,
     });
 
-    // Un documento nuevo reabre la revisión.
+    // Un documento nuevo reabre la revisión y fija la vía en "documento":
+    // quien sube un papel ya no necesita la videollamada.
     if (usuario.usuarioEstadoValidacion !== "aprobado") {
       await tx.usuario.update({
         where: { usuarioId },
-        data: { usuarioEstadoValidacion: "pendiente", usuarioMotivoRechazo: null },
+        data: {
+          usuarioEstadoValidacion: "pendiente",
+          usuarioMotivoRechazo: null,
+          usuarioVerificacionVia: "documento",
+        },
       });
     }
 

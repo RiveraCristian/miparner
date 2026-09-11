@@ -6,8 +6,8 @@ import { validate } from "../../middleware/validate";
 import { AppError } from "../../lib/http-error";
 import { env } from "../../config/env";
 import { eliminarArchivo, recibirDocumento } from "../../lib/uploads";
-import { documentosDelRol } from "./documentos.catalogo";
-import { idParamSchema, subirDocumentoSchema } from "./documentos.schemas";
+import { gruposDelRol } from "./documentos.catalogo";
+import { idParamSchema, pedirVideollamadaSchema, subirDocumentoSchema } from "./documentos.schemas";
 import * as documentos from "./documentos.service";
 
 const router = Router();
@@ -49,8 +49,22 @@ router.get("/requeridos", async (req, res, next) => {
 
 // Catálogo por rol (sin datos personales): útil antes de terminar el registro.
 router.get("/catalogo", (req, res) => {
-  res.json(documentosDelRol(req.usuario!.rol));
+  res.json(gruposDelRol(req.usuario!.rol));
 });
+
+// Acreditarse por videollamada, sin documentos.
+router.post(
+  "/videollamada",
+  subidaLimiter,
+  validate({ body: pedirVideollamadaSchema }),
+  async (req, res, next) => {
+    try {
+      res.status(201).json(await documentos.pedirVideollamada(actorId(req), req.body.disponibilidad));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.get("/me", async (req, res, next) => {
   try {
