@@ -1,0 +1,29 @@
+# ==========================================================================
+# Finales de línea.
+#
+# Git normaliza a LF al guardar, pero en Windows devuelve CRLF al hacer
+# checkout. Para un script de shell eso es fatal: Linux lee el retorno de carro
+# como parte del comando y falla con `$'\r': command not found`.
+#
+# Estos archivos se ejecutan o se interpretan en Linux (el droplet, los
+# contenedores, los ejecutores de GitHub Actions), así que se fuerzan a LF
+# aunque se editen desde Windows.
+# ==========================================================================
+
+* text=auto
+
+*.sh          text eol=lf
+Dockerfile    text eol=lf
+*.Dockerfile  text eol=lf
+Caddyfile     text eol=lf
+*.yml         text eol=lf
+*.yaml        text eol=lf
+.dockerignore text eol=lf
+*.sql         text eol=lf
+
+# Binarios: que Git no intente tocarlos.
+*.png  binary
+*.jpg  binary
+*.pdf  binary
+*.ttf  binary
+*.keystore binary
