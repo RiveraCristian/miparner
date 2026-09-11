@@ -13,6 +13,10 @@ react {
     reactNativeDir = file("../../../node_modules/react-native")
     codegenDir = file("../../../node_modules/@react-native/codegen")
     cliFile = file("../../../node_modules/react-native/cli.js")
+    /* hermesc tambien esta izado: sin esta linea el plugin lo busca en la app
+       y cualquier build de release falla con "Couldn't determine Hermesc location".
+       El plugin sustituye %OS-BIN% por la carpeta del sistema operativo. */
+    hermesCommand = file("../../../node_modules/react-native/sdks/hermesc/%OS-BIN%/hermesc").toString()
 
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
