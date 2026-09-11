@@ -63,9 +63,10 @@ services:
     depends_on:
       - backend
     environment:
-      # Dominio servido. Si queda vacío, Caddy atiende por HTTP (útil mientras
-      # el DNS propaga). Con dominio, saca y renueva el certificado solo.
-      MIPARNER_DOMINIO: ${MIPARNER_DOMINIO:-http://}
+      # Dominio servido. Vacío = `:80`, es decir HTTP por IP, para arrancar
+      # antes de tener dominio. Con dominio, Caddy saca y renueva el
+      # certificado de Let's Encrypt solo.
+      MIPARNER_DOMINIO: ${MIPARNER_DOMINIO:-:80}
       MIPARNER_EMAIL_TLS: ${MIPARNER_EMAIL_TLS:-admin@localhost}
     ports:
       - "80:80"
