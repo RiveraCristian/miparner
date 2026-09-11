@@ -76,6 +76,11 @@ jobs:
     name: Desplegar en el droplet
     needs: construir
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Para que el droplet pueda descargar las imágenes aunque el paquete de
+      # GHCR sea privado (lo es por omisión, incluso con el repo público).
+      packages: read
     steps:
       - uses: actions/checkout@v4
 
@@ -91,17 +96,30 @@ jobs:
 
       - name: Migrar la base y levantar la versión nueva
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          MIPARNER_DOMINIO: ${{ secrets.MIPARNER_DOMINIO }}
+          MIPARNER_EMAIL_TLS: ${{ secrets.MIPARNER_EMAIL_TLS }}
+          GHCR_USUARIO: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           # Los secretos viajan como variables de entorno, no incrustados en el
           # texto del script: así no acaban en el registro de la ejecución.
-          envs: DATABASE_URL,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,CORS_ORIGINS,MIPARNER_DOMINIO,MIPARNER_EMAIL_TLS
+          envs: DATABASE_URL,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,CORS_ORIGINS,MIPARNER_DOMINIO,MIPARNER_EMAIL_TLS,GHCR_USUARIO,GHCR_TOKEN
           script_stop: true
           script: |
             set -euo pipefail
             cd /opt/miparner
+
+            # Credenciales de descarga. El token es temporal: caduca al terminar
+            # esta ejecución, así que no queda nada reutilizable en el servidor.
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USUARIO}" --password-stdin
 
             # El .env vive solo en el servidor, nunca en el repositorio.
             umask 077
@@ -130,6 +148,9 @@ jobs:
 
             # Disco de 10 GB: las imágenes viejas lo llenan en pocas semanas.
             docker image prune -af --filter "until=168h"
+
+            # El token ya no sirve para nada, pero no se deja escrito en disco.
+            docker logout ghcr.io
 
       - name: Comprobar que responde
         uses: appleboy/ssh-action@v1.2.0
