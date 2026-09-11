@@ -129,6 +129,14 @@ export function PerfilScreen() {
       </Card>
 
       <View style={{ height: 28 }} />
+      {/* Ley 21.719: los derechos del titular tienen que poder ejercerse
+          desde la propia app, no solo escribiendo un correo. */}
+      <GhostButton
+        title="Mis datos y privacidad"
+        icon={<ShieldCheck color={colors.indigo} size={18} />}
+        onPress={() => nav.navigate("Privacidad")}
+      />
+      <View style={{ height: 12 }} />
       <GhostButton title="Cerrar sesión" icon={<LogOut color={colors.indigo} size={18} />} onPress={logout} />
       <View style={{ height: 18 }} />
       <Text style={[font.tiny, { textAlign: "center" }]}>Miparner · versión 0.1.0</Text>

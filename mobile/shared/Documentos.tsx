@@ -1,16 +1,19 @@
 /**
- * Documentos de validación · compartido por las dos apps.
+ * Acreditación de la cuenta · compartido por las dos apps.
  *
  * Al registrarse, la cuenta queda **activa pero pendiente**: la persona entra,
- * ve su perfil y sube su respaldo, pero no puede pedir ni aceptar
+ * ve su perfil y acredita su situación, pero no puede pedir ni aceptar
  * acompañamientos hasta que el panel de administración la apruebe.
  *
- *  · Deportista  → credencial de discapacidad.
- *  · Voluntario  → cédula de identidad + certificado de alumno regular.
+ * Lo que se pide viene en GRUPOS, y dentro de un grupo basta con una opción:
  *
- * Qué documento pide cada rol lo decide el backend
- * (`documentos.catalogo.ts`): esta pantalla solo dibuja lo que llega en
- * `/documentos/requeridos`, así que añadir un tipo nuevo no toca la app.
+ *  · Deportista → credencial de discapacidad O certificado médico,
+ *    O una videollamada con el equipo si no tiene ninguno de los dos.
+ *  · Voluntario → cédula de identidad + certificado de alumno regular.
+ *
+ * Qué pide cada rol lo decide el backend (`documentos.catalogo.ts`): esta
+ * pantalla solo dibuja lo que llega en `/documentos/requeridos`, así que
+ * cambiar los requisitos no obliga a tocar la app.
  */
 import { useCallback, useState } from "react";
 import { Alert, Linking, StyleSheet, Text, View } from "react-native";
@@ -23,14 +26,27 @@ import {
   FileUp,
   Images,
   ShieldCheck,
+  Video,
 } from "lucide-react-native";
 import { launchCamera, launchImageLibrary } from "react-native-image-picker";
 import { errorCodes, isErrorWithCode, pick, types } from "@react-native-documents/picker";
-import { apiUpload, type ArchivoLocal } from "./api";
+import { api, apiUpload, type ArchivoLocal } from "./api";
 import { useAuth } from "./auth";
 import { colors, font, fuente, radius } from "./theme";
-import { Card, CardLavanda, Estado, Etiqueta, GhostButton, Loading, PanelIndigo, Screen } from "./ui";
-import type { EstadoValidacion, Requisito } from "./types";
+import {
+  CampoTexto,
+  Card,
+  CardLavanda,
+  Estado,
+  Etiqueta,
+  GhostButton,
+  Loading,
+  PanelIndigo,
+  Pill,
+  PrimaryButton,
+  Screen,
+} from "./ui";
+import type { EstadoValidacion, GrupoAcreditacion } from "./types";
 
 /* ------------------------------------------------------------------- Aviso */
 
@@ -42,7 +58,7 @@ const TITULO_ESTADO: Record<EstadoValidacion, string> = {
 
 /**
  * Banner para las pantallas de inicio. Dice en qué va la validación y lleva a
- * la pantalla de documentos. No usa solo color: lleva icono y texto.
+ * la pantalla de acreditación. No usa solo color: lleva icono y texto.
  */
 export function AvisoValidacion({ onIr }: { onIr: () => void }) {
   const { validacion, user } = useAuth();
@@ -51,20 +67,23 @@ export function AvisoValidacion({ onIr }: { onIr: () => void }) {
 
   const faltan = validacion?.faltantes.length ?? 0;
   const rechazada = estado === "rechazado";
+  const esperaLlamada = validacion?.verificacionVia === "videollamada" && faltan === 0;
 
   return (
     <CardLavanda style={{ marginBottom: 16, gap: 10 }}>
       <Estado text={TITULO_ESTADO[estado]} tipo={rechazada ? "critico" : "atencion"} />
       <Text style={font.body}>
         {rechazada
-          ? validacion?.motivoRechazo ??
-            "El equipo pidió que vuelvas a enviar tu documentación."
-          : faltan > 0
-            ? `Te ${faltan === 1 ? "falta 1 documento" : `faltan ${faltan} documentos`} por subir. Mientras tanto no puedes pedir ni aceptar acompañamientos.`
-            : "El equipo está revisando tus documentos. Te avisamos en cuanto quede lista."}
+          ? (validacion?.motivoRechazo ??
+            "El equipo pidió que vuelvas a enviar tu documentación.")
+          : esperaLlamada
+            ? "Pediste acreditarte por videollamada. El equipo te contactará con los horarios que indicaste."
+            : faltan > 0
+              ? "Todavía falta acreditar tu situación. Mientras tanto no puedes pedir ni aceptar acompañamientos."
+              : "El equipo está revisando tu cuenta. Te avisamos en cuanto quede lista."}
       </Text>
       <GhostButton
-        title={faltan > 0 || rechazada ? "Subir mis documentos" : "Ver mis documentos"}
+        title={faltan > 0 || rechazada ? "Acreditar mi cuenta" : "Ver mi acreditación"}
         icon={<ShieldCheck color={colors.indigo} size={18} />}
         onPress={onIr}
       />
@@ -106,13 +125,14 @@ export function PantallaDocumentos() {
   if (!validacion) {
     return (
       <Screen>
-        <Loading texto="Cargando tus documentos…" />
+        <Loading texto="Cargando tu acreditación…" />
       </Screen>
     );
   }
 
   const estado = validacion.estadoValidacion;
   const aprobada = estado === "aprobado";
+  const porVideollamada = validacion.verificacionVia === "videollamada";
 
   return (
     <Screen>
@@ -124,31 +144,41 @@ export function PantallaDocumentos() {
           {aprobada
             ? "Ya puedes usar Miparner con normalidad."
             : estado === "rechazado"
-              ? validacion.motivoRechazo ?? "Vuelve a enviar la documentación corregida."
+              ? (validacion.motivoRechazo ?? "Vuelve a enviar la documentación corregida.")
               : validacion.listaParaRevision
                 ? "Tenemos todo lo que necesitábamos. El equipo lo está revisando."
-                : "Sube los documentos que faltan para que el equipo pueda validarte."}
+                : "Acredita tu situación para que el equipo pueda validarte."}
         </Text>
       </PanelIndigo>
 
-      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Documentos que te pedimos</Etiqueta>
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Lo que necesitamos</Etiqueta>
 
-      {validacion.requeridos.map((r) => (
-        <TarjetaRequisito
-          key={r.tipo}
-          requisito={r}
-          ocupado={subiendo === r.tipo}
-          bloqueado={subiendo !== null}
-          onArchivo={(a) => subir(r.tipo, a)}
+      {validacion.grupos.map((g) => (
+        <TarjetaGrupo
+          key={g.grupo}
+          grupo={g}
+          ocupado={!!subiendo}
+          subiendoTipo={subiendo}
+          onArchivo={(tipo, a) => subir(tipo, a)}
         />
       ))}
 
+      {/* La vía sin documentos. Solo aparece si el backend la ofrece para
+          este rol y el grupo todavía no está cubierto con un papel. */}
+      {validacion.admiteVideollamada && !aprobada && (
+        <TarjetaVideollamada
+          activa={porVideollamada}
+          disponibilidad={validacion.verificacionDisponibilidad}
+          onPedida={refrescar}
+        />
+      )}
+
       <Card style={{ marginTop: 6, gap: 6 }}>
-        <Text style={[font.body, { fontFamily: fuente.fuerte }]}>¿Por qué los pedimos?</Text>
+        <Text style={[font.body, { fontFamily: fuente.fuerte }]}>¿Por qué lo pedimos?</Text>
         <Text style={font.muted}>
-          Miparner conecta a personas que se van a encontrar en la calle. Validar quién es
-          quién antes del primer acompañamiento es lo que hace que eso sea seguro. Tus
-          documentos solo los ve el equipo de administración.
+          Miparner conecta a personas que se van a encontrar en la calle. Saber quién es quién
+          antes del primer acompañamiento es lo que hace que eso sea seguro. Tus documentos solo
+          los ve el equipo de administración, nunca el voluntario.
         </Text>
       </Card>
 
@@ -157,7 +187,7 @@ export function PantallaDocumentos() {
   );
 }
 
-/* -------------------------------------------------------- Tarjeta por tipo */
+/* -------------------------------------------------------- Tarjeta de grupo */
 
 const ESTADO_DOC: Record<string, { texto: string; tipo: "exito" | "atencion" | "critico" }> = {
   aprobado: { texto: "Aprobado", tipo: "exito" },
@@ -165,20 +195,33 @@ const ESTADO_DOC: Record<string, { texto: string; tipo: "exito" | "atencion" | "
   rechazado: { texto: "Rechazado", tipo: "critico" },
 };
 
-function TarjetaRequisito({
-  requisito: r,
+function TarjetaGrupo({
+  grupo: g,
   ocupado,
-  bloqueado,
+  subiendoTipo,
   onArchivo,
 }: {
-  requisito: Requisito;
+  grupo: GrupoAcreditacion;
   ocupado: boolean;
-  bloqueado: boolean;
-  onArchivo: (archivo: ArchivoLocal) => void;
+  subiendoTipo: string | null;
+  onArchivo: (tipo: string, archivo: ArchivoLocal) => void;
 }) {
-  const doc = r.documento;
+  // Con varias opciones hay que elegir cuál se va a subir. Si ya hay una
+  // cubierta, se preselecciona esa para poder reemplazarla.
+  const [elegido, setElegido] = useState<string>(g.tipoCubierto ?? g.opciones[0]?.tipo ?? "");
+  const doc = g.documento;
   const marca = doc ? ESTADO_DOC[doc.documentoEstado] : null;
-  const Icono = !doc ? FileUp : doc.documentoEstado === "aprobado" ? CheckCircle2 : doc.documentoEstado === "rechazado" ? CircleAlert : Clock;
+
+  const Icono = g.cubiertoPorVideollamada
+    ? Video
+    : !doc
+      ? FileUp
+      : doc.documentoEstado === "aprobado"
+        ? CheckCircle2
+        : doc.documentoEstado === "rechazado"
+          ? CircleAlert
+          : Clock;
+
   const colorIcono = !doc
     ? colors.indigo
     : doc.documentoEstado === "aprobado"
@@ -187,14 +230,19 @@ function TarjetaRequisito({
         ? colors.coral
         : colors.indigo;
 
+  const opcion = g.opciones.find((o) => o.tipo === elegido) ?? g.opciones[0];
+
+  function entregar(archivo: ArchivoLocal) {
+    if (!opcion) return;
+    onArchivo(opcion.tipo, archivo);
+  }
+
   async function conCamara() {
-    const res = await launchCamera({ mediaType: "photo", quality: 0.8, saveToPhotos: false });
-    manejarImagen(res);
+    manejarImagen(await launchCamera({ mediaType: "photo", quality: 0.8, saveToPhotos: false }));
   }
 
   async function conGaleria() {
-    const res = await launchImageLibrary({ mediaType: "photo", quality: 0.8, selectionLimit: 1 });
-    manejarImagen(res);
+    manejarImagen(await launchImageLibrary({ mediaType: "photo", quality: 0.8, selectionLimit: 1 }));
   }
 
   function manejarImagen(res: Awaited<ReturnType<typeof launchImageLibrary>>) {
@@ -204,18 +252,21 @@ function TarjetaRequisito({
         "No pudimos abrir la cámara",
         res.errorCode === "permission"
           ? "Da permiso de cámara a Miparner desde los ajustes del teléfono."
-          : res.errorMessage ?? "Prueba eligiendo el archivo desde tu teléfono.",
+          : (res.errorMessage ?? "Prueba eligiendo el archivo desde tu teléfono."),
         res.errorCode === "permission"
-          ? [{ text: "Cancelar" }, { text: "Abrir ajustes", onPress: () => void Linking.openSettings() }]
+          ? [
+              { text: "Cancelar" },
+              { text: "Abrir ajustes", onPress: () => void Linking.openSettings() },
+            ]
           : undefined,
       );
       return;
     }
     const a = res.assets?.[0];
     if (!a?.uri) return;
-    onArchivo({
+    entregar({
       uri: a.uri,
-      name: a.fileName ?? `${r.tipo}.jpg`,
+      name: a.fileName ?? `${opcion?.tipo ?? "documento"}.jpg`,
       type: a.type ?? "image/jpeg",
     });
   }
@@ -224,9 +275,9 @@ function TarjetaRequisito({
     try {
       const [f] = await pick({ type: [types.pdf, types.images] });
       if (!f?.uri) return;
-      onArchivo({
+      entregar({
         uri: f.uri,
-        name: f.name ?? `${r.tipo}.pdf`,
+        name: f.name ?? `${opcion?.tipo ?? "documento"}.pdf`,
         type: f.type ?? "application/pdf",
       });
     } catch (e) {
@@ -243,10 +294,16 @@ function TarjetaRequisito({
           <Icono color={colorIcono} size={20} />
         </View>
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={[font.body, { fontFamily: fuente.fuerte }]}>{r.titulo}</Text>
-          <Text style={font.tiny}>{r.descripcion}</Text>
+          <Text style={[font.body, { fontFamily: fuente.fuerte }]}>{g.titulo}</Text>
+          <Text style={font.tiny}>{g.descripcion}</Text>
         </View>
-        {marca ? <Estado text={marca.texto} tipo={marca.tipo} /> : <Estado text="Falta" tipo="neutro" />}
+        {g.cubiertoPorVideollamada ? (
+          <Estado text="Por videollamada" tipo="indigo" />
+        ) : marca ? (
+          <Estado text={marca.texto} tipo={marca.tipo} />
+        ) : (
+          <Estado text="Falta" tipo="neutro" />
+        )}
       </View>
 
       {doc ? (
@@ -255,39 +312,166 @@ function TarjetaRequisito({
             {doc.documentoNombreOriginal} · {Math.max(1, Math.round(doc.documentoTamano / 1024))} KB
           </Text>
           {doc.documentoObservacion ? (
-            <Text style={[font.tiny, { color: colors.ink2 }]}>Nota del equipo: {doc.documentoObservacion}</Text>
+            <Text style={[font.tiny, { color: colors.ink2 }]}>
+              Nota del equipo: {doc.documentoObservacion}
+            </Text>
           ) : null}
         </View>
       ) : null}
 
-      {doc?.documentoEstado === "aprobado" ? null : (
+      {g.cubiertoPorVideollamada || doc?.documentoEstado === "aprobado" ? null : (
         <View style={{ gap: 10 }}>
+          {/* Con más de una opción, la persona elige qué va a subir. */}
+          {g.opciones.length > 1 ? (
+            <View style={{ gap: 8 }}>
+              <Text style={font.tiny}>¿Cuál vas a subir? Con una basta.</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {g.opciones.map((o) => (
+                  <Pill
+                    key={o.tipo}
+                    label={o.titulo}
+                    active={o.tipo === elegido}
+                    onPress={() => setElegido(o.tipo)}
+                  />
+                ))}
+              </View>
+              {opcion ? <Text style={font.tiny}>{opcion.descripcion}</Text> : null}
+            </View>
+          ) : null}
+
           <GhostButton
-            title={ocupado ? "Subiendo…" : "Tomar foto del documento"}
+            title={subiendoTipo === opcion?.tipo ? "Subiendo…" : "Tomar foto del documento"}
             icon={<Camera color={colors.indigo} size={18} />}
-            disabled={bloqueado}
+            disabled={ocupado}
             onPress={conCamara}
           />
           <View style={{ flexDirection: "row", gap: 10 }}>
             <GhostButton
               title="Galería"
               icon={<Images color={colors.indigo} size={18} />}
-              disabled={bloqueado}
+              disabled={ocupado}
               onPress={conGaleria}
               style={{ flex: 1 }}
             />
             <GhostButton
               title="Archivo"
               icon={<FileUp color={colors.indigo} size={18} />}
-              disabled={bloqueado}
+              disabled={ocupado}
               onPress={conArchivo}
               style={{ flex: 1 }}
             />
           </View>
           {doc ? (
-            <Text style={font.tiny}>Si subes uno nuevo, reemplaza al anterior y vuelve a revisión.</Text>
+            <Text style={font.tiny}>
+              Si subes uno nuevo, reemplaza al anterior y vuelve a revisión.
+            </Text>
           ) : null}
         </View>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------- Acreditación sin papeles */
+
+/**
+ * Muchas personas con discapacidad no tienen credencial vigente: el trámite es
+ * lento y se vence. Dejarlas fuera por un papel sería la barrera que Miparner
+ * existe para quitar, así que pueden pedir una videollamada y el equipo las
+ * acredita a mano.
+ */
+function TarjetaVideollamada({
+  activa,
+  disponibilidad,
+  onPedida,
+}: {
+  activa: boolean;
+  disponibilidad: string | null;
+  onPedida: () => Promise<void> | void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState(disponibilidad ?? "");
+  const [enviando, setEnviando] = useState(false);
+
+  async function pedir() {
+    setEnviando(true);
+    try {
+      await api("/documentos/videollamada", {
+        method: "POST",
+        body: { disponibilidad: texto.trim() },
+      });
+      await onPedida();
+      setAbierto(false);
+      Alert.alert(
+        "Solicitud enviada",
+        "El equipo te contactará para coordinar la videollamada en los horarios que indicaste.",
+      );
+    } catch (e) {
+      Alert.alert(
+        "No pudimos enviar tu solicitud",
+        e instanceof Error ? e.message : "Revisa tu conexión y vuelve a intentar.",
+      );
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (activa && !abierto) {
+    return (
+      <CardLavanda style={{ marginBottom: 14, gap: 10 }}>
+        <Estado text="Videollamada solicitada" tipo="indigo" />
+        <Text style={font.body}>
+          El equipo se pondrá en contacto contigo para acreditar tu cuenta. No necesitas subir
+          ningún documento.
+        </Text>
+        {disponibilidad ? (
+          <Text style={font.tiny}>Tu disponibilidad: {disponibilidad}</Text>
+        ) : null}
+        <GhostButton title="Cambiar mi disponibilidad" onPress={() => setAbierto(true)} />
+      </CardLavanda>
+    );
+  }
+
+  return (
+    <Card style={{ marginBottom: 14, gap: 12 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+        <View style={[estilos.icono, { backgroundColor: colors.lavanda }]}>
+          <Video color={colors.indigo} size={20} />
+        </View>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={[font.body, { fontFamily: fuente.fuerte }]}>No tengo ninguno de los dos</Text>
+          <Text style={font.tiny}>
+            Pide una videollamada con el equipo. Conversamos contigo, acreditamos tu cuenta a mano
+            y no necesitas subir ningún documento.
+          </Text>
+        </View>
+      </View>
+
+      {abierto ? (
+        <View>
+          <CampoTexto
+            label="¿Qué días y horas te vienen bien?"
+            ayuda="Por ejemplo: lunes y miércoles por la tarde, después de las 16:00."
+            value={texto}
+            onChangeText={setTexto}
+            multiline
+            maxLength={500}
+          />
+          <PrimaryButton
+            title={enviando ? "Enviando…" : "Pedir videollamada"}
+            icon={<Video color={colors.white} size={18} />}
+            disabled={enviando || texto.trim().length < 5}
+            onPress={pedir}
+          />
+          <View style={{ height: 10 }} />
+          <GhostButton title="Mejor subo un documento" onPress={() => setAbierto(false)} />
+        </View>
+      ) : (
+        <GhostButton
+          title="Quiero una videollamada"
+          icon={<Video color={colors.indigo} size={18} />}
+          onPress={() => setAbierto(true)}
+        />
       )}
     </Card>
   );

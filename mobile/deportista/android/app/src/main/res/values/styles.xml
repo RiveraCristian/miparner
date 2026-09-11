@@ -15,4 +15,10 @@
         <item name="android:enforceNavigationBarContrast">false</item>
     </style>
 
+    <!-- Pantalla de carga. Se aplica a MainActivity y el propio React Native la
+         reemplaza por AppTheme en cuanto monta la primera vista. -->
+    <style name="SplashTheme" parent="AppTheme">
+        <item name="android:windowBackground">@drawable/splash</item>
+    </style>
+
 </resources>

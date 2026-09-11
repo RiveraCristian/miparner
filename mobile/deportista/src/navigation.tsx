@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { House, Trophy, User } from "lucide-react-native";
+import { CalendarDays, House, Trophy, User } from "lucide-react-native";
 import { colors, elevacion, fuente } from "../../shared/theme";
 import { useAuth } from "../../shared/auth";
 import { LoginScreen } from "./screens/LoginScreen";
@@ -11,6 +11,8 @@ import { LogrosScreen } from "./screens/LogrosScreen";
 import { PerfilScreen } from "./screens/PerfilScreen";
 import { DocumentosScreen } from "./screens/DocumentosScreen";
 import { ChatScreen } from "./screens/ChatScreen";
+import { PlanificacionScreen } from "./screens/PlanificacionScreen";
+import { PrivacidadScreen } from "./screens/PrivacidadScreen";
 
 export type RootStackParams = {
   Tabs: undefined;
@@ -18,6 +20,7 @@ export type RootStackParams = {
   EnViaje: { viajeId: number };
   Chat: { viajeId: number };
   Documentos: undefined;
+  Privacidad: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -49,6 +52,7 @@ function Tabs() {
       }}
     >
       <Tab.Screen name="Inicio" component={InicioScreen} options={{ tabBarIcon: ({ color, size }) => <House color={color} size={size} /> }} />
+      <Tab.Screen name="Mi plan" component={PlanificacionScreen} options={{ tabBarIcon: ({ color, size }) => <CalendarDays color={color} size={size} /> }} />
       <Tab.Screen name="Logros" component={LogrosScreen} options={{ tabBarIcon: ({ color, size }) => <Trophy color={color} size={size} /> }} />
       <Tab.Screen name="Perfil" component={PerfilScreen} options={{ tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }} />
     </Tab.Navigator>
@@ -74,7 +78,8 @@ export function RootNavigator() {
       <Stack.Screen name="Solicitar" component={SolicitarScreen} options={{ headerShown: true, title: "Solicitar acompañamiento" }} />
       <Stack.Screen name="EnViaje" component={EnViajeScreen} options={{ headerShown: true, title: "Tu acompañamiento" }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: true, title: "Mensajes" }} />
-      <Stack.Screen name="Documentos" component={DocumentosScreen} options={{ headerShown: true, title: "Validar mi cuenta" }} />
+      <Stack.Screen name="Documentos" component={DocumentosScreen} options={{ headerShown: true, title: "Acreditar mi cuenta" }} />
+      <Stack.Screen name="Privacidad" component={PrivacidadScreen} options={{ headerShown: true, title: "Mis datos y privacidad" }} />
     </Stack.Navigator>
   );
 }

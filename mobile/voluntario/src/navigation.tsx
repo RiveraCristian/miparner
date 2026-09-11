@@ -12,6 +12,7 @@ import { RankingScreen } from "./screens/RankingScreen";
 import { PerfilScreen } from "./screens/PerfilScreen";
 import { DocumentosScreen } from "./screens/DocumentosScreen";
 import { ChatScreen } from "./screens/ChatScreen";
+import { PrivacidadScreen } from "./screens/PrivacidadScreen";
 
 export type RootStackParams = {
   Tabs: undefined;
@@ -20,6 +21,7 @@ export type RootStackParams = {
   Chat: { viajeId: number };
   Documentos: undefined;
   Historial: undefined;
+  Privacidad: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -76,6 +78,7 @@ export function RootNavigator() {
       <Stack.Screen name="ViajeActivo" component={ViajeActivoScreen} options={{ headerShown: true, title: "Acompañamiento activo" }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: true, title: "Mensajes" }} />
       <Stack.Screen name="Documentos" component={DocumentosScreen} options={{ headerShown: true, title: "Validar mi cuenta" }} />
+      <Stack.Screen name="Privacidad" component={PrivacidadScreen} options={{ headerShown: true, title: "Mis datos y privacidad" }} />
       <Stack.Screen name="Historial" component={HistorialScreen} options={{ headerShown: true, title: "Mis acompañamientos" }} />
     </Stack.Navigator>
   );

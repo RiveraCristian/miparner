@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PANTONE 2735 C. El mismo índigo del manual de identidad. -->
+    <color name="miparner_indigo">#2E1BA8</color>
+</resources>
