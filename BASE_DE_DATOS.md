@@ -77,6 +77,7 @@ Desde la carpeta `backend/`:
 ```powershell
 cd backend
 npx prisma migrate deploy   # crea todas las tablas, triggers e índices GIST
+                            # (0001 base + 0002 validación, documentos y mensajes)
 npm run db:seed             # admin + insignias + premios base
 ```
 

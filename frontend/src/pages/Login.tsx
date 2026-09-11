@@ -9,7 +9,7 @@
  * y Fase 2 (Google SSO): solo cambia el contenido del panel derecho.
  */
 import { Suspense, lazy, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertCircle, Check } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { Logo } from "../brand/Logo";
@@ -60,8 +60,10 @@ export function Login() {
         </Suspense>
 
         <div className="login__marca-contenido">
-          {/* El nombre está en el arte del logotipo, así que el alt va vacío. */}
-          <Logo alto={64} version="blanco" alt="" className="login__logo" />
+          {/* Logo enlazado al inicio. El nombre está en el arte, así que el alt describe el destino. */}
+          <Link to="/" className="login__logo-enlace" aria-label="Miparner, volver al inicio">
+            <Logo alto={64} version="blanco" alt="" className="login__logo" />
+          </Link>
 
           <h1 className="login__titulo">Encuentra tu lugar</h1>
           <p className="login__bajada">
@@ -144,29 +146,42 @@ export function Login() {
           padding:clamp(32px,5vw,72px);
         }
         .login__marca-contenido{position:relative;max-width:30rem}
-        .login__logo{
-          display:block;height:clamp(44px,5vw,64px);width:auto;
+        /* El enlace solo envuelve el dibujo: no se estira al ancho del panel. */
+        .login__logo-enlace{
+          display:inline-flex;border-radius:8px;
           /* Espacio libre reservado alrededor del logotipo: x por los 4 lados. */
           margin-bottom:calc(28px + var(--logo-x));
+        }
+        .login__logo-enlace:focus-visible{outline:2px solid #fff;outline-offset:4px}
+        .login__logo{
+          display:block;height:clamp(44px,5vw,64px);width:auto;
         }
         .login__titulo{font-size:clamp(30px,3.6vw,40px);margin-bottom:14px}
         .login__bajada{font-size:17px;line-height:1.6;color:var(--lav-200);margin-bottom:34px}
 
         .login__claves{list-style:none;padding:0;margin:0;display:grid;gap:15px}
         .login__claves li{display:flex;gap:12px;align-items:flex-start;font-size:16px;line-height:1.5}
-        /* El coral es color de forma. El texto de al lado va en blanco. */
+        /* Círculo blanco sobre índigo, en línea con el azul/blanco del landing.
+           El check va en índigo dentro del círculo. */
         .login__check{
           flex:none;width:26px;height:26px;border-radius:50%;margin-top:1px;
-          background:var(--coral);color:#fff;display:grid;place-items:center;
+          background:#fff;color:var(--indigo);display:grid;place-items:center;
         }
 
         /* Flex, no grid: en una pista «auto» el width:100% del formulario se
            resolvería contra su max-width y desbordaría en pantallas angostas. */
         .login__acceso{
+          position:relative;overflow:hidden;
           display:flex;align-items:center;justify-content:center;
           background:var(--surface);padding:clamp(24px,5vw,56px);
         }
-        .login__form{flex:1 1 auto;min-width:0;max-width:26rem}
+        /* Glow coral difuso detrás del formulario, como el hero del landing. */
+        .login__acceso::before{
+          content:"";position:absolute;top:-180px;right:-120px;
+          width:520px;height:420px;pointer-events:none;
+          background:radial-gradient(circle at center,rgba(232,81,31,.12),rgba(232,81,31,0) 68%);
+        }
+        .login__form{position:relative;flex:1 1 auto;min-width:0;max-width:26rem}
         .login__bienvenido{font-size:clamp(26px,3vw,32px);margin:10px 0 8px}
         .login__intro{margin-bottom:28px}
         .login__campo{margin-bottom:18px}

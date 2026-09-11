@@ -5,7 +5,8 @@ import { AppError } from "../../lib/http-error";
 import { hashPassword, verifyPassword } from "../../lib/password";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/jwt";
 import { env } from "../../config/env";
-import type { LoginDto, RefreshDto, RegisterDto } from "./auth.schemas";
+import { estadoValidacion } from "../documentos/documentos.service";
+import type { ActualizarPerfilDto, LoginDto, RefreshDto, RegisterDto } from "./auth.schemas";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -30,6 +31,10 @@ export function toPublicUser(u: Usuario) {
     telefono: u.usuarioTelefono,
     rol: u.usuarioRol,
     activo: u.usuarioActivo,
+    // La cuenta nace activa pero pendiente de validación por el panel: las
+    // apps lo necesitan para decidir qué pueden mostrar.
+    estadoValidacion: u.usuarioEstadoValidacion,
+    motivoRechazo: u.usuarioMotivoRechazo,
   };
 }
 
@@ -92,7 +97,12 @@ export async function register(dto: RegisterDto) {
   });
 
   const tokens = await issueTokens(usuario);
-  return { usuario: toPublicUser(usuario), ...tokens };
+  return {
+    usuario: toPublicUser(usuario),
+    ...tokens,
+    // Guía para la app: qué tiene que subir ahora para que lo validen.
+    validacion: await estadoValidacion(usuario.usuarioId),
+  };
 }
 
 export async function login(dto: LoginDto) {
@@ -140,15 +150,64 @@ export async function refresh(dto: RefreshDto) {
   return { usuario: toPublicUser(usuario), ...tokens };
 }
 
+/** Edita la propia cuenta (nombre, correo, teléfono). */
+export async function actualizarPerfil(usuarioId: number, dto: ActualizarPerfilDto) {
+  if (dto.correo) {
+    const existe = await prisma.usuario.findFirst({
+      where: { usuarioCorreo: dto.correo, usuarioId: { not: usuarioId } },
+    });
+    if (existe) throw AppError.conflict("El correo ya está registrado");
+  }
+
+  const usuario = await prisma.usuario.update({
+    where: { usuarioId },
+    data: {
+      ...(dto.nombre !== undefined ? { usuarioNombre: dto.nombre } : {}),
+      ...(dto.correo !== undefined ? { usuarioCorreo: dto.correo } : {}),
+      ...(dto.telefono !== undefined ? { usuarioTelefono: dto.telefono } : {}),
+    },
+  });
+  return toPublicUser(usuario);
+}
+
+/** Cambia la contraseña tras verificar la actual. */
+export async function cambiarPassword(usuarioId: number, actual: string, nueva: string) {
+  const usuario = await prisma.usuario.findUnique({ where: { usuarioId } });
+  if (!usuario || !usuario.usuarioPassword) {
+    throw AppError.notFound("Usuario no encontrado");
+  }
+  const ok = await verifyPassword(actual, usuario.usuarioPassword);
+  if (!ok) throw AppError.unauthorized("La contraseña actual no es correcta");
+
+  await prisma.usuario.update({
+    where: { usuarioId },
+    data: { usuarioPassword: await hashPassword(nueva) },
+  });
+  return { ok: true };
+}
+
 export async function me(usuarioId: number) {
   const usuario = await prisma.usuario.findUnique({
     where: { usuarioId },
     include: { deportistaPerfil: true, voluntarioPerfil: true },
   });
   if (!usuario) throw AppError.notFound("Usuario no encontrado");
+
+  // El perfil del voluntario guarda la ubicación en una columna geography que
+  // el cliente Prisma no sabe serializar: se omite del JSON.
+  const voluntarioPerfil = usuario.voluntarioPerfil
+    ? (() => {
+        const { voluntarioUbicacion: _omit, ...resto } = usuario.voluntarioPerfil as
+          typeof usuario.voluntarioPerfil & { voluntarioUbicacion?: unknown };
+        return resto;
+      })()
+    : null;
+
   return {
     ...toPublicUser(usuario),
     deportistaPerfil: usuario.deportistaPerfil,
-    voluntarioPerfil: usuario.voluntarioPerfil,
+    voluntarioPerfil,
+    // Qué documentos le piden, cuáles subió y en qué va su validación.
+    validacion: await estadoValidacion(usuarioId),
   };
 }

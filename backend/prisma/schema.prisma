@@ -32,6 +32,13 @@ model Usuario {
   usuarioFechaCreacion      DateTime  @default(now()) @map("usuario_fecha_creacion")
   usuarioFechaDesactivacion DateTime? @map("usuario_fecha_desactivacion")
 
+  // Validación por el panel de administración. La cuenta nace activa pero
+  // 'pendiente': puede entrar y subir documentos, no operar.
+  usuarioEstadoValidacion   String    @default("pendiente") @map("usuario_estado_validacion") @db.VarChar(20) // pendiente | aprobado | rechazado
+  usuarioValidadoPor        Int?      @map("usuario_validado_por")
+  usuarioValidadoAt         DateTime? @map("usuario_validado_at")
+  usuarioMotivoRechazo      String?   @map("usuario_motivo_rechazo") @db.VarChar(500)
+
   deportistaPerfil DeportistaPerfil?
   voluntarioPerfil VoluntarioPerfil?
   viajesComoDeportista Viaje[] @relation("ViajeDeportista")
@@ -41,7 +48,14 @@ model Usuario {
   refreshTokens    RefreshToken[]
   insignias        UsuarioInsignia[]
   canjes           Canje[]
+  documentos          UsuarioDocumento[] @relation("DocumentoDueno")
+  documentosRevisados UsuarioDocumento[] @relation("DocumentoRevisor")
+  mensajesEnviados    Mensaje[]          @relation("MensajeEmisor")
+  mensajesRecibidos   Mensaje[]          @relation("MensajeReceptor")
+  validador           Usuario?           @relation("UsuarioValidador", fields: [usuarioValidadoPor], references: [usuarioId])
+  validados           Usuario[]          @relation("UsuarioValidador")
 
+  @@index([usuarioEstadoValidacion])
   @@map("usuarios")
 }
 
@@ -106,6 +120,8 @@ model Viaje {
   viajeOrigenTexto  String?  @map("viaje_origen_texto") @db.VarChar(255)
   viajeDestinoTexto String?  @map("viaje_destino_texto") @db.VarChar(255)
   viajeNecesidades  Json     @default("[]") @map("viaje_necesidades")
+  // Lo que el deportista escribe con sus palabras al pedir el acompañamiento.
+  viajeComentario   String?  @map("viaje_comentario") @db.VarChar(1000)
   viajeRutaSnapshot Json?    @map("viaje_ruta_snapshot")
   viajeSolicitadoAt DateTime @default(now()) @map("viaje_solicitado_at")
   viajeInicioAt     DateTime? @map("viaje_inicio_at")
@@ -123,6 +139,7 @@ model Viaje {
   voluntario Usuario? @relation("ViajeVoluntario", fields: [viajeVoluntarioId], references: [usuarioId])
   eventos    ViajeEvento[]
   panicos    PanicoAlerta[]
+  mensajes   Mensaje[]
 
   @@index([viajeEstado])
   @@map("viajes")
@@ -292,6 +309,65 @@ model Canje {
 
   @@index([canjeUsuarioId])
   @@map("canjes")
+}
+
+// ============================================================
+// Documentos de validación (entidad crítica: dato personal sensible)
+// El archivo vive en disco/almacenamiento; aquí solo el metadato.
+// Índice único parcial en la migración: un documento vigente por tipo.
+// ============================================================
+model UsuarioDocumento {
+  documentoId              Int       @id @default(autoincrement()) @map("documento_id")
+  documentoUsuarioId       Int       @map("documento_usuario_id")
+  documentoTipo            String    @map("documento_tipo") @db.VarChar(40) // carnet_discapacidad | carnet_identidad | certificado_estudios
+  documentoNombreOriginal  String    @map("documento_nombre_original") @db.VarChar(255)
+  documentoArchivo         String    @map("documento_archivo") @db.VarChar(255)
+  documentoMime            String    @map("documento_mime") @db.VarChar(100)
+  documentoTamano          Int       @map("documento_tamano")
+  documentoEstado          String    @default("pendiente") @map("documento_estado") @db.VarChar(20) // pendiente | aprobado | rechazado
+  documentoObservacion     String?   @map("documento_observacion") @db.VarChar(500)
+  documentoRevisadoPor     Int?      @map("documento_revisado_por")
+  documentoRevisadoAt      DateTime? @map("documento_revisado_at")
+
+  createdBy  Int      @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  modifiedBy Int?     @map("modified_by")
+  modifiedAt DateTime @default(now()) @map("modified_at")
+  isDeleted  Boolean  @default(false) @map("is_deleted")
+  deletedAt  DateTime? @map("deleted_at")
+  deletedBy  Int?     @map("deleted_by")
+
+  usuario Usuario  @relation("DocumentoDueno", fields: [documentoUsuarioId], references: [usuarioId])
+  revisor Usuario? @relation("DocumentoRevisor", fields: [documentoRevisadoPor], references: [usuarioId])
+
+  @@index([documentoUsuarioId])
+  @@index([documentoEstado])
+  @@map("usuario_documento")
+}
+
+// ============================================================
+// Mensajería — conversación acotada a un acompañamiento
+// ============================================================
+model Mensaje {
+  mensajeId         Int       @id @default(autoincrement()) @map("mensaje_id")
+  mensajeViajeId    Int       @map("mensaje_viaje_id")
+  mensajeEmisorId   Int       @map("mensaje_emisor_id")
+  mensajeReceptorId Int       @map("mensaje_receptor_id")
+  mensajeTexto      String    @map("mensaje_texto") @db.VarChar(1000)
+  mensajeLeidoAt    DateTime? @map("mensaje_leido_at")
+
+  createdBy  Int      @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  modifiedBy Int?     @map("modified_by")
+  modifiedAt DateTime @default(now()) @map("modified_at")
+
+  viaje    Viaje   @relation(fields: [mensajeViajeId], references: [viajeId])
+  emisor   Usuario @relation("MensajeEmisor", fields: [mensajeEmisorId], references: [usuarioId])
+  receptor Usuario @relation("MensajeReceptor", fields: [mensajeReceptorId], references: [usuarioId])
+
+  @@index([mensajeViajeId, mensajeId])
+  @@index([mensajeReceptorId])
+  @@map("mensajes")
 }
 
 // ============================================================

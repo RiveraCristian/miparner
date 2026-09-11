@@ -10,6 +10,7 @@ interface ViajeRow {
   viajeVoluntarioId: number | null;
   viajeOrigenTexto: string | null;
   viajeDestinoTexto: string | null;
+  viajeComentario: string | null;
   viajeSolicitadoAt: string;
   isDeleted: boolean;
 }
@@ -34,6 +35,7 @@ export function Viajes() {
   return (
     <>
       <PageHeader
+        eyebrow="Actividad"
         title="Acompañamientos"
         subtitle={`${filas.length} ${filas.length === 1 ? "registro" : "registros"} recientes`}
       />
@@ -79,6 +81,12 @@ export function Viajes() {
                       <span className="solo-lectores">hacia</span>
                       <span>{v.viajeDestinoTexto ?? "Destino sin registrar"}</span>
                     </span>
+                    {/* Lo que la persona pidió con sus palabras. */}
+                    {v.viajeComentario && (
+                      <p className="tenue" style={{ fontSize: 14, marginTop: 4, maxWidth: "38ch" }}>
+                        “{v.viajeComentario}”
+                      </p>
+                    )}
                   </td>
                   <td className="num">#{v.viajeDeportistaId}</td>
                   <td className="num">

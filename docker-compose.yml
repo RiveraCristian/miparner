@@ -19,9 +19,15 @@ services:
       PORT: ${PORT:-4000}
     ports:
       - "${PORT:-4000}:4000"
+    volumes:
+      # Documentos de validación: el contenedor es efímero, el volumen no.
+      - miparner-uploads:/app/uploads
     # Permite resolver el PostgreSQL del host desde Linux (en Docker Desktop ya existe).
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
   # frontend (landing pública + panel admin) se agrega en su fase.
   # data-science: NO se incluye — la app es transaccional + tiempo real.
+
+volumes:
+  miparner-uploads:

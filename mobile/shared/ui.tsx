@@ -90,6 +90,16 @@ export function Etiqueta({ children, style }: { children: ReactNode; style?: Sty
   return <Text style={[font.etiqueta, style]}>{children}</Text>;
 }
 
+/** Etiqueta de sección con barra índigo, como el eyebrow de la web. */
+export function Eyebrow({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[{ flexDirection: "row", alignItems: "center", gap: 8 }, style]}>
+      <View style={{ width: 20, height: 3, borderRadius: 2, backgroundColor: colors.indigo }} />
+      <Text style={font.etiqueta}>{children}</Text>
+    </View>
+  );
+}
+
 /* --------------------------------------------------------------- Superficies */
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -147,7 +157,7 @@ export function PrimaryButton({ title, onPress, disabled, icon, style }: BtnProp
         ]}
       >
         {icon}
-        <Text style={[styles.btnTextoClaro, disabled && { color: colors.ink3 }]}>{title}</Text>
+        <Text numberOfLines={1} style={[styles.btnTextoClaro, disabled && { color: colors.ink3 }]}>{title}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -174,7 +184,7 @@ export function GhostButton({ title, onPress, disabled, icon, style }: BtnProps)
         ]}
       >
         {icon}
-        <Text style={styles.btnTextoIndigo}>{title}</Text>
+        <Text numberOfLines={1} style={styles.btnTextoIndigo}>{title}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -204,7 +214,7 @@ export function DangerButton({ title, onPress, disabled, icon, style }: BtnProps
         ]}
       >
         {icon}
-        <Text style={styles.btnTextoTinta}>{title}</Text>
+        <Text numberOfLines={1} style={styles.btnTextoTinta}>{title}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -248,13 +258,41 @@ export function Badge({ text, tone = "brand" }: { text: string; tone?: keyof typ
 
 /* ------------------------------------------------------------------ Métricas */
 
-export function StatCard({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={styles.stat}>
+export function StatCard({
+  value,
+  label,
+  icon: Icono,
+  onPress,
+}: {
+  value: string;
+  label: string;
+  icon?: LucideIcon;
+  onPress?: () => void;
+}) {
+  const inner = (
+    <>
+      {Icono ? (
+        <View style={styles.statIcono}>
+          <Icono size={16} color={colors.white} />
+        </View>
+      ) : null}
       <Text style={styles.statValor}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </>
   );
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${value}`}
+        style={({ pressed }) => [styles.stat, pressed && { opacity: 0.85 }]}
+      >
+        {inner}
+      </Pressable>
+    );
+  }
+  return <View style={styles.stat}>{inner}</View>;
 }
 
 /** Fila etiqueta / valor. */
@@ -497,9 +535,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: 18,
+    // Borde fino como las tarjetas del dashboard web, con sombra muy suave.
+    borderWidth: 1,
+    borderColor: colors.line,
     ...elevacion.suave,
   },
-  cardLavanda: { backgroundColor: colors.lavanda, shadowOpacity: 0, elevation: 0 },
+  cardLavanda: { backgroundColor: colors.lavanda, borderColor: "transparent", shadowOpacity: 0, elevation: 0 },
   panelIndigo: {
     backgroundColor: colors.indigo,
     borderRadius: radius.lg,
@@ -527,9 +568,10 @@ const styles = StyleSheet.create({
   },
   btnFantasma: { borderColor: colors.indigo },
   btnCritico: { borderColor: colors.coral },
-  btnTextoClaro: { color: colors.white, fontFamily: fuente.fuerte, fontSize: 16 },
-  btnTextoIndigo: { color: colors.indigo, fontFamily: fuente.fuerte, fontSize: 16 },
-  btnTextoTinta: { color: colors.ink, fontFamily: fuente.fuerte, fontSize: 16 },
+  // flexShrink evita que un texto largo desborde el botón en filas estrechas.
+  btnTextoClaro: { color: colors.white, fontFamily: fuente.fuerte, fontSize: 16, flexShrink: 1, textAlign: "center" },
+  btnTextoIndigo: { color: colors.indigo, fontFamily: fuente.fuerte, fontSize: 16, flexShrink: 1, textAlign: "center" },
+  btnTextoTinta: { color: colors.ink, fontFamily: fuente.fuerte, fontSize: 16, flexShrink: 1, textAlign: "center" },
 
   estado: {
     flexDirection: "row",
@@ -546,7 +588,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     padding: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
     ...elevacion.suave,
+  },
+  statIcono: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    backgroundColor: colors.indigo,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
   },
   statValor: { fontSize: 26, fontFamily: fuente.fuerte, color: colors.ink, letterSpacing: -0.5 },
   statLabel: { fontSize: 13, fontFamily: fuente.normal, color: colors.ink2, marginTop: 2 },

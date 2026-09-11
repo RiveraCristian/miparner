@@ -2,21 +2,24 @@ import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Plus, Navigation } from "lucide-react-native";
-import { colors, font } from "../../../shared/theme";
+import { MessageSquare, Navigation, Plus } from "lucide-react-native";
+import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
+import { AvisoValidacion } from "../../../shared/Documentos";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
+import { Mapa } from "../../../shared/Mapa";
 import {
   CardLavanda,
   Estado,
   Etiqueta,
   GhostButton,
-  MapPlaceholder,
+  PanelIndigo,
   Pill,
   PrimaryButton,
-  PuntoMapa,
   Screen,
 } from "../../../shared/ui";
+import type { NoLeidos } from "../../../shared/types";
 import type { RootStackParams } from "../navigation";
 
 interface ViajeItem {
@@ -29,22 +32,40 @@ interface ViajeItem {
 const ACTIVOS = ["solicitado", "asignado", "en_camino", "a_bordo"];
 
 export function InicioScreen() {
-  const { user } = useAuth();
+  const { user, aprobado } = useAuth();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [activo, setActivo] = useState<ViajeItem | null>(null);
+  const [noLeidos, setNoLeidos] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       api<ViajeItem[]>("/viajes")
         .then((vs) => setActivo(vs.find((v) => ACTIVOS.includes(v.viajeEstado)) ?? null))
         .catch(() => {});
+      api<NoLeidos>("/mensajes/no-leidos")
+        .then((n) => setNoLeidos(n.total))
+        .catch(() => {});
     }, []),
   );
 
+  const hora = new Date().getHours();
+  const saludo = hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+
   return (
     <Screen>
-      <Etiqueta>Hola de nuevo</Etiqueta>
-      <Text style={[font.h1, { marginTop: 4, marginBottom: 20 }]}>{user?.nombre}</Text>
+      {/* Hero de marca: saludo por hora sobre fondo azul con constelación. */}
+      <PanelIndigo style={{ marginBottom: 20, overflow: "hidden" }}>
+        <FondoConstelacion />
+        <Text style={{ color: colors.lav300, fontSize: 12, fontFamily: fuente.medio, letterSpacing: 1.6, textTransform: "uppercase", textAlign: "center" }}>
+          {saludo}
+        </Text>
+        <Text style={{ color: colors.white, fontSize: 26, fontFamily: fuente.fuerte, letterSpacing: -0.4, marginTop: 6, textAlign: "center" }}>
+          {user?.nombre}
+        </Text>
+      </PanelIndigo>
+
+      {/* Mientras el panel no valide la cuenta, esto explica qué falta. */}
+      <AvisoValidacion onIr={() => nav.navigate("Documentos")} />
 
       {activo && (
         <CardLavanda style={{ marginBottom: 16 }}>
@@ -60,13 +81,20 @@ export function InicioScreen() {
             icon={<Navigation color={colors.white} size={18} />}
             onPress={() => nav.navigate("EnViaje", { viajeId: activo.viajeId })}
           />
+          <View style={{ height: 10 }} />
+          <GhostButton
+            title={noLeidos > 0 ? `Mensajes (${noLeidos} sin leer)` : "Mensajes"}
+            icon={<MessageSquare color={colors.indigo} size={18} />}
+            onPress={() => nav.navigate("Chat", { viajeId: activo.viajeId })}
+          />
         </CardLavanda>
       )}
 
-      <MapPlaceholder height={200}>
-        <PuntoMapa left="34%" top="60%" color={colors.indigo} />
-        <PuntoMapa left="62%" top="30%" color={colors.coral} size={14} />
-      </MapPlaceholder>
+      <Mapa
+        alto={200}
+        miUbicacion
+        descripcion="Mapa de tu zona. Toda la información del acompañamiento está también en texto."
+      />
 
       <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Destinos frecuentes</Etiqueta>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
@@ -76,12 +104,16 @@ export function InicioScreen() {
       </View>
 
       <PrimaryButton
-        title="Solicitar acompañamiento"
+        title={aprobado ? "Solicitar acompañamiento" : "Disponible al validar tu cuenta"}
         icon={<Plus color={colors.white} size={19} />}
+        disabled={!aprobado}
         onPress={() => nav.navigate("Solicitar")}
       />
-      <View style={{ height: 12 }} />
-      <GhostButton title="Ver mis acompañamientos" onPress={() => nav.navigate("Solicitar")} />
+      {!aprobado ? (
+        <Text style={[font.tiny, { marginTop: 8, textAlign: "center" }]}>
+          Podrás pedir acompañamiento en cuanto el equipo valide tus documentos.
+        </Text>
+      ) : null}
     </Screen>
   );
 }

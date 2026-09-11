@@ -11,6 +11,9 @@ export const solicitarSchema = z.object({
   origenTexto: z.string().max(255).optional(),
   destinoTexto: z.string().max(255).optional(),
   necesidades: z.array(z.string()).max(10).optional(),
+  // Lo que la persona necesita, con sus palabras. Lo lee el voluntario antes
+  // de aceptar, así que va en el mismo formulario de la solicitud.
+  comentario: z.string().trim().max(1000).optional(),
 });
 
 export const cambiarEstadoSchema = z.object({

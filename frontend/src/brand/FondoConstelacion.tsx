@@ -51,7 +51,7 @@ function texturaPunto() {
   return t;
 }
 
-export default function FondoConstelacion() {
+export default function FondoConstelacion({ mask = DESVANECIDO }: { mask?: string } = {}) {
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -224,8 +224,8 @@ export default function FondoConstelacion() {
         position: "absolute",
         inset: 0,
         pointerEvents: "none",
-        maskImage: DESVANECIDO,
-        WebkitMaskImage: DESVANECIDO,
+        maskImage: mask,
+        WebkitMaskImage: mask,
       }}
     />
   );

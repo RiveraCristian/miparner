@@ -4,7 +4,8 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "skipLibCheck": true,
-    "types": []
+    // geojson: los tipos del mapa (MapLibre) declaran el espacio global GeoJSON.
+    "types": ["geojson"]
   },
   "include": ["App.tsx", "src", "../shared"]
 }

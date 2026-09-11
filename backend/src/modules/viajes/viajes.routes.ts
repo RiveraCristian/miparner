@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole, actorId } from "../../middleware/auth";
+import { authenticate, requireRole, requireValidado, actorId } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import {
   cambiarEstadoSchema,
@@ -7,17 +7,21 @@ import {
   posicionSchema,
   solicitarSchema,
 } from "./viajes.schemas";
+import { mensajesDeViajeRouter } from "../mensajes/mensajes.routes";
 import * as viajes from "./viajes.service";
 
 const router = Router();
 router.use(authenticate);
+
+// Conversación entre el deportista y su voluntario.
+router.use("/:viajeId/mensajes", mensajesDeViajeRouter);
 
 function actor(req: import("express").Request) {
   return { usuarioId: req.usuario!.usuarioId, rol: req.usuario!.rol };
 }
 
 // Solicitar viaje (solo deportista)
-router.post("/", requireRole("deportista"), validate({ body: solicitarSchema }), async (req, res, next) => {
+router.post("/", requireRole("deportista"), requireValidado, validate({ body: solicitarSchema }), async (req, res, next) => {
   try {
     res.status(201).json(await viajes.solicitar(actorId(req), req.body));
   } catch (err) {
@@ -54,7 +58,7 @@ router.get("/:id/candidatos", validate({ query: candidatosQuerySchema }), async 
 });
 
 // Voluntario acepta el viaje
-router.post("/:id/aceptar", requireRole("voluntario"), async (req, res, next) => {
+router.post("/:id/aceptar", requireRole("voluntario"), requireValidado, async (req, res, next) => {
   try {
     res.json(await viajes.aceptar(Number(req.params.id), actorId(req)));
   } catch (err) {

@@ -11,9 +11,15 @@ import voluntariosRoutes from "./modules/voluntarios/voluntarios.routes";
 import seguridadRoutes from "./modules/seguridad/seguridad.routes";
 import gamificacionRoutes from "./modules/gamificacion/gamificacion.routes";
 import adminRoutes from "./modules/admin/admin.routes";
+import documentosRoutes from "./modules/documentos/documentos.routes";
+import mensajesRoutes from "./modules/mensajes/mensajes.routes";
+import { asegurarDirectorio } from "./lib/uploads";
 
 export function createApp() {
   const app = express();
+
+  // Los documentos de validación viven en disco, fuera de la base.
+  asegurarDirectorio();
 
   app.use(helmet());
   app.use(
@@ -35,6 +41,8 @@ export function createApp() {
   app.use("/api/v1/seguridad", seguridadRoutes);
   app.use("/api/v1/gamificacion", gamificacionRoutes);
   app.use("/api/v1/admin", adminRoutes);
+  app.use("/api/v1/documentos", documentosRoutes);
+  app.use("/api/v1/mensajes", mensajesRoutes);
 
   // 404 + manejador de errores (siempre al final)
   app.use(notFoundHandler);

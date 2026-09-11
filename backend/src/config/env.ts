@@ -24,6 +24,11 @@ const schema = z.object({
   TWILIO_ACCOUNT_SID: z.string().default(""),
   TWILIO_AUTH_TOKEN: z.string().default(""),
   TWILIO_FROM_NUMBER: z.string().default(""),
+
+  // Documentos de validación. El directorio es local en desarrollo; en Cloud Run
+  // debe apuntar a un volumen persistente o sustituirse por un bucket (ver README).
+  UPLOADS_DIR: z.string().default("uploads"),
+  UPLOAD_MAX_MB: z.coerce.number().default(8),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -36,4 +41,6 @@ export const env = {
   ...parsed.data,
   isProd: parsed.data.NODE_ENV === "production",
   corsOrigins: parsed.data.CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean),
+  // Ruta absoluta al directorio de documentos subidos.
+  uploadsDir: path.resolve(process.cwd(), parsed.data.UPLOADS_DIR),
 };

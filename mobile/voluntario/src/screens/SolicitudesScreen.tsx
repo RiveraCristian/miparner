@@ -2,8 +2,8 @@ import { useCallback, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Inbox, MapPin } from "lucide-react-native";
-import { colors, font, fuente } from "../../../shared/theme";
+import { Inbox, MapPin, MessageSquare } from "lucide-react-native";
+import { colors, font, fuente, radius } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { Card, Estado, EsqueletoTarjeta, PrimaryButton, Screen, Vacio } from "../../../shared/ui";
 import type { SolicitudCercana } from "../../../shared/types";
@@ -72,6 +72,19 @@ export function SolicitudesScreen() {
             </Text>
           </View>
 
+          {/* Lo que la persona pidió con sus palabras: se lee ANTES de aceptar. */}
+          {s.viaje_comentario ? (
+            <View style={styles.comentario}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <MessageSquare color={colors.indigo} size={16} />
+                <Text style={[font.tiny, { color: colors.ink2, fontFamily: fuente.fuerte }]}>
+                  Lo que necesita
+                </Text>
+              </View>
+              <Text style={font.body}>{s.viaje_comentario}</Text>
+            </View>
+          ) : null}
+
           <View style={{ height: 16 }} />
           <PrimaryButton
             title={busy === s.viaje_id ? "Aceptando…" : "Aceptar acompañamiento"}
@@ -94,4 +107,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarTexto: { color: colors.white, fontSize: 16, fontFamily: fuente.fuerte },
+  comentario: {
+    marginTop: 12,
+    backgroundColor: colors.lavanda,
+    borderRadius: radius.md,
+    padding: 12,
+  },
 });

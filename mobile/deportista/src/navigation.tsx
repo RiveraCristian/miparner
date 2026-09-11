@@ -9,11 +9,15 @@ import { SolicitarScreen } from "./screens/SolicitarScreen";
 import { EnViajeScreen } from "./screens/EnViajeScreen";
 import { LogrosScreen } from "./screens/LogrosScreen";
 import { PerfilScreen } from "./screens/PerfilScreen";
+import { DocumentosScreen } from "./screens/DocumentosScreen";
+import { ChatScreen } from "./screens/ChatScreen";
 
 export type RootStackParams = {
   Tabs: undefined;
   Solicitar: undefined;
   EnViaje: { viajeId: number };
+  Chat: { viajeId: number };
+  Documentos: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -69,6 +73,8 @@ export function RootNavigator() {
       <Stack.Screen name="Tabs" component={Tabs} />
       <Stack.Screen name="Solicitar" component={SolicitarScreen} options={{ headerShown: true, title: "Solicitar acompañamiento" }} />
       <Stack.Screen name="EnViaje" component={EnViajeScreen} options={{ headerShown: true, title: "Tu acompañamiento" }} />
+      <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: true, title: "Mensajes" }} />
+      <Stack.Screen name="Documentos" component={DocumentosScreen} options={{ headerShown: true, title: "Validar mi cuenta" }} />
     </Stack.Navigator>
   );
 }

@@ -1,42 +1,54 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Car, LogOut, ShieldCheck } from "lucide-react-native";
 import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
-import { Card, Estado, Etiqueta, GhostButton, Screen } from "../../../shared/ui";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
+import { Card, Estado, Etiqueta, GhostButton, PanelIndigo, Screen } from "../../../shared/ui";
+import type { RootStackParams } from "../navigation";
 
 interface Me {
   voluntarioPerfil?: { voluntarioValidado: boolean; voluntarioVehiculo: string | null; voluntarioPatente: string | null } | null;
 }
 
+/** Cómo se lee cada estado de validación en el perfil. */
+const ESTADO_CUENTA: Record<string, { texto: string; tipo: "exito" | "atencion" | "critico" }> = {
+  aprobado: { texto: "Voluntario validado", tipo: "exito" },
+  pendiente: { texto: "En revisión por el equipo", tipo: "atencion" },
+  rechazado: { texto: "Falta corregir tu documentación", tipo: "critico" },
+};
+
 export function PerfilScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, validacion } = useAuth();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [me, setMe] = useState<Me | null>(null);
 
   useFocusEffect(useCallback(() => { api<Me>("/auth/me").then(setMe).catch(() => {}); }, []));
   const perfil = me?.voluntarioPerfil;
+  const estadoCuenta = validacion?.estadoValidacion ?? user?.estadoValidacion ?? "pendiente";
+  const cuenta = ESTADO_CUENTA[estadoCuenta] ?? ESTADO_CUENTA.pendiente;
 
   return (
     <Screen>
-      <View style={{ alignItems: "center", paddingVertical: 12, gap: 4 }}>
+      {/* Hero de marca: avatar + identidad sobre fondo azul con constelación. */}
+      <PanelIndigo style={{ alignItems: "center", marginBottom: 16, overflow: "hidden" }}>
+        <FondoConstelacion />
         <View style={styles.avatar}>
           <Text style={styles.avatarTexto}>{user?.nombre?.slice(0, 2).toUpperCase()}</Text>
         </View>
-        <Text style={[font.h2, { marginTop: 8 }]}>{user?.nombre}</Text>
-        <Text style={[font.muted, { marginBottom: 10 }]}>{user?.correo}</Text>
-        {perfil ? (
-          <Estado
-            text={perfil.voluntarioValidado ? "Voluntario validado" : "Validación pendiente"}
-            tipo={perfil.voluntarioValidado ? "exito" : "atencion"}
-          />
-        ) : null}
-      </View>
+        <Text style={styles.heroNombre}>{user?.nombre}</Text>
+        <Text style={styles.heroCorreo}>{user?.correo}</Text>
+        <View style={{ marginTop: 12 }}>
+          <Estado text={cuenta.texto} tipo={cuenta.tipo} />
+        </View>
+      </PanelIndigo>
 
-      <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 14 }}>
-        <View style={[styles.icono, { backgroundColor: colors.lavanda }]}>
-          <Car color={colors.indigo} size={20} />
+      <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View style={[styles.icono, { backgroundColor: colors.indigo }]}>
+          <Car color={colors.white} size={20} />
         </View>
         <View style={{ flex: 1 }}>
           <Etiqueta>Vehículo</Etiqueta>
@@ -47,21 +59,30 @@ export function PerfilScreen() {
         </View>
       </Card>
 
-      <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12 }}>
-        <View
-          style={[
-            styles.icono,
-            { backgroundColor: perfil?.voluntarioValidado ? colors.exitoBg : colors.coralBg },
-          ]}
-        >
-          <ShieldCheck color={perfil?.voluntarioValidado ? colors.exito : colors.coral} size={20} />
+      <Card style={{ marginTop: 12, gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View
+            style={[
+              styles.icono,
+              { backgroundColor: cuenta.tipo === "exito" ? colors.exitoBg : colors.coralBg },
+            ]}
+          >
+            <ShieldCheck color={cuenta.tipo === "exito" ? colors.exito : colors.coral} size={20} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Etiqueta>Estado de la cuenta</Etiqueta>
+            <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>{cuenta.texto}</Text>
+            <Text style={font.tiny}>
+              {estadoCuenta === "aprobado"
+                ? "Puedes ponerte en línea y aceptar acompañamientos."
+                : "Necesitamos tu cédula y tu certificado de alumno regular antes del primer acompañamiento."}
+            </Text>
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Etiqueta>Estado de la cuenta</Etiqueta>
-          <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>
-            {perfil?.voluntarioValidado ? "Validada" : "En revisión por el equipo"}
-          </Text>
-        </View>
+        <GhostButton
+          title={estadoCuenta === "aprobado" ? "Ver mis documentos" : "Subir mis documentos"}
+          onPress={() => nav.navigate("Documentos")}
+        />
       </Card>
 
       <View style={{ height: 28 }} />
@@ -77,10 +98,12 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: colors.indigo,
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarTexto: { color: colors.white, fontSize: 26, fontFamily: fuente.fuerte },
+  avatarTexto: { color: colors.indigo, fontSize: 26, fontFamily: fuente.fuerte },
+  heroNombre: { color: colors.white, fontSize: 22, fontFamily: fuente.fuerte, letterSpacing: -0.3, marginTop: 12 },
+  heroCorreo: { color: colors.lav200, fontSize: 15, fontFamily: fuente.normal, marginTop: 3 },
   icono: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });

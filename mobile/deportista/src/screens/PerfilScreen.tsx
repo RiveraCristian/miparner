@@ -1,11 +1,14 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import { Contrast, Heart, LogOut, Type, Vibrate, Volume2 } from "lucide-react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Contrast, Heart, LogOut, ShieldCheck, Type, Vibrate, Volume2 } from "lucide-react-native";
 import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
-import { Card, Etiqueta, GhostButton, Screen } from "../../../shared/ui";
+import { FondoConstelacion } from "../../../shared/FondoConstelacion";
+import { Card, Estado, Etiqueta, GhostButton, PanelIndigo, Screen } from "../../../shared/ui";
+import type { RootStackParams } from "../navigation";
 
 interface Me {
   deportistaPerfil?: { deportistaDisciplina: string | null; deportistaNecesidades: string[] } | null;
@@ -18,8 +21,16 @@ const AJUSTES = [
   { key: "vibra", label: "Vibración de avisos", hint: "", icon: Vibrate, def: true },
 ];
 
+/** Cómo se lee cada estado de validación en el perfil. */
+const ESTADO_CUENTA: Record<string, { texto: string; tipo: "exito" | "atencion" | "critico" }> = {
+  aprobado: { texto: "Cuenta validada", tipo: "exito" },
+  pendiente: { texto: "En revisión por el equipo", tipo: "atencion" },
+  rechazado: { texto: "Falta corregir tu documentación", tipo: "critico" },
+};
+
 export function PerfilScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, validacion } = useAuth();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [me, setMe] = useState<Me | null>(null);
   const [ajustes, setAjustes] = useState<Record<string, boolean>>(
     Object.fromEntries(AJUSTES.map((a) => [a.key, a.def])),
@@ -27,18 +38,54 @@ export function PerfilScreen() {
 
   useFocusEffect(useCallback(() => { api<Me>("/auth/me").then(setMe).catch(() => {}); }, []));
   const perfil = me?.deportistaPerfil;
+  const estadoCuenta = validacion?.estadoValidacion ?? user?.estadoValidacion ?? "pendiente";
+  const cuenta = ESTADO_CUENTA[estadoCuenta] ?? ESTADO_CUENTA.pendiente;
 
   return (
     <Screen>
-      <View style={{ alignItems: "center", paddingVertical: 12 }}>
+      {/* Hero de marca: avatar + identidad sobre fondo azul con constelación. */}
+      <PanelIndigo style={{ alignItems: "center", marginBottom: 16, overflow: "hidden" }}>
+        <FondoConstelacion />
         <View style={styles.avatar}>
           <Text style={styles.avatarTexto}>{user?.nombre?.slice(0, 2).toUpperCase()}</Text>
         </View>
-        <Text style={[font.h2, { marginTop: 12 }]}>{user?.nombre}</Text>
-        <Text style={font.muted}>{perfil?.deportistaDisciplina ?? "Deportista"}</Text>
-      </View>
+        <Text style={styles.heroNombre}>{user?.nombre}</Text>
+        <Text style={styles.heroCorreo}>{perfil?.deportistaDisciplina ?? user?.correo}</Text>
+        <View style={{ marginTop: 12 }}>
+          <Estado text={cuenta.texto} tipo={cuenta.tipo} />
+        </View>
+      </PanelIndigo>
 
-      <Etiqueta style={{ marginTop: 14, marginBottom: 10 }}>Accesibilidad</Etiqueta>
+      <Etiqueta style={{ marginBottom: 10 }}>Estado de la cuenta</Etiqueta>
+      <Card style={{ gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View
+            style={[
+              styles.filaIcono,
+              { backgroundColor: cuenta.tipo === "exito" ? colors.exitoBg : colors.coralBg },
+            ]}
+          >
+            <ShieldCheck
+              color={cuenta.tipo === "exito" ? colors.exito : colors.coral}
+              size={20}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Estado text={cuenta.texto} tipo={cuenta.tipo} />
+            <Text style={font.tiny}>
+              {estadoCuenta === "aprobado"
+                ? "Puedes pedir acompañamiento con normalidad."
+                : "Hasta que el equipo valide tu credencial de discapacidad no puedes pedir acompañamiento."}
+            </Text>
+          </View>
+        </View>
+        <GhostButton
+          title={estadoCuenta === "aprobado" ? "Ver mis documentos" : "Subir mis documentos"}
+          onPress={() => nav.navigate("Documentos")}
+        />
+      </Card>
+
+      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Accesibilidad</Etiqueta>
       <Card style={{ paddingVertical: 4 }}>
         {AJUSTES.map((a, i) => {
           const Icono = a.icon;
@@ -94,11 +141,13 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: colors.indigo,
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarTexto: { color: colors.white, fontSize: 26, fontFamily: fuente.fuerte },
+  avatarTexto: { color: colors.indigo, fontSize: 26, fontFamily: fuente.fuerte },
+  heroNombre: { color: colors.white, fontSize: 22, fontFamily: fuente.fuerte, letterSpacing: -0.3, marginTop: 12 },
+  heroCorreo: { color: colors.lav200, fontSize: 15, fontFamily: fuente.normal, marginTop: 3 },
   fila: {
     flexDirection: "row",
     alignItems: "center",
