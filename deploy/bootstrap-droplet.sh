@@ -105,9 +105,10 @@ work_mem = 2MB
 max_connections = 20
 # El backend abre pocas conexiones; más de 20 aquí solo reserva memoria ociosa.
 
-# Escucha también en la red interna de Docker para que el contenedor del
-# backend pueda conectarse. El cortafuegos impide el acceso desde internet.
-listen_addresses = '*'
+# OJO: listen_addresses NO va aquí. En Debian/Ubuntu `include_dir = 'conf.d'`
+# está declarado arriba del todo en postgresql.conf, y más abajo ese mismo
+# archivo fija listen_addresses = 'localhost'. Como gana la última línea leída,
+# ponerlo aquí no sirve de nada. Se aplica con ALTER SYSTEM más abajo.
 CONF
 grep -q "conf.d" "$PG_CONF" || echo "include_dir = 'conf.d'" >> "$PG_CONF"
 
@@ -122,6 +123,13 @@ HBA
 fi
 systemctl restart postgresql
 
+
+# Que escuche también en la red de Docker. ALTER SYSTEM escribe en
+# postgresql.auto.conf, que se lee después de todo lo demás: es la única
+# forma de que no lo pise la configuración de la distribución.
+sudo -u postgres psql -qc "ALTER SYSTEM SET listen_addresses = '*';"
+systemctl restart postgresql
+aviso "listen_addresses = $(sudo -u postgres psql -tAc 'SHOW listen_addresses;')"
 # --------------------------------------------------------------------------
 verde "6/9  Base de datos y usuario"
 BD_PASS="$(openssl rand -hex 20)"   # hex: sin @ : / # que obliguen a URL-encodear
@@ -171,8 +179,12 @@ verde "8/9  Cortafuegos"
 ufw allow 22/tcp   >/dev/null
 ufw allow 80/tcp   >/dev/null
 ufw allow 443/tcp  >/dev/null
+# El backend corre en un contenedor y su tráfico hacia PostgreSQL entra por la
+# cadena INPUT del host, así que ufw también lo filtra. Se abre el 5432 solo
+# para el rango privado de Docker (172.16-172.31); internet sigue sin acceso.
+ufw allow from 172.16.0.0/12 to any port 5432 proto tcp comment 'PostgreSQL desde contenedores Docker' >/dev/null
 ufw --force enable >/dev/null
-aviso "Abiertos 22, 80 y 443. El 5432 queda cerrado desde internet."
+aviso "Abiertos 22, 80 y 443. El 5432 solo desde los contenedores, nunca desde internet."
 
 # --------------------------------------------------------------------------
 verde "9/9  Resumen"
