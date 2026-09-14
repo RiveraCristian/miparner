@@ -13,8 +13,14 @@
 # ==========================================================================
 
 {
-	# Dirección donde Let's Encrypt avisa si un certificado va a caducar.
-	email {$MIPARNER_EMAIL_TLS:admin@localhost}
+	# SIN directiva `email` a propósito. Caddy crea la cuenta ACME igual, y
+	# poner una dirección inventada la rompe: Let's Encrypt valida el contacto y
+	# rechaza cosas como `admin@localhost` con `invalidContact`, así que no llega
+	# a emitir ningún certificado y el 443 queda sin nada que presentar.
+	#
+	# Para recibir avisos de caducidad hace falta un correo REAL. Si lo quieres,
+	# añade aquí `email tu.correo@dominio.cl` con una dirección que exista.
+
 	# El panel de administración de Caddy no hace falta y ocupa memoria.
 	admin off
 }
