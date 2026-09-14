@@ -103,8 +103,6 @@ jobs:
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
           MIPARNER_DOMINIO: ${{ secrets.MIPARNER_DOMINIO }}
           MIPARNER_EMAIL_TLS: ${{ secrets.MIPARNER_EMAIL_TLS }}
-          SEED_ADMIN_CORREO: ${{ secrets.SEED_ADMIN_CORREO }}
-          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
           GHCR_USUARIO: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -113,7 +111,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           # Los secretos viajan como variables de entorno, no incrustados en el
           # texto del script: así no acaban en el registro de la ejecución.
-          envs: DATABASE_URL,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,CORS_ORIGINS,MIPARNER_DOMINIO,MIPARNER_EMAIL_TLS,SEED_ADMIN_CORREO,SEED_ADMIN_PASSWORD,GHCR_USUARIO,GHCR_TOKEN
+          envs: DATABASE_URL,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,CORS_ORIGINS,MIPARNER_DOMINIO,MIPARNER_EMAIL_TLS,GHCR_USUARIO,GHCR_TOKEN
           script_stop: true
           script: |
             set -euo pipefail
@@ -150,36 +148,6 @@ jobs:
             docker compose -f docker-compose.prod.yml run --rm --no-deps backend \
               npx prisma migrate deploy
 
-            # Datos base: administrador, insignias y premios. Es idempotente
-            # (hace upsert), así que correrlo en cada despliegue no duplica nada
-            # y sirve para reponer el acceso del equipo si se pierde.
-            # Sin esto la base queda sin ningún usuario y nadie puede entrar.
-            #
-            # Un fallo aquí NO detiene el despliegue: es mejor que la aplicación
-            # suba y el trabajo termine en rojo, a que un problema con el seed
-            # deje el sitio en la versión anterior sin avisar. El código de
-            # salida se guarda y se aplica al final.
-            SEED_OK=1
-            if [ -n "${SEED_ADMIN_PASSWORD:-}" ]; then
-              echo "::group::Sembrando datos base"
-
-              # Diagnóstico: si el seed compilado no está en la imagen, decirlo
-              # claramente en vez de fallar con un críptico "cannot find module".
-              docker compose -f docker-compose.prod.yml run --rm --no-deps --entrypoint sh backend -c 'ls -la dist-seed 2>/dev/null || echo "AVISO: la imagen no contiene dist-seed/"' || true
-
-              if docker compose -f docker-compose.prod.yml run --rm --no-deps -e SEED_ADMIN_CORREO="${SEED_ADMIN_CORREO:-}" -e SEED_ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD}" backend node dist-seed/seed.js; then
-                echo "Seed correcto: el administrador existe."
-              else
-                echo "EL SEED FALLÓ (el error está arriba). La aplicación se despliega igual,"
-                echo "pero la base puede quedarse sin administrador."
-                SEED_OK=0
-              fi
-              echo "::endgroup::"
-            else
-              echo "SEED_ADMIN_PASSWORD no está definido: se omite el seed."
-              echo "Sin él la base no tendrá ningún administrador."
-            fi
-
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             # Disco de 10 GB: las imágenes viejas lo llenan en pocas semanas.
@@ -188,11 +156,39 @@ jobs:
             # El token ya no sirve para nada, pero no se deja escrito en disco.
             docker logout ghcr.io
 
-            # Ya con la aplicación desplegada, el seed decide si el trabajo pasa.
-            if [ "$SEED_OK" != "1" ]; then
-              echo "Despliegue terminado, pero el seed falló: revisa el grupo de arriba."
-              exit 1
+
+      # El seed va en su propio paso, no dentro del script de despliegue: así su
+      # salida no se mezcla con la del resto y un fallo suyo se ve de inmediato
+      # en vez de aparecer como un código de salida sin contexto.
+      #
+      # `continue-on-error` porque la aplicación ya está desplegada: quedarse sin
+      # administrador es un problema, pero no justifica marcar todo el despliegue
+      # como fallido ni dejar el sitio en la versión anterior.
+      - name: Sembrar datos base (administrador, insignias, premios)
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          SEED_ADMIN_CORREO: ${{ secrets.SEED_ADMIN_CORREO }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: SEED_ADMIN_CORREO,SEED_ADMIN_PASSWORD
+          script: |
+            cd /opt/miparner
+
+            if [ -z "${SEED_ADMIN_PASSWORD:-}" ]; then
+              echo "SEED_ADMIN_PASSWORD no está definido: se omite el seed."
+              echo "Añade los secretos SEED_ADMIN_CORREO y SEED_ADMIN_PASSWORD"
+              echo "para que la base tenga un administrador."
+              exit 0
             fi
+
+            echo "--- Contenido de dist-seed en la imagen ---"
+            docker compose -f docker-compose.prod.yml run --rm --no-deps --entrypoint sh backend -c 'ls -la dist-seed 2>/dev/null || echo "LA IMAGEN NO CONTIENE dist-seed/"'
+            echo "--- Ejecutando el seed ---"
+            docker compose -f docker-compose.prod.yml run --rm --no-deps -e SEED_ADMIN_CORREO="${SEED_ADMIN_CORREO}" -e SEED_ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD}" backend node dist-seed/seed.js
 
       - name: Comprobar que responde
         uses: appleboy/ssh-action@v1.2.0
