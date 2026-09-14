@@ -103,15 +103,43 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            /*
+             * La llave de publicación y sus contraseñas NUNCA viven en el
+             * repositorio: se leen del entorno o de ~/.gradle/gradle.properties.
+             *
+             * PERDER ESTE KEYSTORE SIGNIFICA NO PODER VOLVER A ACTUALIZAR LA APP
+             * EN GOOGLE PLAY. No hay forma de recuperarlo ni de sustituirlo: la
+             * única salida sería publicar una app nueva y pedirle a toda la gente
+             * que la reinstale. Guárdalo con copia de seguridad, fuera de este
+             * equipo.
+             */
+            def almacen = System.getenv("MIPARNER_KEYSTORE") ?: findProperty("MIPARNER_KEYSTORE")
+            if (almacen != null) {
+                storeFile file(almacen)
+                storePassword System.getenv("MIPARNER_KEYSTORE_PASSWORD") ?: findProperty("MIPARNER_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("MIPARNER_KEY_ALIAS") ?: findProperty("MIPARNER_KEY_ALIAS") ?: "miparner"
+                keyPassword System.getenv("MIPARNER_KEY_PASSWORD") ?: findProperty("MIPARNER_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            /*
+             * Con MIPARNER_KEYSTORE configurado se firma con la llave de
+             * publicación. Sin ella se cae a la de depuración para que
+             * `assembleRelease` siga sirviendo en local — pero ese binario NO
+             * vale para Google Play: rechaza todo lo firmado con el keystore de
+             * depuración, que es público y lo comparte el mundo entero.
+             */
+            def hayLlave = (System.getenv("MIPARNER_KEYSTORE") ?: findProperty("MIPARNER_KEYSTORE")) != null
+            if (!hayLlave) {
+                logger.warn("AVISO: no hay MIPARNER_KEYSTORE. Se firma con la llave de DEPURACIÓN; no sirve para publicar.")
+            }
+            signingConfig hayLlave ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

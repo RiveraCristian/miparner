@@ -47,8 +47,14 @@ mobile/**/android/.cxx/
 mobile/**/android/app/.cxx/
 # Ruta del SDK: es propia de cada máquina
 mobile/**/android/local.properties
-# Firma de release (la debug sí se versiona, la genera la plantilla)
+# Firma de release (la debug sí se versiona, la genera la plantilla).
+# El keystore de publicación NO se versiona jamás: quien lo tenga puede firmar
+# actualizaciones de la app como si fuera nosotros. Y si se pierde, no hay forma
+# de volver a actualizar la app en Google Play.
 mobile/**/android/app/release.keystore
+mobile/miparner-release.keystore
+*.keystore
+!mobile/**/android/app/debug.keystore
 mobile/**/ios/Pods/
 mobile/**/.gradle/
 
