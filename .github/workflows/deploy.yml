@@ -103,6 +103,8 @@ jobs:
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
           MIPARNER_DOMINIO: ${{ secrets.MIPARNER_DOMINIO }}
           MIPARNER_EMAIL_TLS: ${{ secrets.MIPARNER_EMAIL_TLS }}
+          SEED_ADMIN_CORREO: ${{ secrets.SEED_ADMIN_CORREO }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
           GHCR_USUARIO: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -111,7 +113,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           # Los secretos viajan como variables de entorno, no incrustados en el
           # texto del script: así no acaban en el registro de la ejecución.
-          envs: DATABASE_URL,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,CORS_ORIGINS,MIPARNER_DOMINIO,MIPARNER_EMAIL_TLS,GHCR_USUARIO,GHCR_TOKEN
+          envs: DATABASE_URL,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,CORS_ORIGINS,MIPARNER_DOMINIO,MIPARNER_EMAIL_TLS,SEED_ADMIN_CORREO,SEED_ADMIN_PASSWORD,GHCR_USUARIO,GHCR_TOKEN
           script_stop: true
           script: |
             set -euo pipefail
@@ -147,6 +149,17 @@ jobs:
             # con la versión anterior en pie.
             docker compose -f docker-compose.prod.yml run --rm --no-deps backend \
               npx prisma migrate deploy
+
+            # Datos base: administrador, insignias y premios. Es idempotente
+            # (hace upsert), así que correrlo en cada despliegue no duplica nada
+            # y sirve para reponer el acceso del equipo si se pierde.
+            # Sin esto la base queda sin ningún usuario y nadie puede entrar.
+            if [ -n "${SEED_ADMIN_PASSWORD:-}" ]; then
+              docker compose -f docker-compose.prod.yml run --rm --no-deps -e SEED_ADMIN_CORREO="${SEED_ADMIN_CORREO:-}" -e SEED_ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD}" backend node dist-seed/seed.js
+            else
+              echo "SEED_ADMIN_PASSWORD no está definido: se omite el seed."
+              echo "Sin él la base no tendrá ningún administrador."
+            fi
 
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 

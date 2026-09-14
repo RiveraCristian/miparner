@@ -4,15 +4,39 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Administrador inicial (cambiar la contraseña tras el primer ingreso).
-  const adminCorreo = "admin@miparner.cl";
+  /*
+   * Administrador inicial.
+   *
+   * Las credenciales vienen del entorno, NUNCA del código: este repositorio es
+   * público, así que una contraseña escrita aquí sería una contraseña conocida
+   * por cualquiera en un servidor expuesto a internet.
+   *
+   * En producción son obligatorias. En local hay un valor por defecto para no
+   * estorbar, y ahí da igual porque la base no sale de tu máquina.
+   */
+  const adminCorreo = process.env.SEED_ADMIN_CORREO ?? "admin@miparner.cl";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+
+  if (process.env.NODE_ENV === "production" && !adminPassword) {
+    throw new Error(
+      "Falta SEED_ADMIN_PASSWORD. En producción el administrador no puede " +
+        "crearse con una contraseña escrita en el código.",
+    );
+  }
+
   const admin = await prisma.usuario.upsert({
     where: { usuarioCorreo: adminCorreo },
-    update: { usuarioEstadoValidacion: "aprobado" },
+    // Reejecutar el seed repone la contraseña: sirve para recuperar el acceso
+    // si se pierde, cambiando el secreto y relanzando el despliegue.
+    update: {
+      usuarioEstadoValidacion: "aprobado",
+      usuarioActivo: true,
+      ...(adminPassword ? { usuarioPassword: await bcrypt.hash(adminPassword, 12) } : {}),
+    },
     create: {
       usuarioCorreo: adminCorreo,
       usuarioNombre: "Administrador Miparner",
-      usuarioPassword: await bcrypt.hash("Cambiar123!", 12),
+      usuarioPassword: await bcrypt.hash(adminPassword ?? "Cambiar123!", 12),
       usuarioRol: "admin",
       // El equipo de administración no pasa por la cola de validación.
       usuarioEstadoValidacion: "aprobado",
