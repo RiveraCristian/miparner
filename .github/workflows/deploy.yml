@@ -154,8 +154,27 @@ jobs:
             # (hace upsert), así que correrlo en cada despliegue no duplica nada
             # y sirve para reponer el acceso del equipo si se pierde.
             # Sin esto la base queda sin ningún usuario y nadie puede entrar.
+            #
+            # Un fallo aquí NO detiene el despliegue: es mejor que la aplicación
+            # suba y el trabajo termine en rojo, a que un problema con el seed
+            # deje el sitio en la versión anterior sin avisar. El código de
+            # salida se guarda y se aplica al final.
+            SEED_OK=1
             if [ -n "${SEED_ADMIN_PASSWORD:-}" ]; then
-              docker compose -f docker-compose.prod.yml run --rm --no-deps -e SEED_ADMIN_CORREO="${SEED_ADMIN_CORREO:-}" -e SEED_ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD}" backend node dist-seed/seed.js
+              echo "::group::Sembrando datos base"
+
+              # Diagnóstico: si el seed compilado no está en la imagen, decirlo
+              # claramente en vez de fallar con un críptico "cannot find module".
+              docker compose -f docker-compose.prod.yml run --rm --no-deps --entrypoint sh backend -c 'ls -la dist-seed 2>/dev/null || echo "AVISO: la imagen no contiene dist-seed/"' || true
+
+              if docker compose -f docker-compose.prod.yml run --rm --no-deps -e SEED_ADMIN_CORREO="${SEED_ADMIN_CORREO:-}" -e SEED_ADMIN_PASSWORD="${SEED_ADMIN_PASSWORD}" backend node dist-seed/seed.js; then
+                echo "Seed correcto: el administrador existe."
+              else
+                echo "EL SEED FALLÓ (el error está arriba). La aplicación se despliega igual,"
+                echo "pero la base puede quedarse sin administrador."
+                SEED_OK=0
+              fi
+              echo "::endgroup::"
             else
               echo "SEED_ADMIN_PASSWORD no está definido: se omite el seed."
               echo "Sin él la base no tendrá ningún administrador."
@@ -168,6 +187,12 @@ jobs:
 
             # El token ya no sirve para nada, pero no se deja escrito en disco.
             docker logout ghcr.io
+
+            # Ya con la aplicación desplegada, el seed decide si el trabajo pasa.
+            if [ "$SEED_OK" != "1" ]; then
+              echo "Despliegue terminado, pero el seed falló: revisa el grupo de arriba."
+              exit 1
+            fi
 
       - name: Comprobar que responde
         uses: appleboy/ssh-action@v1.2.0
