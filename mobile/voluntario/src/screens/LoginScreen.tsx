@@ -19,16 +19,17 @@ import { AlertCircle } from "lucide-react-native";
 import { colors, font, fuente, radius } from "../../../shared/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../shared/auth";
+import { Registro } from "../../../shared/Registro";
 import { Logo } from "../../../shared/brand/Logo";
 import { FondoConstelacion } from "../../../shared/FondoConstelacion";
 import { BarraSobreIndigo, GhostButton, PrimaryButton } from "../../../shared/ui";
 
 export function LoginScreen() {
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   // La cabecera se dibuja bajo la barra de estado: hay que reservar su alto.
   const bordes = useSafeAreaInsets();
   const [modo, setModo] = useState<"login" | "registro">("login");
-  const [f, setF] = useState({ nombre: "", correo: "", password: "", telefono: "", vehiculo: "", patente: "" });
+  const [f, setF] = useState({ correo: "", password: "" });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -37,17 +38,7 @@ export function LoginScreen() {
     setError("");
     setEnviando(true);
     try {
-      if (modo === "login") await login(f.correo.trim(), f.password);
-      else
-        await register({
-          correo: f.correo.trim(),
-          nombre: f.nombre.trim(),
-          password: f.password,
-          rol: "voluntario",
-          telefono: f.telefono,
-          vehiculo: f.vehiculo,
-          patente: f.patente,
-        });
+      await login(f.correo.trim(), f.password);
     } catch (e) {
       setError(
         e instanceof Error && e.message
@@ -59,7 +50,12 @@ export function LoginScreen() {
     }
   }
 
-  const esRegistro = modo === "registro";
+  // El registro tiene su propia pantalla por pasos: pide caracterización y
+  // las autorizaciones de la ley de datos, que no caben en este formulario.
+  if (modo === "registro") {
+    return <Registro rol="voluntario" onVolver={() => setModo("login")} />;
+  }
+
 
   return (
     <KeyboardAvoidingView
@@ -80,11 +76,9 @@ export function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={font.h1}>{esRegistro ? "Únete como voluntario" : "Bienvenido"}</Text>
+          <Text style={font.h1}>Bienvenido</Text>
           <Text style={[font.muted, { marginTop: 6, marginBottom: 22 }]}>
-            {esRegistro
-              ? "Después te pediremos tu cédula y tu certificado de alumno regular: el equipo valida la cuenta antes de tu primer acompañamiento."
-              : "Ingresa con tu correo y contraseña."}
+            Ingresa con tu correo y contraseña.
           </Text>
 
           {error ? (
@@ -94,9 +88,6 @@ export function LoginScreen() {
             </View>
           ) : null}
 
-          {esRegistro && (
-            <Campo label="Nombre completo" value={f.nombre} onChangeText={set("nombre")} placeholder="Tu nombre y apellido" />
-          )}
           <Campo
             label="Correo"
             value={f.correo}
@@ -112,26 +103,19 @@ export function LoginScreen() {
             placeholder="Tu contraseña"
             secureTextEntry
           />
-          {esRegistro && (
-            <>
-              <Campo label="Teléfono" value={f.telefono} onChangeText={set("telefono")} placeholder="+56 9 1234 5678" keyboardType="phone-pad" />
-              <Campo label="Vehículo" value={f.vehiculo} onChangeText={set("vehiculo")} placeholder="Marca y modelo" />
-              <Campo label="Patente" value={f.patente} onChangeText={set("patente")} placeholder="ABCD12" autoCapitalize="characters" />
-            </>
-          )}
 
           <View style={{ height: 10 }} />
           <PrimaryButton
-            title={enviando ? "Procesando…" : esRegistro ? "Crear cuenta" : "Iniciar sesión"}
+            title={enviando ? "Entrando…" : "Iniciar sesión"}
             onPress={enviar}
             disabled={enviando}
           />
           <View style={{ height: 12 }} />
           <GhostButton
-            title={esRegistro ? "Ya tengo cuenta" : "Quiero ser voluntario"}
+            title="Quiero ser voluntario"
             onPress={() => {
               setError("");
-              setModo(esRegistro ? "login" : "registro");
+              setModo("registro");
             }}
           />
 

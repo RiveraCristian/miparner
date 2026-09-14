@@ -20,6 +20,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type StyleProp,
   type TextStyle,
@@ -30,12 +31,14 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 import {
   CheckCircle2,
   CircleAlert,
+  Check,
   CircleDot,
   Info,
   MinusCircle,
   type LucideIcon,
 } from "lucide-react-native";
 import { TOQUE_MIN, colors, elevacion, font, fuente, radius } from "./theme";
+import { Logo as LogoMarca } from "./brand/Logo";
 
 /* ------------------------------------------------------------------ Contenedor */
 
@@ -625,6 +628,58 @@ const styles = StyleSheet.create({
 
   progresoPista: { height: 10, borderRadius: radius.pill, overflow: "hidden" },
 
+  campoEtiqueta: { fontSize: 14, fontFamily: fuente.fuerte, color: colors.ink2, marginBottom: 7 },
+  campoInput: {
+    minHeight: TOQUE_MIN + 4,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontFamily: fuente.normal,
+    color: colors.ink,
+  },
+  casilla: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    minHeight: TOQUE_MIN,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  casillaCaja: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: colors.ink4,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  cabeceraMarca: {
+    backgroundColor: colors.indigo,
+    borderRadius: radius.lg,
+    padding: 20,
+    gap: 6,
+    marginBottom: 16,
+    ...elevacion.media,
+  },
+  cabeceraTitulo: {
+    color: colors.white,
+    fontSize: 22,
+    fontFamily: fuente.fuerte,
+    letterSpacing: -0.3,
+    marginTop: 6,
+  },
+  cabeceraBajada: { color: colors.lav200, fontSize: 15, lineHeight: 22 },
+
   vacioIcono: {
     width: 56,
     height: 56,
@@ -634,3 +689,123 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
+
+/* ------------------------------------------------------------ Formularios */
+
+/**
+ * Campo de texto con etiqueta VISIBLE.
+ *
+ * La etiqueta no es un placeholder: el placeholder desaparece al escribir y
+ * deja a la persona sin saber qué iba en ese campo. Quien usa lector de
+ * pantalla o tiene una discapacidad cognitiva lo necesita presente.
+ */
+export function CampoTexto({
+  label,
+  ayuda,
+  error,
+  obligatorio,
+  ...props
+}: {
+  label: string;
+  ayuda?: string;
+  error?: string;
+  obligatorio?: boolean;
+} & React.ComponentProps<typeof TextInput>) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.campoEtiqueta}>
+        {label}
+        {obligatorio ? " *" : ""}
+      </Text>
+      {ayuda ? <Text style={[font.tiny, { marginBottom: 6 }]}>{ayuda}</Text> : null}
+      <TextInput
+        style={[styles.campoInput, error ? { borderColor: colors.coral } : null, props.multiline ? { minHeight: 96, textAlignVertical: "top" } : null]}
+        placeholderTextColor={colors.ink3}
+        accessibilityLabel={label}
+        accessibilityHint={ayuda}
+        {...props}
+      />
+      {error ? (
+        <Text style={[font.tiny, { color: colors.ink, marginTop: 6 }]} accessibilityRole="alert">
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Casilla de consentimiento.
+ *
+ * Área táctil completa (toda la fila, no solo el cuadrito), estado anunciado a
+ * los lectores de pantalla y marca de verificación además del color: el color
+ * por sí solo no comunica que algo está aceptado.
+ */
+export function Casilla({
+  valor,
+  onCambiar,
+  titulo,
+  texto,
+  obligatorio,
+  destacado,
+}: {
+  valor: boolean;
+  onCambiar: (v: boolean) => void;
+  titulo: string;
+  texto?: string;
+  obligatorio?: boolean;
+  destacado?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={() => onCambiar(!valor)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: valor }}
+      accessibilityLabel={titulo}
+      accessibilityHint={texto}
+      style={({ pressed }) => [
+        styles.casilla,
+        destacado && { borderColor: colors.indigo, backgroundColor: colors.lavanda },
+        pressed && { backgroundColor: colors.surface2 },
+      ]}
+    >
+      <View style={[styles.casillaCaja, valor && { backgroundColor: colors.indigo, borderColor: colors.indigo }]}>
+        {valor ? <Check size={15} color={colors.white} strokeWidth={3} /> : null}
+      </View>
+      <View style={{ flex: 1, gap: 4 }}>
+        <Text style={[font.body, { fontFamily: fuente.fuerte }]}>
+          {titulo}
+          {obligatorio ? " *" : ""}
+        </Text>
+        {texto ? <Text style={font.muted}>{texto}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+/* ----------------------------------------------------------------- Marca */
+
+/**
+ * Cabecera con el logotipo, para las pantallas de dentro de la app.
+ *
+ * El logo estaba solo en el acceso: una vez dentro, nada recordaba dónde
+ * estabas. Sobre índigo va en blanco, como manda el manual.
+ */
+export function CabeceraMarca({
+  titulo,
+  bajada,
+  children,
+}: {
+  titulo?: string;
+  bajada?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <View style={styles.cabeceraMarca}>
+      <LogoMarca alto={26} version="blanco" alt="Miparner" />
+      {titulo ? <Text style={styles.cabeceraTitulo}>{titulo}</Text> : null}
+      {bajada ? <Text style={styles.cabeceraBajada}>{bajada}</Text> : null}
+      {children}
+    </View>
+  );
+}

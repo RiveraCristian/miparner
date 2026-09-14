@@ -18,16 +18,17 @@ import { AlertCircle } from "lucide-react-native";
 import { colors, font, fuente, radius } from "../../../shared/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../shared/auth";
+import { Registro } from "../../../shared/Registro";
 import { Logo } from "../../../shared/brand/Logo";
 import { FondoConstelacion } from "../../../shared/FondoConstelacion";
 import { BarraSobreIndigo, GhostButton, PrimaryButton } from "../../../shared/ui";
 
 export function LoginScreen() {
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   // La cabecera se dibuja bajo la barra de estado: hay que reservar su alto.
   const bordes = useSafeAreaInsets();
   const [modo, setModo] = useState<"login" | "registro">("login");
-  const [f, setF] = useState({ nombre: "", correo: "", password: "", telefono: "", disciplina: "" });
+  const [f, setF] = useState({ correo: "", password: "" });
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -36,16 +37,7 @@ export function LoginScreen() {
     setError("");
     setEnviando(true);
     try {
-      if (modo === "login") await login(f.correo.trim(), f.password);
-      else
-        await register({
-          correo: f.correo.trim(),
-          nombre: f.nombre.trim(),
-          password: f.password,
-          rol: "deportista",
-          telefono: f.telefono,
-          disciplina: f.disciplina,
-        });
+      await login(f.correo.trim(), f.password);
     } catch (e) {
       // El error dice qué pasó y qué hacer, nunca solo «error».
       setError(
@@ -58,7 +50,12 @@ export function LoginScreen() {
     }
   }
 
-  const esRegistro = modo === "registro";
+  // El registro tiene su propia pantalla por pasos: pide caracterización y
+  // las autorizaciones de la ley de datos, que no caben en este formulario.
+  if (modo === "registro") {
+    return <Registro rol="deportista" onVolver={() => setModo("login")} />;
+  }
+
 
   return (
     <KeyboardAvoidingView
@@ -78,11 +75,9 @@ export function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={font.h1}>{esRegistro ? "Crea tu cuenta" : "Bienvenido"}</Text>
+          <Text style={font.h1}>Bienvenido</Text>
           <Text style={[font.muted, { marginTop: 6, marginBottom: 22 }]}>
-            {esRegistro
-              ? "Cuéntanos quién eres. Después te pediremos tu credencial de discapacidad: el equipo valida la cuenta antes de tu primer acompañamiento."
-              : "Ingresa con tu correo y contraseña."}
+            Ingresa con tu correo y contraseña.
           </Text>
 
           {error ? (
@@ -92,9 +87,6 @@ export function LoginScreen() {
             </View>
           ) : null}
 
-          {esRegistro && (
-            <Campo label="Nombre completo" value={f.nombre} onChangeText={set("nombre")} placeholder="Tu nombre y apellido" />
-          )}
           <Campo
             label="Correo"
             value={f.correo}
@@ -110,25 +102,19 @@ export function LoginScreen() {
             placeholder="Tu contraseña"
             secureTextEntry
           />
-          {esRegistro && (
-            <>
-              <Campo label="Teléfono" value={f.telefono} onChangeText={set("telefono")} placeholder="+56 9 1234 5678" keyboardType="phone-pad" />
-              <Campo label="Disciplina" value={f.disciplina} onChangeText={set("disciplina")} placeholder="Por ejemplo, paratletismo" />
-            </>
-          )}
 
           <View style={{ height: 10 }} />
           <PrimaryButton
-            title={enviando ? "Procesando…" : esRegistro ? "Crear cuenta" : "Iniciar sesión"}
+            title={enviando ? "Entrando…" : "Iniciar sesión"}
             onPress={enviar}
             disabled={enviando}
           />
           <View style={{ height: 12 }} />
           <GhostButton
-            title={esRegistro ? "Ya tengo cuenta" : "Crear una cuenta"}
+            title="Crear una cuenta"
             onPress={() => {
               setError("");
-              setModo(esRegistro ? "login" : "registro");
+              setModo("registro");
             }}
           />
 

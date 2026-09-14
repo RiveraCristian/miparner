@@ -6,7 +6,14 @@ import { hashPassword, verifyPassword } from "../../lib/password";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/jwt";
 import { env } from "../../config/env";
 import { estadoValidacion } from "../documentos/documentos.service";
-import type { ActualizarPerfilDto, LoginDto, RefreshDto, RegisterDto } from "./auth.schemas";
+import * as consentimientos from "../consentimientos/consentimientos.service";
+import type {
+  ActualizarPerfilDto,
+  LoginDto,
+  PerfilDeportistaDto,
+  RefreshDto,
+  RegisterDto,
+} from "./auth.schemas";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -55,9 +62,19 @@ async function issueTokens(usuario: Usuario) {
   return { accessToken, refreshToken };
 }
 
-export async function register(dto: RegisterDto) {
+export async function register(dto: RegisterDto, ctx: { canal?: string; ip?: string } = {}) {
   const existe = await prisma.usuario.findUnique({ where: { usuarioCorreo: dto.correo } });
   if (existe) throw AppError.conflict("El correo ya está registrado");
+
+  // Sin las finalidades obligatorias no hay base legal para tratar los datos,
+  // así que la cuenta no llega a crearse.
+  const faltan = consentimientos.faltanObligatorias(dto.rol, dto.consentimientos ?? []);
+  if (faltan.length) {
+    throw AppError.badRequest(
+      "Faltan autorizaciones obligatorias para crear la cuenta",
+      { finalidadesFaltantes: faltan },
+    );
+  }
 
   const passwordHash = await hashPassword(dto.password);
 
@@ -74,11 +91,25 @@ export async function register(dto: RegisterDto) {
     });
 
     if (dto.rol === "deportista") {
+      const p = dto.perfil ?? {};
       await tx.deportistaPerfil.create({
         data: {
           deportistaUsuarioId: nuevo.usuarioId,
-          deportistaDisciplina: dto.disciplina ?? null,
-          deportistaNecesidades: dto.necesidades ?? [],
+          deportistaDisciplina: p.disciplina ?? dto.disciplina ?? null,
+          // Apoyos del trayecto. `necesidades` es el nombre antiguo del campo.
+          deportistaNecesidades: p.apoyos ?? dto.necesidades ?? [],
+          deportistaFechaNacimiento: p.fechaNacimiento ? new Date(`${p.fechaNacimiento}T00:00:00Z`) : null,
+          deportistaGenero: p.genero ?? null,
+          deportistaRegion: p.region ?? null,
+          deportistaComuna: p.comuna ?? null,
+          deportistaDireccion: p.direccion ?? null,
+          deportistaTiposDiscapacidad: p.tiposDiscapacidad ?? [],
+          deportistaNivelAutonomia: p.nivelAutonomia ?? null,
+          deportistaComunicacion: p.comunicacion ?? null,
+          deportistaObservaciones: p.observaciones ?? null,
+          deportistaEmergenciaNombre: p.emergenciaNombre ?? null,
+          deportistaEmergenciaTelefono: p.emergenciaTelefono ?? null,
+          deportistaEmergenciaRelacion: p.emergenciaRelacion ?? null,
           createdBy: nuevo.usuarioId,
         },
       });
@@ -96,13 +127,64 @@ export async function register(dto: RegisterDto) {
     return nuevo;
   });
 
+  // Las decisiones quedan registradas con su texto y su versión, ya con el
+  // usuario creado para poder asociarlas.
+  await consentimientos.registrar(usuario.usuarioId, dto.consentimientos ?? [], ctx);
+
   const tokens = await issueTokens(usuario);
   return {
     usuario: toPublicUser(usuario),
     ...tokens,
-    // Guía para la app: qué tiene que subir ahora para que lo validen.
+    // Guía para la app: qué tiene que acreditar ahora para que lo validen.
     validacion: await estadoValidacion(usuario.usuarioId),
   };
+}
+
+/**
+ * Actualiza la caracterización del deportista.
+ *
+ * El tipo de discapacidad y las observaciones de salud son datos sensibles: si
+ * la persona revocó ese consentimiento, se ignoran en vez de guardarse.
+ */
+export async function actualizarPerfilDeportista(usuarioId: number, dto: PerfilDeportistaDto) {
+  const perfil = await prisma.deportistaPerfil.findUnique({
+    where: { deportistaUsuarioId: usuarioId },
+  });
+  if (!perfil) throw AppError.notFound("Perfil de deportista no encontrado");
+
+  const { finalidades } = await consentimientos.vigentes(usuarioId);
+  const puedeSensibles =
+    finalidades.find((f) => f.clave === "datos_sensibles_salud")?.otorgado ?? false;
+
+  const actualizado = await prisma.deportistaPerfil.update({
+    where: { deportistaUsuarioId: usuarioId },
+    data: {
+      ...(dto.disciplina !== undefined ? { deportistaDisciplina: dto.disciplina } : {}),
+      ...(dto.apoyos !== undefined ? { deportistaNecesidades: dto.apoyos } : {}),
+      ...(dto.fechaNacimiento !== undefined
+        ? { deportistaFechaNacimiento: new Date(`${dto.fechaNacimiento}T00:00:00Z`) }
+        : {}),
+      ...(dto.genero !== undefined ? { deportistaGenero: dto.genero } : {}),
+      ...(dto.region !== undefined ? { deportistaRegion: dto.region } : {}),
+      ...(dto.comuna !== undefined ? { deportistaComuna: dto.comuna } : {}),
+      ...(dto.direccion !== undefined ? { deportistaDireccion: dto.direccion } : {}),
+      ...(dto.nivelAutonomia !== undefined ? { deportistaNivelAutonomia: dto.nivelAutonomia } : {}),
+      ...(dto.comunicacion !== undefined ? { deportistaComunicacion: dto.comunicacion } : {}),
+      ...(dto.emergenciaNombre !== undefined ? { deportistaEmergenciaNombre: dto.emergenciaNombre } : {}),
+      ...(dto.emergenciaTelefono !== undefined ? { deportistaEmergenciaTelefono: dto.emergenciaTelefono } : {}),
+      ...(dto.emergenciaRelacion !== undefined ? { deportistaEmergenciaRelacion: dto.emergenciaRelacion } : {}),
+      // Datos sensibles: solo si el consentimiento sigue vigente.
+      ...(puedeSensibles && dto.tiposDiscapacidad !== undefined
+        ? { deportistaTiposDiscapacidad: dto.tiposDiscapacidad }
+        : {}),
+      ...(puedeSensibles && dto.observaciones !== undefined
+        ? { deportistaObservaciones: dto.observaciones }
+        : {}),
+      modifiedBy: usuarioId,
+    },
+  });
+
+  return { perfil: actualizado, datosSensiblesGuardados: puedeSensibles };
 }
 
 export async function login(dto: LoginDto) {

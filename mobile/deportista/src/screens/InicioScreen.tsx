@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { MessageSquare, Navigation, Plus } from "lucide-react-native";
 import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
+import { Logo } from "../../../shared/brand/Logo";
 import { useAuth } from "../../../shared/auth";
 import { AvisoValidacion } from "../../../shared/Documentos";
 import { FondoConstelacion } from "../../../shared/FondoConstelacion";
@@ -56,6 +57,11 @@ export function InicioScreen() {
       {/* Hero de marca: saludo por hora sobre fondo azul con constelación. */}
       <PanelIndigo style={{ marginBottom: 20, overflow: "hidden" }}>
         <FondoConstelacion />
+        {/* El logotipo estaba solo en el acceso: dentro de la app nada
+            recordaba dónde estabas. Sobre índigo va en blanco. */}
+        <View style={{ alignItems: "center", marginBottom: 14 }}>
+          <Logo alto={22} version="blanco" alt="Miparner" />
+        </View>
         <Text style={{ color: colors.lav300, fontSize: 12, fontFamily: fuente.medio, letterSpacing: 1.6, textTransform: "uppercase", textAlign: "center" }}>
           {saludo}
         </Text>

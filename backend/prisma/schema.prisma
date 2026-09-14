@@ -34,26 +34,35 @@ model Usuario {
 
   // Validación por el panel de administración. La cuenta nace activa pero
   // 'pendiente': puede entrar y subir documentos, no operar.
-  usuarioEstadoValidacion   String    @default("pendiente") @map("usuario_estado_validacion") @db.VarChar(20) // pendiente | aprobado | rechazado
-  usuarioValidadoPor        Int?      @map("usuario_validado_por")
-  usuarioValidadoAt         DateTime? @map("usuario_validado_at")
-  usuarioMotivoRechazo      String?   @map("usuario_motivo_rechazo") @db.VarChar(500)
+  usuarioEstadoValidacion String    @default("pendiente") @map("usuario_estado_validacion") @db.VarChar(20) // pendiente | aprobado | rechazado
+  usuarioValidadoPor      Int?      @map("usuario_validado_por")
+  usuarioValidadoAt       DateTime? @map("usuario_validado_at")
+  usuarioMotivoRechazo    String?   @map("usuario_motivo_rechazo") @db.VarChar(500)
 
-  deportistaPerfil DeportistaPerfil?
-  voluntarioPerfil VoluntarioPerfil?
-  viajesComoDeportista Viaje[] @relation("ViajeDeportista")
-  viajesComoVoluntario Viaje[] @relation("ViajeVoluntario")
-  panicos          PanicoAlerta[]
-  otpCodigos       OtpCodigo[]
-  refreshTokens    RefreshToken[]
-  insignias        UsuarioInsignia[]
-  canjes           Canje[]
-  documentos          UsuarioDocumento[] @relation("DocumentoDueno")
-  documentosRevisados UsuarioDocumento[] @relation("DocumentoRevisor")
-  mensajesEnviados    Mensaje[]          @relation("MensajeEmisor")
-  mensajesRecibidos   Mensaje[]          @relation("MensajeReceptor")
-  validador           Usuario?           @relation("UsuarioValidador", fields: [usuarioValidadoPor], references: [usuarioId])
-  validados           Usuario[]          @relation("UsuarioValidador")
+  // Cómo acredita la cuenta: con documento o con videollamada, cuando la
+  // persona no tiene credencial ni certificado.
+  usuarioVerificacionVia            String?   @map("usuario_verificacion_via") @db.VarChar(30) // documento | videollamada
+  usuarioVerificacionDisponibilidad String?   @map("usuario_verificacion_disponibilidad") @db.VarChar(500)
+  usuarioVerificacionNota           String?   @map("usuario_verificacion_nota") @db.VarChar(500)
+  usuarioVerificacionAt             DateTime? @map("usuario_verificacion_at")
+
+  deportistaPerfil     DeportistaPerfil?
+  voluntarioPerfil     VoluntarioPerfil?
+  viajesComoDeportista Viaje[]                 @relation("ViajeDeportista")
+  viajesComoVoluntario Viaje[]                 @relation("ViajeVoluntario")
+  panicos              PanicoAlerta[]
+  otpCodigos           OtpCodigo[]
+  refreshTokens        RefreshToken[]
+  insignias            UsuarioInsignia[]
+  canjes               Canje[]
+  documentos           UsuarioDocumento[]      @relation("DocumentoDueno")
+  documentosRevisados  UsuarioDocumento[]      @relation("DocumentoRevisor")
+  mensajesEnviados     Mensaje[]               @relation("MensajeEmisor")
+  mensajesRecibidos    Mensaje[]               @relation("MensajeReceptor")
+  validador            Usuario?                @relation("UsuarioValidador", fields: [usuarioValidadoPor], references: [usuarioId])
+  validados            Usuario[]               @relation("UsuarioValidador")
+  consentimientos      UsuarioConsentimiento[]
+  planes               PlanEntrenamiento[]
 
   @@index([usuarioEstadoValidacion])
   @@map("usuarios")
@@ -63,12 +72,30 @@ model Usuario {
 // Perfil Deportista (1:1 con usuario)
 // ============================================================
 model DeportistaPerfil {
-  deportistaPerfilId    Int      @id @default(autoincrement()) @map("deportista_perfil_id")
-  deportistaUsuarioId   Int      @unique @map("deportista_usuario_id")
-  deportistaDisciplina  String?  @map("deportista_disciplina") @db.VarChar(120)
-  deportistaNecesidades Json     @default("[]") @map("deportista_necesidades") // ["silla","guia_visual",...]
-  deportistaPuntos      Int      @default(0) @map("deportista_puntos")
-  deportistaNivel       Int      @default(1) @map("deportista_nivel")
+  deportistaPerfilId    Int     @id @default(autoincrement()) @map("deportista_perfil_id")
+  deportistaUsuarioId   Int     @unique @map("deportista_usuario_id")
+  deportistaDisciplina  String? @map("deportista_disciplina") @db.VarChar(120)
+  // Apoyos del trayecto (claves de APOYOS). Esto SÍ lo ve el voluntario.
+  deportistaNecesidades Json    @default("[]") @map("deportista_necesidades")
+  deportistaPuntos      Int     @default(0) @map("deportista_puntos")
+  deportistaNivel       Int     @default(1) @map("deportista_nivel")
+
+  // --- Caracterización ---
+  deportistaFechaNacimiento   DateTime? @map("deportista_fecha_nacimiento") @db.Date
+  deportistaGenero            String?   @map("deportista_genero") @db.VarChar(40)
+  deportistaRegion            String?   @map("deportista_region") @db.VarChar(120)
+  deportistaComuna            String?   @map("deportista_comuna") @db.VarChar(120)
+  deportistaDireccion         String?   @map("deportista_direccion") @db.VarChar(255)
+  // DATO SENSIBLE. Nunca se expone al voluntario.
+  deportistaTiposDiscapacidad Json      @default("[]") @map("deportista_tipos_discapacidad")
+  deportistaNivelAutonomia    String?   @map("deportista_nivel_autonomia") @db.VarChar(30)
+  deportistaComunicacion      String?   @map("deportista_comunicacion") @db.VarChar(30)
+  deportistaObservaciones     String?   @map("deportista_observaciones") @db.VarChar(1000)
+
+  // --- Contacto de emergencia (lo usa el botón de pánico) ---
+  deportistaEmergenciaNombre   String? @map("deportista_emergencia_nombre") @db.VarChar(255)
+  deportistaEmergenciaTelefono String? @map("deportista_emergencia_telefono") @db.VarChar(30)
+  deportistaEmergenciaRelacion String? @map("deportista_emergencia_relacion") @db.VarChar(60)
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -77,6 +104,7 @@ model DeportistaPerfil {
 
   usuario Usuario @relation(fields: [deportistaUsuarioId], references: [usuarioId])
 
+  @@index([deportistaComuna])
   @@map("deportista_perfil")
 }
 
@@ -84,17 +112,17 @@ model DeportistaPerfil {
 // Perfil Voluntario (1:1 con usuario) — incluye última ubicación
 // ============================================================
 model VoluntarioPerfil {
-  voluntarioPerfilId  Int      @id @default(autoincrement()) @map("voluntario_perfil_id")
-  voluntarioUsuarioId Int      @unique @map("voluntario_usuario_id")
-  voluntarioVehiculo  String?  @map("voluntario_vehiculo") @db.VarChar(120)
-  voluntarioPatente   String?  @map("voluntario_patente") @db.VarChar(20)
-  voluntarioEnLinea   Boolean  @default(false) @map("voluntario_en_linea")
-  voluntarioValidado  Boolean  @default(false) @map("voluntario_validado")
-  voluntarioPuntos    Int      @default(0) @map("voluntario_puntos")
-  voluntarioNivel     Int      @default(1) @map("voluntario_nivel")
+  voluntarioPerfilId    Int                                    @id @default(autoincrement()) @map("voluntario_perfil_id")
+  voluntarioUsuarioId   Int                                    @unique @map("voluntario_usuario_id")
+  voluntarioVehiculo    String?                                @map("voluntario_vehiculo") @db.VarChar(120)
+  voluntarioPatente     String?                                @map("voluntario_patente") @db.VarChar(20)
+  voluntarioEnLinea     Boolean                                @default(false) @map("voluntario_en_linea")
+  voluntarioValidado    Boolean                                @default(false) @map("voluntario_validado")
+  voluntarioPuntos      Int                                    @default(0) @map("voluntario_puntos")
+  voluntarioNivel       Int                                    @default(1) @map("voluntario_nivel")
   // geography(Point,4326) — última posición conocida (matchmaking)
-  voluntarioUbicacion Unsupported("geography(Point, 4326)")? @map("voluntario_ubicacion")
-  voluntarioUbicacionAt DateTime? @map("voluntario_ubicacion_at")
+  voluntarioUbicacion   Unsupported("geography(Point, 4326)")? @map("voluntario_ubicacion")
+  voluntarioUbicacionAt DateTime?                              @map("voluntario_ubicacion_at")
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -110,33 +138,33 @@ model VoluntarioPerfil {
 // Viajes (entidad crítica) — soft delete
 // ============================================================
 model Viaje {
-  viajeId           Int      @id @default(autoincrement()) @map("viaje_id")
-  viajeDeportistaId Int      @map("viaje_deportista_id")
-  viajeVoluntarioId Int?     @map("viaje_voluntario_id")
-  viajeEstado       String   @default("solicitado") @map("viaje_estado") @db.VarChar(30)
+  viajeId           Int                                   @id @default(autoincrement()) @map("viaje_id")
+  viajeDeportistaId Int                                   @map("viaje_deportista_id")
+  viajeVoluntarioId Int?                                  @map("viaje_voluntario_id")
+  viajeEstado       String                                @default("solicitado") @map("viaje_estado") @db.VarChar(30)
   // solicitado | asignado | en_camino | a_bordo | finalizado | cancelado
   viajeOrigen       Unsupported("geography(Point, 4326)") @map("viaje_origen")
   viajeDestino      Unsupported("geography(Point, 4326)") @map("viaje_destino")
-  viajeOrigenTexto  String?  @map("viaje_origen_texto") @db.VarChar(255)
-  viajeDestinoTexto String?  @map("viaje_destino_texto") @db.VarChar(255)
-  viajeNecesidades  Json     @default("[]") @map("viaje_necesidades")
+  viajeOrigenTexto  String?                               @map("viaje_origen_texto") @db.VarChar(255)
+  viajeDestinoTexto String?                               @map("viaje_destino_texto") @db.VarChar(255)
+  viajeNecesidades  Json                                  @default("[]") @map("viaje_necesidades")
   // Lo que el deportista escribe con sus palabras al pedir el acompañamiento.
-  viajeComentario   String?  @map("viaje_comentario") @db.VarChar(1000)
-  viajeRutaSnapshot Json?    @map("viaje_ruta_snapshot")
-  viajeSolicitadoAt DateTime @default(now()) @map("viaje_solicitado_at")
-  viajeInicioAt     DateTime? @map("viaje_inicio_at")
-  viajeFinAt        DateTime? @map("viaje_fin_at")
+  viajeComentario   String?                               @map("viaje_comentario") @db.VarChar(1000)
+  viajeRutaSnapshot Json?                                 @map("viaje_ruta_snapshot")
+  viajeSolicitadoAt DateTime                              @default(now()) @map("viaje_solicitado_at")
+  viajeInicioAt     DateTime?                             @map("viaje_inicio_at")
+  viajeFinAt        DateTime?                             @map("viaje_fin_at")
 
-  createdBy  Int      @map("created_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  modifiedBy Int?     @map("modified_by")
-  modifiedAt DateTime @default(now()) @map("modified_at")
-  isDeleted  Boolean  @default(false) @map("is_deleted")
+  createdBy  Int       @map("created_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  modifiedBy Int?      @map("modified_by")
+  modifiedAt DateTime  @default(now()) @map("modified_at")
+  isDeleted  Boolean   @default(false) @map("is_deleted")
   deletedAt  DateTime? @map("deleted_at")
-  deletedBy  Int?     @map("deleted_by")
+  deletedBy  Int?      @map("deleted_by")
 
-  deportista Usuario  @relation("ViajeDeportista", fields: [viajeDeportistaId], references: [usuarioId])
-  voluntario Usuario? @relation("ViajeVoluntario", fields: [viajeVoluntarioId], references: [usuarioId])
+  deportista Usuario        @relation("ViajeDeportista", fields: [viajeDeportistaId], references: [usuarioId])
+  voluntario Usuario?       @relation("ViajeVoluntario", fields: [viajeVoluntarioId], references: [usuarioId])
   eventos    ViajeEvento[]
   panicos    PanicoAlerta[]
   mensajes   Mensaje[]
@@ -149,11 +177,11 @@ model Viaje {
 // Eventos de viaje (línea de tiempo / trip_status_change, position_update)
 // ============================================================
 model ViajeEvento {
-  viajeEventoId    Int      @id @default(autoincrement()) @map("viaje_evento_id")
-  viajeEventoViajeId Int    @map("viaje_evento_viaje_id")
-  viajeEventoTipo  String   @map("viaje_evento_tipo") @db.VarChar(40)
+  viajeEventoId       Int                                    @id @default(autoincrement()) @map("viaje_evento_id")
+  viajeEventoViajeId  Int                                    @map("viaje_evento_viaje_id")
+  viajeEventoTipo     String                                 @map("viaje_evento_tipo") @db.VarChar(40)
   viajeEventoPosicion Unsupported("geography(Point, 4326)")? @map("viaje_evento_posicion")
-  viajeEventoDetalle Json?  @map("viaje_evento_detalle")
+  viajeEventoDetalle  Json?                                  @map("viaje_evento_detalle")
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -170,12 +198,12 @@ model ViajeEvento {
 // Alertas de pánico (Módulo de Seguridad)
 // ============================================================
 model PanicoAlerta {
-  panicoId        Int      @id @default(autoincrement()) @map("panico_id")
-  panicoUsuarioId Int      @map("panico_usuario_id")
-  panicoViajeId   Int?     @map("panico_viaje_id")
-  panicoUbicacion Unsupported("geography(Point, 4326)")? @map("panico_ubicacion")
-  panicoEstado    String   @default("activa") @map("panico_estado") @db.VarChar(20) // activa | atendida | falsa
-  panicoAtendidoPor Int?   @map("panico_atendido_por")
+  panicoId          Int                                    @id @default(autoincrement()) @map("panico_id")
+  panicoUsuarioId   Int                                    @map("panico_usuario_id")
+  panicoViajeId     Int?                                   @map("panico_viaje_id")
+  panicoUbicacion   Unsupported("geography(Point, 4326)")? @map("panico_ubicacion")
+  panicoEstado      String                                 @default("activa") @map("panico_estado") @db.VarChar(20) // activa | atendida | falsa
+  panicoAtendidoPor Int?                                   @map("panico_atendido_por")
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -216,11 +244,11 @@ model OtpCodigo {
 // Refresh tokens (login básico)
 // ============================================================
 model RefreshToken {
-  refreshTokenId     Int      @id @default(autoincrement()) @map("refresh_token_id")
-  refreshTokenUsuarioId Int   @map("refresh_token_usuario_id")
-  refreshTokenHash   String   @map("refresh_token_hash") @db.VarChar(255)
-  refreshTokenExpiraAt DateTime @map("refresh_token_expira_at")
-  refreshTokenRevocado Boolean @default(false) @map("refresh_token_revocado")
+  refreshTokenId        Int      @id @default(autoincrement()) @map("refresh_token_id")
+  refreshTokenUsuarioId Int      @map("refresh_token_usuario_id")
+  refreshTokenHash      String   @map("refresh_token_hash") @db.VarChar(255)
+  refreshTokenExpiraAt  DateTime @map("refresh_token_expira_at")
+  refreshTokenRevocado  Boolean  @default(false) @map("refresh_token_revocado")
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -237,11 +265,11 @@ model RefreshToken {
 // Gamificación: insignias, relación usuario-insignia, premios, canjes
 // ============================================================
 model Insignia {
-  insigniaId          Int      @id @default(autoincrement()) @map("insignia_id")
-  insigniaCodigo      String   @unique @map("insignia_codigo") @db.VarChar(60)
-  insigniaNombre      String   @map("insignia_nombre") @db.VarChar(120)
-  insigniaDescripcion String?  @map("insignia_descripcion") @db.VarChar(255)
-  insigniaIcono       String?  @map("insignia_icono") @db.VarChar(60)
+  insigniaId          Int     @id @default(autoincrement()) @map("insignia_id")
+  insigniaCodigo      String  @unique @map("insignia_codigo") @db.VarChar(60)
+  insigniaNombre      String  @map("insignia_nombre") @db.VarChar(120)
+  insigniaDescripcion String? @map("insignia_descripcion") @db.VarChar(255)
+  insigniaIcono       String? @map("insignia_icono") @db.VarChar(60)
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -254,9 +282,9 @@ model Insignia {
 }
 
 model UsuarioInsignia {
-  usuarioInsigniaId  Int      @id @default(autoincrement()) @map("usuario_insignia_id")
-  usuarioInsigniaUsuarioId Int @map("usuario_insignia_usuario_id")
-  usuarioInsigniaInsigniaId Int @map("usuario_insignia_insignia_id")
+  usuarioInsigniaId         Int      @id @default(autoincrement()) @map("usuario_insignia_id")
+  usuarioInsigniaUsuarioId  Int      @map("usuario_insignia_usuario_id")
+  usuarioInsigniaInsigniaId Int      @map("usuario_insignia_insignia_id")
   usuarioInsigniaObtenidaAt DateTime @default(now()) @map("usuario_insignia_obtenida_at")
 
   createdBy  Int      @map("created_by")
@@ -272,20 +300,20 @@ model UsuarioInsignia {
 }
 
 model Premio {
-  premioId          Int      @id @default(autoincrement()) @map("premio_id")
-  premioNombre      String   @map("premio_nombre") @db.VarChar(150)
-  premioDescripcion String?  @map("premio_descripcion") @db.VarChar(255)
-  premioCostoPuntos Int      @map("premio_costo_puntos")
-  premioStock       Int      @default(0) @map("premio_stock")
-  premioActivo      Boolean  @default(true) @map("premio_activo")
+  premioId          Int     @id @default(autoincrement()) @map("premio_id")
+  premioNombre      String  @map("premio_nombre") @db.VarChar(150)
+  premioDescripcion String? @map("premio_descripcion") @db.VarChar(255)
+  premioCostoPuntos Int     @map("premio_costo_puntos")
+  premioStock       Int     @default(0) @map("premio_stock")
+  premioActivo      Boolean @default(true) @map("premio_activo")
 
-  createdBy  Int      @map("created_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  modifiedBy Int?     @map("modified_by")
-  modifiedAt DateTime @default(now()) @map("modified_at")
-  isDeleted  Boolean  @default(false) @map("is_deleted")
+  createdBy  Int       @map("created_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  modifiedBy Int?      @map("modified_by")
+  modifiedAt DateTime  @default(now()) @map("modified_at")
+  isDeleted  Boolean   @default(false) @map("is_deleted")
   deletedAt  DateTime? @map("deleted_at")
-  deletedBy  Int?     @map("deleted_by")
+  deletedBy  Int?      @map("deleted_by")
 
   canjes Canje[]
 
@@ -293,11 +321,11 @@ model Premio {
 }
 
 model Canje {
-  canjeId        Int      @id @default(autoincrement()) @map("canje_id")
-  canjeUsuarioId Int      @map("canje_usuario_id")
-  canjePremioId  Int      @map("canje_premio_id")
-  canjePuntosGastados Int  @map("canje_puntos_gastados")
-  canjeEstado    String   @default("solicitado") @map("canje_estado") @db.VarChar(20) // solicitado | entregado | cancelado
+  canjeId             Int    @id @default(autoincrement()) @map("canje_id")
+  canjeUsuarioId      Int    @map("canje_usuario_id")
+  canjePremioId       Int    @map("canje_premio_id")
+  canjePuntosGastados Int    @map("canje_puntos_gastados")
+  canjeEstado         String @default("solicitado") @map("canje_estado") @db.VarChar(20) // solicitado | entregado | cancelado
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -317,25 +345,25 @@ model Canje {
 // Índice único parcial en la migración: un documento vigente por tipo.
 // ============================================================
 model UsuarioDocumento {
-  documentoId              Int       @id @default(autoincrement()) @map("documento_id")
-  documentoUsuarioId       Int       @map("documento_usuario_id")
-  documentoTipo            String    @map("documento_tipo") @db.VarChar(40) // carnet_discapacidad | carnet_identidad | certificado_estudios
-  documentoNombreOriginal  String    @map("documento_nombre_original") @db.VarChar(255)
-  documentoArchivo         String    @map("documento_archivo") @db.VarChar(255)
-  documentoMime            String    @map("documento_mime") @db.VarChar(100)
-  documentoTamano          Int       @map("documento_tamano")
-  documentoEstado          String    @default("pendiente") @map("documento_estado") @db.VarChar(20) // pendiente | aprobado | rechazado
-  documentoObservacion     String?   @map("documento_observacion") @db.VarChar(500)
-  documentoRevisadoPor     Int?      @map("documento_revisado_por")
-  documentoRevisadoAt      DateTime? @map("documento_revisado_at")
+  documentoId             Int       @id @default(autoincrement()) @map("documento_id")
+  documentoUsuarioId      Int       @map("documento_usuario_id")
+  documentoTipo           String    @map("documento_tipo") @db.VarChar(40) // carnet_discapacidad | carnet_identidad | certificado_estudios
+  documentoNombreOriginal String    @map("documento_nombre_original") @db.VarChar(255)
+  documentoArchivo        String    @map("documento_archivo") @db.VarChar(255)
+  documentoMime           String    @map("documento_mime") @db.VarChar(100)
+  documentoTamano         Int       @map("documento_tamano")
+  documentoEstado         String    @default("pendiente") @map("documento_estado") @db.VarChar(20) // pendiente | aprobado | rechazado
+  documentoObservacion    String?   @map("documento_observacion") @db.VarChar(500)
+  documentoRevisadoPor    Int?      @map("documento_revisado_por")
+  documentoRevisadoAt     DateTime? @map("documento_revisado_at")
 
-  createdBy  Int      @map("created_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  modifiedBy Int?     @map("modified_by")
-  modifiedAt DateTime @default(now()) @map("modified_at")
-  isDeleted  Boolean  @default(false) @map("is_deleted")
+  createdBy  Int       @map("created_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  modifiedBy Int?      @map("modified_by")
+  modifiedAt DateTime  @default(now()) @map("modified_at")
+  isDeleted  Boolean   @default(false) @map("is_deleted")
   deletedAt  DateTime? @map("deleted_at")
-  deletedBy  Int?     @map("deleted_by")
+  deletedBy  Int?      @map("deleted_by")
 
   usuario Usuario  @relation("DocumentoDueno", fields: [documentoUsuarioId], references: [usuarioId])
   revisor Usuario? @relation("DocumentoRevisor", fields: [documentoRevisadoPor], references: [usuarioId])
@@ -368,6 +396,83 @@ model Mensaje {
   @@index([mensajeViajeId, mensajeId])
   @@index([mensajeReceptorId])
   @@map("mensajes")
+}
+
+// ============================================================
+// Consentimientos (Ley 21.719)
+// Nunca se actualiza una fila para cambiar de opinión: se inserta otra.
+// El historial completo es la prueba de qué autorizó cada quién y cuándo.
+// ============================================================
+model UsuarioConsentimiento {
+  consentimientoId        Int     @id @default(autoincrement()) @map("consentimiento_id")
+  consentimientoUsuarioId Int     @map("consentimiento_usuario_id")
+  consentimientoFinalidad String  @map("consentimiento_finalidad") @db.VarChar(60)
+  consentimientoOtorgado  Boolean @map("consentimiento_otorgado")
+  consentimientoVersion   String  @map("consentimiento_version") @db.VarChar(20)
+  // Huella del texto exacto que se mostró al aceptar.
+  consentimientoTextoHash String  @map("consentimiento_texto_hash") @db.VarChar(64)
+  consentimientoCanal     String? @map("consentimiento_canal") @db.VarChar(30)
+  consentimientoIp        String? @map("consentimiento_ip") @db.VarChar(45)
+
+  createdBy  Int      @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  modifiedBy Int?     @map("modified_by")
+  modifiedAt DateTime @default(now()) @map("modified_at")
+
+  usuario Usuario @relation(fields: [consentimientoUsuarioId], references: [usuarioId])
+
+  @@index([consentimientoUsuarioId])
+  @@index([consentimientoFinalidad])
+  @@map("usuario_consentimiento")
+}
+
+// ============================================================
+// Planificación mensual de entrenamientos (entidad crítica: soft delete)
+// ============================================================
+model PlanEntrenamiento {
+  planId            Int     @id @default(autoincrement()) @map("plan_id")
+  planDeportistaId  Int     @map("plan_deportista_id")
+  planAnio          Int     @map("plan_anio")
+  planMes           Int     @map("plan_mes")
+  planObjetivo      String? @map("plan_objetivo") @db.VarChar(500)
+  planHorasObjetivo Int     @default(0) @map("plan_horas_objetivo")
+
+  createdBy  Int       @map("created_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  modifiedBy Int?      @map("modified_by")
+  modifiedAt DateTime  @default(now()) @map("modified_at")
+  isDeleted  Boolean   @default(false) @map("is_deleted")
+  deletedAt  DateTime? @map("deleted_at")
+  deletedBy  Int?      @map("deleted_by")
+
+  deportista Usuario      @relation(fields: [planDeportistaId], references: [usuarioId])
+  bloques    PlanBloque[]
+
+  @@index([planDeportistaId])
+  @@map("plan_entrenamiento")
+}
+
+model PlanBloque {
+  bloqueId          Int      @id @default(autoincrement()) @map("bloque_id")
+  bloquePlanId      Int      @map("bloque_plan_id")
+  bloqueFecha       DateTime @map("bloque_fecha") @db.Date
+  bloqueHoraInicio  DateTime @map("bloque_hora_inicio") @db.Time()
+  bloqueDuracionMin Int      @map("bloque_duracion_min")
+  bloqueDisciplina  String?  @map("bloque_disciplina") @db.VarChar(120)
+  bloqueLugar       String?  @map("bloque_lugar") @db.VarChar(255)
+  bloqueEstado      String   @default("planificado") @map("bloque_estado") @db.VarChar(20) // planificado | cumplido | omitido
+  bloqueNotas       String?  @map("bloque_notas") @db.VarChar(500)
+
+  createdBy  Int      @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  modifiedBy Int?     @map("modified_by")
+  modifiedAt DateTime @default(now()) @map("modified_at")
+
+  plan PlanEntrenamiento @relation(fields: [bloquePlanId], references: [planId])
+
+  @@index([bloquePlanId])
+  @@index([bloqueFecha])
+  @@map("plan_bloque")
 }
 
 // ============================================================

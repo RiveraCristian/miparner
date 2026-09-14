@@ -13,6 +13,9 @@ import gamificacionRoutes from "./modules/gamificacion/gamificacion.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 import documentosRoutes from "./modules/documentos/documentos.routes";
 import mensajesRoutes from "./modules/mensajes/mensajes.routes";
+import catalogosRoutes from "./modules/catalogos/catalogos.routes";
+import consentimientosRoutes from "./modules/consentimientos/consentimientos.routes";
+import planificacionRoutes from "./modules/planificacion/planificacion.routes";
 import { asegurarDirectorio } from "./lib/uploads";
 
 export function createApp() {
@@ -43,6 +46,9 @@ export function createApp() {
   app.use("/api/v1/admin", adminRoutes);
   app.use("/api/v1/documentos", documentosRoutes);
   app.use("/api/v1/mensajes", mensajesRoutes);
+  app.use("/api/v1/catalogos", catalogosRoutes);
+  app.use("/api/v1/consentimientos", consentimientosRoutes);
+  app.use("/api/v1/planificacion", planificacionRoutes);
 
   // 404 + manejador de errores (siempre al final)
   app.use(notFoundHandler);

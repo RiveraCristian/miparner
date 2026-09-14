@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/http-error";
 import { hashPassword } from "../../lib/password";
-import { documentosDelRol } from "../documentos/documentos.catalogo";
+import { evaluarGrupos } from "../documentos/documentos.catalogo";
 
 export async function listarUsuarios(rol?: string) {
   return prisma.usuario.findMany({
@@ -276,6 +276,7 @@ export async function metricas() {
     panicosActivos,
     totalViajes,
     validacionesPendientes,
+    videollamadasPendientes,
   ] = await Promise.all([
     prisma.viaje.groupBy({ by: ["viajeEstado"], _count: { _all: true }, where: { isDeleted: false } }),
     prisma.usuario.groupBy({ by: ["usuarioRol"], _count: { _all: true } }),
@@ -285,6 +286,9 @@ export async function metricas() {
     prisma.usuario.count({
       where: { usuarioEstadoValidacion: "pendiente", usuarioRol: { not: "admin" } },
     }),
+    prisma.usuario.count({
+      where: { usuarioEstadoValidacion: "pendiente", usuarioVerificacionVia: "videollamada" },
+    }),
   ]);
 
   return {
@@ -292,6 +296,7 @@ export async function metricas() {
     voluntariosEnLinea,
     panicosActivos,
     validacionesPendientes,
+    videollamadasPendientes,
     viajesPorEstado: Object.fromEntries(porEstado.map((e) => [e.viajeEstado, e._count._all])),
     usuariosPorRol: Object.fromEntries(porRol.map((r) => [r.usuarioRol, r._count._all])),
   };
@@ -333,7 +338,19 @@ export async function listarValidaciones(estado: string) {
       usuarioMotivoRechazo: true,
       usuarioFechaCreacion: true,
       usuarioValidadoAt: true,
-      deportistaPerfil: { select: { deportistaDisciplina: true, deportistaNecesidades: true } },
+      usuarioVerificacionVia: true,
+      usuarioVerificacionDisponibilidad: true,
+      usuarioVerificacionNota: true,
+      deportistaPerfil: {
+        select: {
+          deportistaDisciplina: true,
+          deportistaNecesidades: true,
+          deportistaComuna: true,
+          deportistaRegion: true,
+          deportistaFechaNacimiento: true,
+          deportistaNivelAutonomia: true,
+        },
+      },
       voluntarioPerfil: {
         select: { voluntarioVehiculo: true, voluntarioPatente: true, voluntarioValidado: true },
       },
@@ -346,15 +363,19 @@ export async function listarValidaciones(estado: string) {
   });
 
   return usuarios.map((u) => {
-    const requeridos = documentosDelRol(u.usuarioRol);
-    const subidos = new Set(u.documentos.map((d) => d.documentoTipo));
-    const faltantes = requeridos.filter((r) => r.obligatorio && !subidos.has(r.tipo));
+    const { grupos, faltantes, completo } = evaluarGrupos(
+      u.usuarioRol,
+      u.documentos.map((d) => d.documentoTipo),
+      u.usuarioVerificacionVia,
+    );
     return {
       ...u,
-      requeridos,
-      faltantes: faltantes.map((f) => f.tipo),
-      // Sin todos los documentos obligatorios no hay nada que revisar.
-      listaParaRevision: faltantes.length === 0,
+      grupos,
+      faltantes,
+      // Quien pidió videollamada aparece en la cola aunque no suba papeles:
+      // el equipo tiene que llamarle, no esperarle un documento que no tiene.
+      esperaVideollamada: u.usuarioVerificacionVia === "videollamada",
+      listaParaRevision: completo,
     };
   });
 }
@@ -372,10 +393,11 @@ export async function resolverValidacion(
   usuarioId: number,
   estado: "aprobado" | "rechazado",
   motivo?: string,
+  nota?: string,
 ) {
   const usuario = await prisma.usuario.findUnique({
     where: { usuarioId },
-    select: { usuarioId: true, usuarioRol: true },
+    select: { usuarioId: true, usuarioRol: true, usuarioVerificacionVia: true },
   });
   if (!usuario) throw AppError.notFound("Usuario no encontrado");
   if (usuario.usuarioRol === "admin") {
@@ -385,17 +407,18 @@ export async function resolverValidacion(
   const aprobado = estado === "aprobado";
 
   if (aprobado) {
-    const requeridos = documentosDelRol(usuario.usuarioRol).filter((r) => r.obligatorio);
     const subidos = await prisma.usuarioDocumento.findMany({
       where: { documentoUsuarioId: usuarioId, isDeleted: false },
       select: { documentoTipo: true },
     });
-    const tipos = new Set(subidos.map((d) => d.documentoTipo));
-    const faltan = requeridos.filter((r) => !tipos.has(r.tipo));
-    if (faltan.length) {
-      throw AppError.badRequest(
-        "Faltan documentos por subir: " + faltan.map((f) => f.titulo).join(", "),
-      );
+    const { grupos, completo } = evaluarGrupos(
+      usuario.usuarioRol,
+      subidos.map((d) => d.documentoTipo),
+      usuario.usuarioVerificacionVia,
+    );
+    if (!completo) {
+      const nombres = grupos.filter((g) => !g.cubierto).map((g) => g.titulo);
+      throw AppError.badRequest("Falta acreditar: " + nombres.join(", "));
     }
   }
 
@@ -407,8 +430,19 @@ export async function resolverValidacion(
         usuarioValidadoPor: adminId,
         usuarioValidadoAt: new Date(),
         usuarioMotivoRechazo: aprobado ? null : (motivo ?? null),
+        // Deja constancia de CÓMO se acreditó: si fue por videollamada, la nota
+        // del administrador es la única prueba de que ocurrió.
+        ...(aprobado
+          ? { usuarioVerificacionAt: new Date(), ...(nota ? { usuarioVerificacionNota: nota } : {}) }
+          : {}),
       },
-      select: { usuarioId: true, usuarioEstadoValidacion: true, usuarioMotivoRechazo: true },
+      select: {
+        usuarioId: true,
+        usuarioEstadoValidacion: true,
+        usuarioMotivoRechazo: true,
+        usuarioVerificacionVia: true,
+        usuarioVerificacionNota: true,
+      },
     });
 
     await tx.usuarioDocumento.updateMany({

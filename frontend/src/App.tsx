@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { Landing } from "./pages/Landing";
 import { Login } from "./pages/Login";
+import { Privacidad } from "./pages/Privacidad";
 import { NoEncontrado } from "./pages/NoEncontrado";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { Dashboard } from "./pages/admin/Dashboard";
@@ -31,6 +32,8 @@ export function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      {/* Pública: se lee antes de registrarse, sin sesión. */}
+      <Route path="/privacidad" element={<Privacidad />} />
       <Route
         path="/admin"
         element={

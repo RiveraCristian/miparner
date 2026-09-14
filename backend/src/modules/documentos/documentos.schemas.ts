@@ -11,3 +11,12 @@ export const idParamSchema = z.object({
 });
 
 export type SubirDocumentoDto = z.infer<typeof subirDocumentoSchema>;
+
+/** Solicitud de acreditación por videollamada. */
+export const pedirVideollamadaSchema = z.object({
+  disponibilidad: z
+    .string()
+    .trim()
+    .min(5, "Cuéntanos qué días y horas te vienen bien")
+    .max(500),
+});

@@ -323,7 +323,7 @@ export function Landing() {
               <h4>Equipo</h4>
               <Link to="/login">Acceso al panel</Link>
               <a href="#top">Términos</a>
-              <a href="#top">Privacidad</a>
+              <Link to="/privacidad">Privacidad y datos</Link>
             </div>
           </div>
         </div>
