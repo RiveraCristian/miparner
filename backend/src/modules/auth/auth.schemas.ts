@@ -93,3 +93,15 @@ export type ActualizarPerfilDto = z.infer<typeof actualizarPerfilSchema>;
 export type CambiarPasswordDto = z.infer<typeof cambiarPasswordSchema>;
 
 export type PerfilDeportistaDto = z.infer<typeof perfilDeportistaSchema>;
+
+/**
+ * Borrado de la propia cuenta. Pide la contraseña: es irreversible, y un token
+ * robado no debería bastar para destruir la cuenta de alguien.
+ */
+export const eliminarCuentaSchema = z.object({
+  password: z.string().min(1, "Confirma con tu contraseña"),
+  // Confirmación explícita: el botón solo no basta para algo irreversible.
+  confirmacion: z.literal("ELIMINAR", {
+    errorMap: () => ({ message: 'Escribe ELIMINAR para confirmar' }),
+  }),
+});

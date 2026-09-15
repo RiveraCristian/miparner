@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Car, LogOut, ShieldCheck } from "lucide-react-native";
+import { Car, LogOut, ShieldCheck, Trash2 } from "lucide-react-native";
 import { colors, font, fuente } from "../../../shared/theme";
 import { api } from "../../../shared/api";
 import { useAuth } from "../../../shared/auth";
@@ -92,6 +92,14 @@ export function PerfilScreen() {
         title="Mis datos y privacidad"
         icon={<ShieldCheck color={colors.indigo} size={18} />}
         onPress={() => nav.navigate("Privacidad")}
+      />
+      <View style={{ height: 12 }} />
+      {/* Apple exige poder borrar la cuenta desde dentro de la app
+          (directriz 5.1.1), y la Ley 21.719 reconoce ese derecho. */}
+      <GhostButton
+        title="Borrar mi cuenta"
+        icon={<Trash2 color={colors.indigo} size={18} />}
+        onPress={() => nav.navigate("BorrarCuenta")}
       />
       <View style={{ height: 12 }} />
       <GhostButton title="Cerrar sesión" icon={<LogOut color={colors.indigo} size={18} />} onPress={logout} />

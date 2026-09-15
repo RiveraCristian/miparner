@@ -3,9 +3,21 @@ import { AppError } from "../lib/http-error";
 import { verifyAccessToken } from "../lib/jwt";
 import { prisma } from "../lib/prisma";
 
-// Verifica el Bearer token e inyecta req.usuario. Este usuario_id alimenta
-// automáticamente created_by / modified_by en las escrituras.
-export function authenticate(req: Request, _res: Response, next: NextFunction) {
+/**
+ * Verifica el Bearer token e inyecta req.usuario. Este usuario_id alimenta
+ * automáticamente created_by / modified_by en las escrituras.
+ *
+ * Además comprueba en cada petición que la cuenta siga activa. El token de
+ * acceso es un JWT sin estado: verificar solo la firma significaba que una
+ * cuenta borrada o desactivada seguía operando hasta que el token caducaba,
+ * quince minutos después. Para un borrado de cuenta eso es inaceptable —la
+ * persona pidió irse y la app le seguía respondiendo— y para una desactivación
+ * de emergencia desde el panel, peor todavía.
+ *
+ * Cuesta una consulta por clave primaria en cada petición. Es barato y es el
+ * precio de que "desactivar" signifique ahora mismo y no dentro de un rato.
+ */
+export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization ?? "";
   const [scheme, token] = header.split(" ");
 
@@ -13,13 +25,27 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
     return next(AppError.unauthorized("Falta el token de acceso"));
   }
 
+  let payload: { sub: number; rol: string };
   try {
-    const payload = verifyAccessToken(token);
-    req.usuario = { usuarioId: payload.sub, rol: payload.rol };
-    return next();
+    payload = verifyAccessToken(token);
   } catch {
     return next(AppError.unauthorized("Token inválido o expirado"));
   }
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { usuarioId: payload.sub },
+    select: { usuarioActivo: true, usuarioRol: true },
+  });
+
+  if (!usuario || !usuario.usuarioActivo) {
+    return next(AppError.unauthorized("Esta cuenta ya no está activa"));
+  }
+
+  // El rol se toma de la base, no del token: si un administrador cambia el rol
+  // de alguien, el cambio surte efecto de inmediato y no cuando caduque su
+  // sesión.
+  req.usuario = { usuarioId: payload.sub, rol: usuario.usuarioRol };
+  return next();
 }
 
 // Restringe el acceso por rol (deportista | voluntario | admin).

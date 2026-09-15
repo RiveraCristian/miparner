@@ -9,8 +9,10 @@ import {
   refreshSchema,
   registerSchema,
   perfilDeportistaSchema,
+  eliminarCuentaSchema,
 } from "./auth.schemas";
 import * as authService from "./auth.service";
+import { eliminarMiCuenta } from "./eliminar-cuenta.service";
 
 const router = Router();
 
@@ -87,6 +89,27 @@ router.patch(
   async (req, res, next) => {
     try {
       res.json(await authService.actualizarPerfilDeportista(actorId(req), req.body));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * Borrar la propia cuenta.
+ *
+ * Apple exige que toda app con registro permita borrar la cuenta desde dentro
+ * (directriz 5.1.1), y la Ley 21.719 reconoce el derecho de supresión. Lleva
+ * limitador porque es irreversible.
+ */
+router.delete(
+  "/me",
+  authLimiter,
+  authenticate,
+  validate({ body: eliminarCuentaSchema }),
+  async (req, res, next) => {
+    try {
+      res.json(await eliminarMiCuenta(actorId(req), req.body.password));
     } catch (err) {
       next(err);
     }

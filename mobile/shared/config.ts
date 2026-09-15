@@ -34,3 +34,16 @@ export const SOCKET_URL = BASE;
 
 /** Útil para mostrar en pantallas de diagnóstico a qué servidor se está hablando. */
 export const EN_DESARROLLO = __DEV__;
+
+/* ---------------------------------------------------------------- Mapa */
+
+/**
+ * Estilo vectorial del mapa. OpenFreeMap sirve teselas de OpenStreetMap sin
+ * clave de API, sin cuota y sin cuenta de facturación. Cambiar de proveedor
+ * —MapTiler, Protomaps, un servidor propio— es cambiar esta línea.
+ */
+export const MAPA_ESTILO_URL = "https://tiles.openfreemap.org/styles/liberty";
+
+/** Centro por defecto mientras no hay coordenadas: Santiago. */
+export const MAPA_CENTRO_DEFECTO = { lat: -33.4372, lng: -70.6506 };
+export const MAPA_ZOOM_DEFECTO = 12.5;

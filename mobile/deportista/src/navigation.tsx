@@ -13,6 +13,7 @@ import { DocumentosScreen } from "./screens/DocumentosScreen";
 import { ChatScreen } from "./screens/ChatScreen";
 import { PlanificacionScreen } from "./screens/PlanificacionScreen";
 import { PrivacidadScreen } from "./screens/PrivacidadScreen";
+import { BorrarCuentaScreen } from "./screens/BorrarCuentaScreen";
 
 export type RootStackParams = {
   Tabs: undefined;
@@ -21,6 +22,7 @@ export type RootStackParams = {
   Chat: { viajeId: number };
   Documentos: undefined;
   Privacidad: undefined;
+  BorrarCuenta: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -80,6 +82,7 @@ export function RootNavigator() {
       <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: true, title: "Mensajes" }} />
       <Stack.Screen name="Documentos" component={DocumentosScreen} options={{ headerShown: true, title: "Acreditar mi cuenta" }} />
       <Stack.Screen name="Privacidad" component={PrivacidadScreen} options={{ headerShown: true, title: "Mis datos y privacidad" }} />
+      <Stack.Screen name="BorrarCuenta" component={BorrarCuentaScreen} options={{ headerShown: true, title: "Borrar mi cuenta" }} />
     </Stack.Navigator>
   );
 }
