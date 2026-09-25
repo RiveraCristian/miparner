@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Desde Android 12 la pantalla de carga la dibuja el sistema: windowBackground
-         se ignora y hay que usar estos atributos. -->
-    <style name="SplashTheme" parent="AppTheme">
-        <item name="android:windowSplashScreenBackground">@color/miparner_indigo</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-    </style>
-</resources>
