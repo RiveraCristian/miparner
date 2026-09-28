@@ -1,0 +1,163 @@
+# ==========================================================================
+# Miparner — compilación de iOS y subida a TestFlight.
+#
+# Se ejecuta a mano, no en cada push: cada compilación consume un número de
+# versión en App Store Connect y no tiene sentido gastarlos sin querer.
+#
+# Corre en un runner macOS, que para repositorios públicos es gratuito. Eso
+# permite compilar, firmar y publicar sin tener un Mac.
+#
+# ANTES DE QUE ESTO FUNCIONE hace falta, por orden:
+#   1. Apple Developer Program aprobado (99 USD/año). Tarda días.
+#   2. El identificador cl.miparner registrado en el portal de Apple.
+#   3. La ficha creada en App Store Connect.
+#   4. Los secretos de abajo cargados en el repositorio.
+#
+# Secretos necesarios (Settings > Secrets and variables > Actions):
+#
+#   APPLE_API_KEY_ID        Identificador de la llave de App Store Connect
+#   APPLE_API_ISSUER_ID     Identificador del emisor, en la misma pantalla
+#   APPLE_API_KEY_P8        Contenido del archivo .p8 descargado, entero
+#   APPLE_TEAM_ID           Identificador del equipo (Colabi) en el portal
+#   IOS_CERTIFICADO_P12     Certificado de distribución en base64
+#   IOS_CERTIFICADO_CLAVE   Contraseña con la que se exportó ese .p12
+#   IOS_PERFIL_BASE64       Perfil de aprovisionamiento (.mobileprovision) en base64
+#
+# La llave de App Store Connect (los tres primeros) se crea en
+# appstoreconnect.apple.com > Usuarios y acceso > Integraciones. El .p8 solo se
+# puede descargar UNA vez: guárdalo donde no se pierda.
+# ==========================================================================
+name: Compilar iOS y subir a TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      notas:
+        description: "Qué probar en esta versión (se muestra a los probadores)"
+        required: false
+        default: "Versión de prueba de Miparner."
+
+jobs:
+  testflight:
+    name: Compilar y subir
+    # Runner con Xcode. Para repositorios públicos no cuesta minutos.
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Instalar dependencias de JavaScript
+        working-directory: mobile
+        run: npm ci
+
+      # El número de compilación tiene que subir en cada envío: App Store Connect
+      # rechaza uno repetido. El contador de la ejecución sirve y nunca retrocede.
+      - name: Fijar el número de compilación
+        working-directory: mobile/app/ios
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" Miparner/Info.plist
+          echo "Compilación número ${{ github.run_number }}"
+
+      - name: Instalar los pods
+        working-directory: mobile/app/ios
+        run: |
+          # El proyecto vive en un workspace y las dependencias están izadas en
+          # mobile/node_modules; el Podfile las resuelve con node, no con rutas fijas.
+          pod install --repo-update
+
+      # La firma necesita un llavero temporal propio: el del runner se destruye
+      # con la máquina, así que no queda nada instalado en ningún sitio.
+      - name: Preparar certificado y perfil
+        env:
+          CERT_P12: ${{ secrets.IOS_CERTIFICADO_P12 }}
+          CERT_CLAVE: ${{ secrets.IOS_CERTIFICADO_CLAVE }}
+          PERFIL: ${{ secrets.IOS_PERFIL_BASE64 }}
+        run: |
+          set -euo pipefail
+          LLAVERO="$RUNNER_TEMP/miparner.keychain-db"
+          CLAVE_LLAVERO="$(uuidgen)"
+
+          security create-keychain -p "$CLAVE_LLAVERO" "$LLAVERO"
+          security set-keychain-settings -lut 21600 "$LLAVERO"
+          security unlock-keychain -p "$CLAVE_LLAVERO" "$LLAVERO"
+
+          echo -n "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_CLAVE" \
+            -A -t cert -f pkcs12 -k "$LLAVERO"
+          security set-key-partition-list -S apple-tool:,apple: -k "$CLAVE_LLAVERO" "$LLAVERO"
+          security list-keychain -d user -s "$LLAVERO"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "$PERFIL" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/miparner.mobileprovision
+
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Compilar el archivo
+        working-directory: mobile/app/ios
+        run: |
+          set -euo pipefail
+          xcodebuild -workspace Miparner.xcworkspace \
+            -scheme Miparner \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/Miparner.xcarchive" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            CODE_SIGN_STYLE=Manual \
+            archive
+
+      - name: Exportar el .ipa
+        working-directory: mobile/app/ios
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/export.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>uploadSymbols</key><true/>
+            <key>destination</key><string>export</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Miparner.xcarchive" \
+            -exportPath "$RUNNER_TEMP/salida" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist"
+
+      - name: Subir a TestFlight
+        env:
+          KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          # altool busca la llave en esta ruta exacta, con este nombre exacto.
+          mkdir -p ~/private_keys
+          echo -n "$KEY_P8" > ~/private_keys/AuthKey_${KEY_ID}.p8
+
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$RUNNER_TEMP/salida/Miparner.ipa" \
+            --apiKey "$KEY_ID" \
+            --apiIssuer "$ISSUER_ID"
+
+          rm -rf ~/private_keys
+
+      - name: Resumen
+        if: always()
+        run: |
+          echo "### Miparner en TestFlight" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Compilación número **${{ github.run_number }}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ inputs.notas }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Apple tarda unos minutos en procesarla. Aparecerá en App Store Connect > TestFlight." >> $GITHUB_STEP_SUMMARY

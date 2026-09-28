@@ -15,7 +15,13 @@
 
 ## 1. Quién trata tus datos
 
-**Responsable:** [RAZÓN SOCIAL], RUT [RUT], domicilio en [DIRECCIÓN].
+**Responsable del tratamiento:** Colabi, RUT [RUT DE COLABI], domicilio en
+[DIRECCIÓN DE COLABI].
+
+Miparner es un servicio operado por Colabi. En las tiendas de aplicaciones
+figura Colabi como desarrollador, porque es la entidad legal titular de la
+cuenta; la aplicación se llama Miparner.
+
 **Contacto para asuntos de datos personales:** [CORREO].
 
 Si en algún momento designas un encargado de prevención o delegado de

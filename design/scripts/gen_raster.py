@@ -78,18 +78,20 @@ canvas(1200, 630, INDIGO, 'logo-white.svg', 0.60, PUB + 'og-image.png')
 # ---------- mobile ----------
 # Ambas variantes estan aprobadas por el manual (color sobre lavanda / blanco sobre indigo);
 # usar una por app las hace distinguibles en el launcher sin salirse de la marca.
-apps = {
-    'deportista': ('app-icon.svg', LAVANDA, 'isotipo.svg'),
-    'voluntario': ('app-icon-indigo.svg', INDIGO, 'isotipo-white.svg'),
-}
-for app, (icon, bg, iso) in apps.items():
-    a = f'{MOB}{app}/assets/'
-    render(icon, 1024, a + 'icon.png')
-    render(icon, 512, a + 'icon-512.png')
-    render('favicon.svg', 48, a + 'favicon.png')
-    # Android adaptive: el arte vive en el 66 % central del lienzo
-    canvas(1024, 1024, bg, iso, 0.52, a + 'adaptive-icon.png')
-    # splash: isotipo centrado sobre fondo de marca
-    canvas(1284, 2778, bg, iso, 0.42, a + 'splash.png')
-    canvas(1024, 1024, bg, iso, 0.46, a + 'splash-icon.png')
+# Una sola app para los dos roles. Antes habia dos proyectos con una variante
+# de icono cada uno, para distinguirlos en el launcher; unificadas, la app usa
+# el icono en color sobre lavanda del manual.
+icon, bg, iso = 'app-icon.svg', LAVANDA, 'isotipo.svg'
+a = f'{MOB}app/assets/'
+render(icon, 1024, a + 'icon.png')
+render(icon, 512, a + 'icon-512.png')
+render('favicon.svg', 48, a + 'favicon.png')
+# Android adaptive: el arte vive en el 66 % central del lienzo
+canvas(1024, 1024, bg, iso, 0.52, a + 'adaptive-icon.png')
+# splash: isotipo centrado sobre fondo de marca
+canvas(1284, 2778, bg, iso, 0.42, a + 'splash.png')
+canvas(1024, 1024, bg, iso, 0.46, a + 'splash-icon.png')
+
+# iOS pide un unico PNG de 1024 en el catalogo de recursos.
+render(icon, 1024, f'{MOB}app/ios/Miparner/Images.xcassets/AppIcon.appiconset/icon-1024.png')
 print('listo')
