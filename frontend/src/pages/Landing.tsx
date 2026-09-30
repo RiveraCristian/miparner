@@ -514,7 +514,6 @@ export function Landing() {
           .mp-home .hero__content{max-width:620px;margin:0 auto}
           .mp-home .hero__subtitle{margin-left:auto;margin-right:auto}
           .mp-home .hero__actions,.mp-home .hero__badges,.mp-home .hero__meta{justify-content:center}
-          .mp-home .hero__media{order:-1}
         }
         @media (max-width:900px){
           .mp-home .services__grid{grid-template-columns:repeat(2,1fr)}
