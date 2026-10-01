@@ -20,18 +20,18 @@ const enlaces = [
 
 const capacidades = [
   {
-    title: "Acompañamiento de confianza",
-    text: "Un voluntario verificado que te apoya de forma constante, no un desconocido distinto cada vez.",
+    title: "Confianza en cada trayecto",
+    text: "Voluntarios verificados que te brindan apoyo seguro en tus actividades deportivas.",
     path: "M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Zm-1 11 4-4-1.4-1.4L11 11.2 9.4 9.6 8 11l3 3Z",
   },
   {
-    title: "Traslado cuando lo necesitas",
-    text: "Llega a tus entrenamientos y competencias junto a quien te acompaña, cerca de tu comuna.",
+    title: "Entrena cuando quieras",
+    text: "Ya sea para el entrenamiento diario o la gran competencia, coordinas tus actividades según tu calendario deportivo y con el apoyo de voluntarios.",
     path: "M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
   },
   {
     title: "Comunidad que suma",
-    text: "Conecta con deportistas y voluntarios que se apoyan entre sí: el deporte también se vive en equipo.",
+    text: "Conecta con deportistas y voluntarios que se apoyan entre sí: el deporte se vive en equipo.",
     path: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7 0a3 3 0 1 0 0-6M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1M17 14a5 5 0 0 1 4 5v1",
   },
   {
@@ -43,16 +43,16 @@ const capacidades = [
 
 const pasos = [
   {
-    title: "Cuéntanos tu meta",
-    text: "Dinos qué deporte practicas, cuándo entrenas y qué tipo de apoyo necesitas.",
+    title: "Regístrate",
+    text: "Cuéntanos tu discapacidad e intereses deportivos, y qué tipo de apoyo necesitas.",
   },
   {
     title: "Te presentamos a tu acompañante",
-    text: "Un voluntario verificado y cercano, disponible para apoyarte de verdad, no solo para llevarte.",
+    text: "Un voluntario que se une a tu rutina deportiva. Un par que respeta tu autonomía y comparte tu pasión.",
   },
   {
-    title: "Entrena y avanza",
-    text: "Cuenta con su compañía en cada salida, entrenamiento y competencia. Nunca solo.",
+    title: "Muévete y avanza",
+    text: "Concéntrate en la meta; del camino nos preocupamos juntos.",
   },
 ];
 
@@ -196,11 +196,11 @@ export function Landing() {
             <div className="hero__content">
               <span className="hero__badge">Apoyo para el deporte inclusivo</span>
               <h1 className="hero__title">
-                Que llegar al deporte no dependa de{" "}
-                <span className="text-coral">tener quién te lleve</span>.
+                Somos la primera comunidad deportiva que une personas para
+                construir <span className="text-coral">nuevas historias</span>.
               </h1>
               <p className="hero__subtitle">
-                Miparner conecta personas para que el deporte sea para todos.
+                Miparner es una comunidad para todos.
               </p>
               <div className="hero__actions">
                 <a href="#descargar" className="btn btn--primary">Quiero acompañar</a>
@@ -225,7 +225,7 @@ export function Landing() {
           <div className="container">
             <header className="section-head">
               <span className="section-head__eyebrow">Cómo apoyamos</span>
-              <h2 className="section-head__title">Mucho más que un traslado</h2>
+              <h2 className="section-head__title">Conectamos personas</h2>
             </header>
             <div className="services__grid">
               {capacidades.map((s) => (
@@ -406,7 +406,7 @@ export function Landing() {
           background:rgba(58,57,150,.1);color:var(--indigo);font-size:.9rem;font-weight:600;margin-bottom:26px;
         }
         .mp-home .hero__badge::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--indigo)}
-        .mp-home .hero__title{font-size:clamp(2.3rem,6vw,4rem);font-weight:800;letter-spacing:-.03em;color:var(--text)}
+        .mp-home .hero__title{font-size:clamp(1.9rem,4.6vw,3.1rem);font-weight:800;letter-spacing:-.03em;color:var(--text)}
         .mp-home .hero__subtitle{margin:22px 0 0;max-width:600px;color:var(--muted);font-size:1.2rem}
         .mp-home .hero__actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
         .mp-home .hero__badges{margin-top:20px}
