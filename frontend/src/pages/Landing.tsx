@@ -130,7 +130,7 @@ function PhoneMockup() {
 
         <div className="phone__chat">
           <span className="phone__chat-name">Carlos</span>
-          <p className="phone__chat-bubble">¡Nos vemos el sábado! Paso por ti a las 9:30 👋</p>
+          <p className="phone__chat-bubble">¡Nos vemos el sábado! 👋</p>
         </div>
 
         <button className="phone__cta" type="button" tabIndex={-1}>
@@ -157,9 +157,17 @@ export function Landing() {
       {/* --------------------------------------------------------- Navbar */}
       <header className={`navbar ${scrolled ? "is-scrolled" : ""}`}>
         <div className="container navbar__inner">
-          <a href="#top" aria-label="Miparner, ir al inicio" className="navbar__brand">
-            <Logo alto={44} />
-          </a>
+          <div className="navbar__brands">
+            <a href="#top" aria-label="Miparner, ir al inicio" className="navbar__brand">
+              <Logo alto={44} />
+            </a>
+            <span className="navbar__sep" aria-hidden="true" />
+            <img
+              src="/brand/fundacion-fortaleza.png"
+              alt="Fundación Fortaleza"
+              className="navbar__ally"
+            />
+          </div>
 
           <nav className={`navbar__links ${open ? "is-open" : ""}`}>
             {enlaces.map((l) => (
@@ -384,7 +392,10 @@ export function Landing() {
           border-bottom-color:var(--border);box-shadow:0 4px 24px rgba(26,23,32,.05);padding:12px 0;
         }
         .mp-home .navbar__inner{display:flex;align-items:center;justify-content:space-between}
+        .mp-home .navbar__brands{display:flex;align-items:center;gap:14px}
         .mp-home .navbar__brand{display:inline-flex;align-items:center}
+        .mp-home .navbar__sep{width:1px;height:32px;background:var(--border);flex-shrink:0}
+        .mp-home .navbar__ally{height:52px;width:auto;display:block;object-fit:contain}
         .mp-home .navbar__links{display:flex;align-items:center;gap:28px}
         .mp-home .navbar__links a:not(.btn){color:var(--text);font-size:1rem;font-weight:500;transition:color .2s ease}
         .mp-home .navbar__links a:not(.btn):hover{color:var(--indigo);text-decoration:underline;text-underline-offset:4px}
