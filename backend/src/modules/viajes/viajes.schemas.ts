@@ -14,10 +14,31 @@ export const solicitarSchema = z.object({
   // Lo que la persona necesita, con sus palabras. Lo lee el voluntario antes
   // de aceptar, así que va en el mismo formulario de la solicitud.
   comentario: z.string().trim().max(1000).optional(),
+  /*
+   * Cuándo lo quiere. Ausente significa "lo antes posible", que es como
+   * funcionaba todo antes: así las apps viejas siguen sirviendo.
+   *
+   * No se aceptan fechas pasadas ni más allá de 90 días: lo primero es un
+   * error de quien lo pide, y lo segundo llena la lista del voluntario de
+   * cosas que no puede atender.
+   */
+  programadoAt: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .refine(
+      (v) => !v || new Date(v).getTime() > Date.now() - 5 * 60 * 1000,
+      "La fecha ya pasó",
+    )
+    .refine(
+      (v) => !v || new Date(v).getTime() < Date.now() + 90 * 24 * 60 * 60 * 1000,
+      "No se puede programar con más de 90 días",
+    ),
+  duracionEstMin: z.number().int().min(15).max(600).optional(),
 });
 
 export const cambiarEstadoSchema = z.object({
-  estado: z.enum(["en_camino", "a_bordo", "finalizado", "cancelado"]),
+  estado: z.enum(["en_camino", "en_accion", "finalizado", "cancelado"]),
 });
 
 export const posicionSchema = punto;

@@ -62,6 +62,7 @@ model Usuario {
   validador            Usuario?                @relation("UsuarioValidador", fields: [usuarioValidadoPor], references: [usuarioId])
   validados            Usuario[]               @relation("UsuarioValidador")
   consentimientos      UsuarioConsentimiento[]
+  esperaContactados    ListaEspera[]           @relation("EsperaContactadoPor")
   planes               PlanEntrenamiento[]
 
   @@index([usuarioEstadoValidacion])
@@ -138,22 +139,26 @@ model VoluntarioPerfil {
 // Viajes (entidad crítica) — soft delete
 // ============================================================
 model Viaje {
-  viajeId           Int                                   @id @default(autoincrement()) @map("viaje_id")
-  viajeDeportistaId Int                                   @map("viaje_deportista_id")
-  viajeVoluntarioId Int?                                  @map("viaje_voluntario_id")
-  viajeEstado       String                                @default("solicitado") @map("viaje_estado") @db.VarChar(30)
-  // solicitado | asignado | en_camino | a_bordo | finalizado | cancelado
-  viajeOrigen       Unsupported("geography(Point, 4326)") @map("viaje_origen")
-  viajeDestino      Unsupported("geography(Point, 4326)") @map("viaje_destino")
-  viajeOrigenTexto  String?                               @map("viaje_origen_texto") @db.VarChar(255)
-  viajeDestinoTexto String?                               @map("viaje_destino_texto") @db.VarChar(255)
-  viajeNecesidades  Json                                  @default("[]") @map("viaje_necesidades")
+  viajeId             Int                                   @id @default(autoincrement()) @map("viaje_id")
+  viajeDeportistaId   Int                                   @map("viaje_deportista_id")
+  viajeVoluntarioId   Int?                                  @map("viaje_voluntario_id")
+  viajeEstado         String                                @default("solicitado") @map("viaje_estado") @db.VarChar(30)
+  // solicitado | asignado | en_camino | en_accion | finalizado | cancelado
+  viajeOrigen         Unsupported("geography(Point, 4326)") @map("viaje_origen")
+  viajeDestino        Unsupported("geography(Point, 4326)") @map("viaje_destino")
+  viajeOrigenTexto    String?                               @map("viaje_origen_texto") @db.VarChar(255)
+  viajeDestinoTexto   String?                               @map("viaje_destino_texto") @db.VarChar(255)
+  viajeNecesidades    Json                                  @default("[]") @map("viaje_necesidades")
   // Lo que el deportista escribe con sus palabras al pedir el acompañamiento.
-  viajeComentario   String?                               @map("viaje_comentario") @db.VarChar(1000)
-  viajeRutaSnapshot Json?                                 @map("viaje_ruta_snapshot")
-  viajeSolicitadoAt DateTime                              @default(now()) @map("viaje_solicitado_at")
-  viajeInicioAt     DateTime?                             @map("viaje_inicio_at")
-  viajeFinAt        DateTime?                             @map("viaje_fin_at")
+  viajeComentario     String?                               @map("viaje_comentario") @db.VarChar(1000)
+  // Cuándo lo quiere la persona. NULL = lo antes posible, que es como
+  // funcionaba todo antes de que existiera la programación.
+  viajeProgramadoAt   DateTime?                             @map("viaje_programado_at")
+  viajeDuracionEstMin Int?                                  @map("viaje_duracion_est_min")
+  viajeRutaSnapshot   Json?                                 @map("viaje_ruta_snapshot")
+  viajeSolicitadoAt   DateTime                              @default(now()) @map("viaje_solicitado_at")
+  viajeInicioAt       DateTime?                             @map("viaje_inicio_at")
+  viajeFinAt          DateTime?                             @map("viaje_fin_at")
 
   createdBy  Int       @map("created_by")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -170,6 +175,7 @@ model Viaje {
   mensajes   Mensaje[]
 
   @@index([viajeEstado])
+  @@index([viajeProgramadoAt])
   @@map("viajes")
 }
 
@@ -473,6 +479,42 @@ model PlanBloque {
   @@index([bloquePlanId])
   @@index([bloqueFecha])
   @@map("plan_bloque")
+}
+
+// ============================================================
+// Lista de espera — interesados que dejan su contacto en la web
+//
+// No son cuentas: es gente a la que el equipo escribirá cuando el servicio
+// llegue a su comuna o se abran cupos. Por eso vive aparte de `usuarios`, sin
+// contraseña ni rol, y no lleva `created_by`: quien se apunta todavía no
+// tiene usuario al que apuntar.
+// ============================================================
+model ListaEspera {
+  esperaId       Int     @id @default(autoincrement()) @map("espera_id")
+  esperaNombre   String  @map("espera_nombre") @db.VarChar(255)
+  esperaCorreo   String  @map("espera_correo") @db.VarChar(255)
+  esperaTelefono String? @map("espera_telefono") @db.VarChar(30)
+  esperaComuna   String? @map("espera_comuna") @db.VarChar(120)
+  esperaInteres  String  @map("espera_interes") @db.VarChar(30)
+  esperaMensaje  String? @map("espera_mensaje") @db.VarChar(1000)
+  esperaEstado   String  @default("nuevo") @map("espera_estado") @db.VarChar(20)
+  esperaNota     String? @map("espera_nota") @db.VarChar(500)
+
+  esperaContactadoPor Int?      @map("espera_contactado_por")
+  esperaContactadoAt  DateTime? @map("espera_contactado_at")
+
+  esperaAceptaContacto Boolean @default(true) @map("espera_acepta_contacto")
+  esperaIp             String? @map("espera_ip") @db.VarChar(45)
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  modifiedBy Int?     @map("modified_by")
+  modifiedAt DateTime @default(now()) @map("modified_at")
+
+  contactadoPor Usuario? @relation("EsperaContactadoPor", fields: [esperaContactadoPor], references: [usuarioId])
+
+  @@index([esperaEstado])
+  @@index([esperaComuna])
+  @@map("lista_espera")
 }
 
 // ============================================================
