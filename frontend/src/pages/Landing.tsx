@@ -318,6 +318,14 @@ export function Landing() {
               deportistas y voluntarios para que nadie entrene solo.
             </p>
           </div>
+          <div className="footer__support">
+            <span className="footer__support-label">Con el apoyo de</span>
+            <img
+              src="/brand/gobierno-santiago-white.png"
+              alt="Gobierno de Santiago"
+              className="footer__gob"
+            />
+          </div>
           <div className="footer__cols">
             <div className="footer__col">
               <h4>La app</h4>
@@ -344,6 +352,9 @@ export function Landing() {
           <span>Hecho en Chile 🇨🇱</span>
         </div>
       </footer>
+
+      {/* Lector "pincha y escucha" para baja visión / dificultad de lectura */}
+      <LectorPantalla />
 
       <style>{`
         /* ====================================================================
@@ -515,6 +526,9 @@ export function Landing() {
         .mp-home .footer{padding:64px 0 32px;background:var(--indigo);color:rgba(255,255,255,.7)}
         .mp-home .footer__inner{display:flex;justify-content:space-between;gap:48px;flex-wrap:wrap}
         .mp-home .footer__tagline{color:rgba(255,255,255,.7);max-width:260px;margin-top:14px;font-size:1rem}
+        .mp-home .footer__support{display:flex;flex-direction:column;gap:10px;align-self:flex-start}
+        .mp-home .footer__support-label{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+        .mp-home .footer__gob{height:40px;width:auto;opacity:.9}
         .mp-home .footer__cols{display:flex;gap:64px;flex-wrap:wrap}
         .mp-home .footer__col{display:flex;flex-direction:column;gap:10px}
         .mp-home .footer__col h4{font-size:.9rem;letter-spacing:.04em;color:var(--white);margin-bottom:4px}

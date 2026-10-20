@@ -368,9 +368,15 @@ export async function listarValidaciones(estado: string) {
       u.documentos.map((d) => d.documentoTipo),
       u.usuarioVerificacionVia,
     );
+    // El panel muestra cada grupo con el documento que lo cubre (para verlo y
+    // revisarlo); sin esto, un grupo acreditado se vería como "sin acreditar".
+    const porTipo = new Map(u.documentos.map((d) => [d.documentoTipo, d]));
     return {
       ...u,
-      grupos,
+      grupos: grupos.map((g) => ({
+        ...g,
+        documento: g.tipoCubierto ? (porTipo.get(g.tipoCubierto) ?? null) : null,
+      })),
       faltantes,
       // Quien pidió videollamada aparece en la cola aunque no suba papeles:
       // el equipo tiene que llamarle, no esperarle un documento que no tiene.
