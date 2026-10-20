@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Logo, Isotipo } from "../brand/Logo";
+import LectorPantalla from "../components/LectorPantalla";
 import { ListaEspera } from "../components/ListaEspera";
 
 const enlaces = [
