@@ -30,7 +30,7 @@ interface ViajeItem {
   viajeDestinoTexto: string | null;
 }
 
-const ACTIVOS = ["solicitado", "asignado", "en_camino", "a_bordo"];
+const ACTIVOS = ["solicitado", "asignado", "en_camino", "en_accion"];
 
 export function InicioScreen() {
   const { user, aprobado } = useAuth();

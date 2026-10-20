@@ -38,6 +38,9 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
       destino_lng: number;
       viaje_destino_texto: string | null;
       viaje_comentario: string | null;
+      viaje_programado_at: Date | null;
+      viaje_duracion_est_min: number | null;
+      viaje_solicitado_at: Date;
       distancia_m: number;
     }[]
   >`
@@ -51,6 +54,9 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
            ST_X(v.viaje_destino::geometry)     AS "destino_lng",
            v.viaje_destino_texto               AS "viaje_destino_texto",
            v.viaje_comentario                  AS "viaje_comentario",
+           v.viaje_programado_at               AS "viaje_programado_at",
+           v.viaje_duracion_est_min            AS "viaje_duracion_est_min",
+           v.viaje_solicitado_at               AS "viaje_solicitado_at",
            ST_Distance(v.viaje_origen, vp.voluntario_ubicacion)::int AS "distancia_m"
       FROM viajes v
       JOIN voluntario_perfil vp ON vp.voluntario_usuario_id = ${usuarioId}
@@ -60,7 +66,8 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
        AND v.viaje_voluntario_id IS NULL
        AND vp.voluntario_ubicacion IS NOT NULL
        AND ST_DWithin(v.viaje_origen, vp.voluntario_ubicacion, ${radio})
-     ORDER BY "distancia_m" ASC
+     ORDER BY COALESCE(v.viaje_programado_at, v.viaje_solicitado_at) ASC,
+              "distancia_m" ASC
      LIMIT 20`;
 }
 

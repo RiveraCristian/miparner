@@ -1,28 +1,22 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { useRoute, useNavigation, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Socket } from "socket.io-client";
-import {
-  CheckCircle2,
-  Circle,
-  CircleDot,
-  LocateFixed,
-  MessageSquare,
-  Navigation,
-} from "lucide-react-native";
+import { CheckCircle2, Circle, CircleDot, LocateFixed, MessageSquare, Navigation, XCircle } from "lucide-react-native";
 import { colors, font, fuente } from "../../../../shared/theme";
 import { api } from "../../../../shared/api";
+import { anunciarEstado, anunciarMensaje } from "../../../../shared/anuncios";
 import { connectSocket, joinRide, leaveRide } from "../../../../shared/socket";
 import { Mapa } from "../../../../shared/Mapa";
 import { distanciaM, useCompartirPosicion, usePosicionDe } from "../../../../shared/ubicacion";
-import { Card, Etiqueta, GhostButton, PrimaryButton, Screen } from "../../../../shared/ui";
+import { Card, DangerButton, Etiqueta, GhostButton, PrimaryButton, Screen } from "../../../../shared/ui";
 import type { LatLng, Mensaje, Viaje } from "../../../../shared/types";
 import type { RootStackParams } from "../../navigation";
 
 const PASOS = [
   { key: "en_camino", label: "Voy en camino" },
-  { key: "a_bordo", label: "Deportista a bordo" },
+  { key: "en_accion", label: "Comenzar el acompañamiento" },
   { key: "finalizado", label: "Confirmar llegada" },
 ];
 
@@ -30,11 +24,11 @@ const PASOS = [
 const HITOS = [
   { k: "asignado", l: "Solicitud aceptada" },
   { k: "en_camino", l: "En camino" },
-  { k: "a_bordo", l: "A bordo" },
+  { k: "en_accion", l: "En acción" },
   { k: "finalizado", l: "Finalizado" },
 ];
 
-const EN_CURSO = ["asignado", "en_camino", "a_bordo"];
+const EN_CURSO = ["asignado", "en_camino", "en_accion"];
 
 const metros = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
 
@@ -62,10 +56,17 @@ export function ViajeActivoScreen() {
   useEffect(() => {
     let socket: Socket | undefined;
     const onMensaje = (m: Mensaje) => {
-      if (m.mensajeViajeId === viajeId) setSinLeer((n) => n + 1);
+      if (m.mensajeViajeId !== viajeId) return;
+      setSinLeer((n) => n + 1);
+      // Un distintivo rojo no existe para quien no ve la pantalla.
+      anunciarMensaje("la persona que acompañas");
     };
     const onStatus = (d: { rideId: number; estado: string }) => {
-      if (d.rideId === viajeId) setEstado(d.estado);
+      if (d.rideId !== viajeId) return;
+      setEstado(d.estado);
+      // Lo más importante que puede llegar por aquí es una cancelación del
+      // deportista: quien no mira la pantalla tiene que enterarse igual.
+      anunciarEstado(d.estado, "voluntario");
     };
 
     api<Viaje>(`/viajes/${viajeId}`)
@@ -92,6 +93,39 @@ export function ViajeActivoScreen() {
   const idxActual = PASOS.findIndex((p) => p.key === estado);
   const siguiente = PASOS[idxActual + 1] ?? (estado === "asignado" ? PASOS[0] : null);
 
+  /**
+   * Cancelar, también del lado del voluntario. Se pide confirmación porque
+   * deja a alguien esperando, y se sugiere avisar por el chat si ya iba en
+   * camino: enterarse por una notificación seca es feo.
+   */
+  async function cancelar() {
+    Alert.alert(
+      "¿Cancelar el acompañamiento?",
+      "Avisaremos a la persona para que pueda buscar otro voluntario. Si ya estás en camino, cuéntaselo también por el chat.",
+      [
+        { text: "Seguir con el acompañamiento", style: "cancel" },
+        {
+          text: "Cancelar",
+          style: "destructive",
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await api(`/viajes/${viajeId}/estado`, { method: "PATCH", body: { estado: "cancelado" } });
+              nav.navigate("Tabs");
+            } catch (e) {
+              Alert.alert(
+                "No se pudo cancelar",
+                e instanceof Error ? e.message : "Revisa tu conexión y vuelve a intentar.",
+              );
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   async function avanzar() {
     if (!siguiente) return;
     setBusy(true);
@@ -117,7 +151,7 @@ export function ViajeActivoScreen() {
    * bordo, cuánto falta para el destino.
    */
   const objetivo: LatLng | null =
-    estado === "a_bordo" ? viaje?.destino ?? null : deportista ?? viaje?.origen ?? null;
+    estado === "en_accion" ? viaje?.destino ?? null : deportista ?? viaje?.origen ?? null;
   const restante = yo && objetivo ? distanciaM(yo, objetivo) : null;
 
   return (
@@ -132,7 +166,7 @@ export function ViajeActivoScreen() {
           viaje
             ? `Recoges en ${viaje.origen.texto ?? "el punto de partida"} y dejas en ${viaje.destino.texto ?? "el destino"}.` +
               (restante !== null
-                ? ` Te quedan ${metros(restante)} hasta ${estado === "a_bordo" ? "el destino" : "el punto de encuentro"}.`
+                ? ` Te quedan ${metros(restante)} hasta ${estado === "en_accion" ? "el destino" : "el punto de encuentro"}.`
                 : "")
             : undefined
         }
@@ -142,7 +176,7 @@ export function ViajeActivoScreen() {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 }}>
           <LocateFixed size={18} color={colors.exito} />
           <Text style={[font.body, { fontFamily: fuente.fuerte }]}>
-            {metros(restante)} hasta {estado === "a_bordo" ? "el destino" : "el punto de encuentro"}
+            {metros(restante)} hasta {estado === "en_accion" ? "el destino" : "el punto de encuentro"}
           </Text>
         </View>
       ) : null}
@@ -210,6 +244,22 @@ export function ViajeActivoScreen() {
 
       <View style={{ height: 20 }} />
       {siguiente && <PrimaryButton title={busy ? "Actualizando…" : siguiente.label} disabled={busy} onPress={avanzar} />}
+
+      {/* Cancelar está disponible mientras el acompañamiento siga vivo. Al
+          voluntario le puede surgir algo igual que al deportista, y obligarle
+          a seguir sería peor que avisar para que el otro busque a alguien.
+          El coral es el borde y el icono; el texto va en tinta. */}
+      {estado !== "finalizado" && estado !== "cancelado" && (
+        <>
+          <View style={{ height: 12 }} />
+          <DangerButton
+            title="Cancelar el acompañamiento"
+            icon={<XCircle color={colors.coral} size={19} />}
+            disabled={busy}
+            onPress={cancelar}
+          />
+        </>
+      )}
     </Screen>
   );
 }

@@ -78,10 +78,20 @@ export function BarraSobreIndigo() {
 /* ---------------------------------------------------------------- Tipografía */
 
 export function Titulo({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[font.h1, style]}>{children}</Text>;
+  // role="header" permite al lector de pantalla saltar de título en título
+  // en vez de recorrer la pantalla elemento a elemento.
+  return (
+    <Text accessibilityRole="header" style={[font.h1, style]}>
+      {children}
+    </Text>
+  );
 }
 export function Subtitulo({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[font.h2, style]}>{children}</Text>;
+  return (
+    <Text accessibilityRole="header" style={[font.h2, style]}>
+      {children}
+    </Text>
+  );
 }
 export function Cuerpo({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
   return <Text style={[font.body, style]}>{children}</Text>;

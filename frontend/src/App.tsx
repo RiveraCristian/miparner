@@ -8,6 +8,7 @@ import { AdminLayout } from "./pages/admin/AdminLayout";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { Usuarios } from "./pages/admin/Usuarios";
 import { Validaciones } from "./pages/admin/Validaciones";
+import { ListaEsperaAdmin } from "./pages/admin/ListaEspera";
 import { Viajes } from "./pages/admin/Viajes";
 import { Panicos } from "./pages/admin/Panicos";
 import { MiCuenta } from "./pages/admin/MiCuenta";
@@ -46,6 +47,7 @@ export function App() {
         <Route path="cuenta" element={<MiCuenta />} />
         <Route path="usuarios" element={<Usuarios />} />
         <Route path="validaciones" element={<Validaciones />} />
+        <Route path="lista-espera" element={<ListaEsperaAdmin />} />
         <Route path="viajes" element={<Viajes />} />
         <Route path="panicos" element={<Panicos />} />
       </Route>

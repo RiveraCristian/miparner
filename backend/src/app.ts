@@ -13,6 +13,8 @@ import gamificacionRoutes from "./modules/gamificacion/gamificacion.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 import documentosRoutes from "./modules/documentos/documentos.routes";
 import mensajesRoutes from "./modules/mensajes/mensajes.routes";
+import geoRoutes from "./modules/geo/geo.routes";
+import listaEsperaRoutes, { listaEsperaPublicaRouter } from "./modules/lista-espera/lista-espera.routes";
 import catalogosRoutes from "./modules/catalogos/catalogos.routes";
 import consentimientosRoutes from "./modules/consentimientos/consentimientos.routes";
 import planificacionRoutes from "./modules/planificacion/planificacion.routes";
@@ -46,6 +48,10 @@ export function createApp() {
   app.use("/api/v1/admin", adminRoutes);
   app.use("/api/v1/documentos", documentosRoutes);
   app.use("/api/v1/mensajes", mensajesRoutes);
+  app.use("/api/v1/geo", geoRoutes);
+  // Formulario abierto de la web: sin sesión, con su propio limitador.
+  app.use("/api/v1/lista-espera", listaEsperaPublicaRouter);
+  app.use("/api/v1/admin/lista-espera", listaEsperaRoutes);
   app.use("/api/v1/catalogos", catalogosRoutes);
   app.use("/api/v1/consentimientos", consentimientosRoutes);
   app.use("/api/v1/planificacion", planificacionRoutes);

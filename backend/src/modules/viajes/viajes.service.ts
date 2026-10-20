@@ -22,17 +22,31 @@ interface ViajeRow {
   viaje_destino_texto: string | null;
   viaje_necesidades: unknown;
   viaje_comentario: string | null;
+  viaje_programado_at: Date | null;
+  viaje_duracion_est_min: number | null;
   viaje_solicitado_at: Date;
   viaje_inicio_at: Date | null;
   viaje_fin_at: Date | null;
 }
 
 // Transiciones de estado permitidas.
+/*
+ * Transiciones permitidas.
+ *
+ * 'a_bordo' se llamaba así por pensar el servicio como un viaje en vehículo,
+ * pero un acompañamiento puede ser a pie, en metro o en silla de ruedas y
+ * entonces no hay ningún "bordo". 'en_accion' describe lo que de verdad pasa:
+ * las dos personas ya están juntas y en marcha.
+ *
+ * Cancelar está disponible en todos los estados menos el final, y para las dos
+ * partes: al voluntario le puede surgir algo igual que al deportista, y
+ * obligarle a seguir sería peor que dejar al otro buscar a alguien más.
+ */
 const TRANSICIONES: Record<string, string[]> = {
   solicitado: ["cancelado"],
   asignado: ["en_camino", "cancelado"],
-  en_camino: ["a_bordo", "cancelado"],
-  a_bordo: ["finalizado", "cancelado"],
+  en_camino: ["en_accion", "cancelado"],
+  en_accion: ["finalizado", "cancelado"],
 };
 
 async function obtenerFila(viajeId: number): Promise<ViajeRow> {
@@ -44,6 +58,7 @@ async function obtenerFila(viajeId: number): Promise<ViajeRow> {
            ST_X(v.viaje_destino::geometry) AS destino_lng,
            v.viaje_origen_texto, v.viaje_destino_texto, v.viaje_necesidades,
            v.viaje_comentario,
+           v.viaje_programado_at, v.viaje_duracion_est_min,
            v.viaje_solicitado_at, v.viaje_inicio_at, v.viaje_fin_at
       FROM viajes v
      WHERE v.viaje_id = ${viajeId} AND v.is_deleted = false`;
@@ -62,6 +77,8 @@ function mapViaje(v: ViajeRow) {
     destino: { lat: v.destino_lat, lng: v.destino_lng, texto: v.viaje_destino_texto },
     necesidades: v.viaje_necesidades ?? [],
     comentario: v.viaje_comentario,
+    programadoAt: v.viaje_programado_at,
+    duracionEstMin: v.viaje_duracion_est_min,
     solicitadoAt: v.viaje_solicitado_at,
     inicioAt: v.viaje_inicio_at,
     finAt: v.viaje_fin_at,
@@ -93,14 +110,16 @@ export async function solicitar(deportistaId: number, dto: SolicitarDto) {
     INSERT INTO viajes (
       viaje_deportista_id, viaje_estado, viaje_origen, viaje_destino,
       viaje_origen_texto, viaje_destino_texto, viaje_necesidades,
-      viaje_comentario, created_by
+      viaje_comentario, viaje_programado_at, viaje_duracion_est_min, created_by
     ) VALUES (
       ${deportistaId}, 'solicitado',
       ST_SetSRID(ST_MakePoint(${dto.origen.lng}, ${dto.origen.lat}), 4326),
       ST_SetSRID(ST_MakePoint(${dto.destino.lng}, ${dto.destino.lat}), 4326),
       ${dto.origenTexto ?? null}, ${dto.destinoTexto ?? null},
       ${JSON.stringify(dto.necesidades ?? [])}::jsonb,
-      ${dto.comentario?.length ? dto.comentario : null}, ${deportistaId}
+      ${dto.comentario?.length ? dto.comentario : null},
+      ${dto.programadoAt ? new Date(dto.programadoAt) : null},
+      ${dto.duracionEstMin ?? null}, ${deportistaId}
     ) RETURNING viaje_id`;
   const viajeId = filas[0].viaje_id;
   await crearEvento(viajeId, "solicitado", deportistaId);
@@ -134,6 +153,7 @@ export async function listarMios(actor: Actor) {
       viajeOrigenTexto: true,
       viajeDestinoTexto: true,
       viajeComentario: true,
+      viajeProgramadoAt: true,
       viajeSolicitadoAt: true,
       viajeFinAt: true,
     },
