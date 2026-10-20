@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Logo, Isotipo } from "../brand/Logo";
+import { ListaEspera } from "../components/ListaEspera";
 
 const enlaces = [
   { href: "#servicios", label: "La app" },
@@ -301,6 +302,8 @@ export function Landing() {
             <p className="cta__note">Gratis para deportistas · Disponible en iOS y Android</p>
           </div>
         </section>
+
+        <ListaEspera />
       </main>
 
       {/* ---------------------------------------------------------- Footer */}
@@ -326,6 +329,7 @@ export function Landing() {
               <h4>Participa</h4>
               <a href="#descargar">Soy deportista</a>
               <a href="#descargar">Quiero ser voluntario</a>
+              <a href="#lista-espera">Lista de espera</a>
             </div>
             <div className="footer__col">
               <h4>Equipo</h4>
