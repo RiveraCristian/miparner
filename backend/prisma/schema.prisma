@@ -90,6 +90,8 @@ model DeportistaPerfil {
   // DATO SENSIBLE. Nunca se expone al voluntario.
   deportistaTiposDiscapacidad Json      @default("[]") @map("deportista_tipos_discapacidad")
   deportistaNivelAutonomia    String?   @map("deportista_nivel_autonomia") @db.VarChar(30)
+  // Nivel atlético autodeclarado: principiante | intermedio | avanzado.
+  deportistaNivelAtletico     String?   @map("deportista_nivel_atletico") @db.VarChar(20)
   deportistaComunicacion      String?   @map("deportista_comunicacion") @db.VarChar(30)
   deportistaObservaciones     String?   @map("deportista_observaciones") @db.VarChar(1000)
 
@@ -151,6 +153,12 @@ model Viaje {
   viajeNecesidades    Json                                  @default("[]") @map("viaje_necesidades")
   // Lo que el deportista escribe con sus palabras al pedir el acompañamiento.
   viajeComentario     String?                               @map("viaje_comentario") @db.VarChar(1000)
+  // Nota de voz opcional de la solicitud: el deportista puede contar lo que
+  // necesita grabándolo en vez de (o además de) escribirlo. El binario vive en
+  // disco como los documentos; aquí el nombre, la duración en segundos y el mime.
+  viajeComentarioAudio         String?                        @map("viaje_comentario_audio") @db.VarChar(255)
+  viajeComentarioAudioDuracion Int?                           @map("viaje_comentario_audio_duracion")
+  viajeComentarioAudioMime     String?                        @map("viaje_comentario_audio_mime") @db.VarChar(60)
   // Cuándo lo quiere la persona. NULL = lo antes posible, que es como
   // funcionaba todo antes de que existiera la programación.
   viajeProgramadoAt   DateTime?                             @map("viaje_programado_at")
@@ -387,8 +395,14 @@ model Mensaje {
   mensajeViajeId    Int       @map("mensaje_viaje_id")
   mensajeEmisorId   Int       @map("mensaje_emisor_id")
   mensajeReceptorId Int       @map("mensaje_receptor_id")
-  mensajeTexto      String    @map("mensaje_texto") @db.VarChar(1000)
-  mensajeLeidoAt    DateTime? @map("mensaje_leido_at")
+  // Un mensaje es de texto O de voz. El texto deja de ser obligatorio; cuando
+  // es de voz, el binario vive en disco (como los documentos) y aquí queda su
+  // nombre, la duración en segundos y el mime real para servirlo.
+  mensajeTexto         String?   @map("mensaje_texto") @db.VarChar(1000)
+  mensajeAudioArchivo  String?   @map("mensaje_audio_archivo") @db.VarChar(255)
+  mensajeAudioDuracion Int?      @map("mensaje_audio_duracion")
+  mensajeAudioMime     String?   @map("mensaje_audio_mime") @db.VarChar(60)
+  mensajeLeidoAt       DateTime? @map("mensaje_leido_at")
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")

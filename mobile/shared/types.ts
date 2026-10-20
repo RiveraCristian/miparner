@@ -159,7 +159,11 @@ export interface Mensaje {
   mensajeViajeId: number;
   mensajeEmisorId: number;
   mensajeReceptorId: number;
-  mensajeTexto: string;
+  // Un mensaje es de texto O de voz: cuando trae audio, el texto viene nulo.
+  mensajeTexto: string | null;
+  mensajeAudioArchivo: string | null;
+  mensajeAudioDuracion: number | null;
+  mensajeAudioMime: string | null;
   mensajeLeidoAt: string | null;
   createdAt: string;
 }
@@ -206,6 +210,8 @@ export interface Progreso {
 export interface SolicitudCercana {
   viaje_id: number;
   deportista_nombre: string;
+  /** Nivel atlético autodeclarado del deportista. null si no lo indicó. */
+  deportista_nivel_atletico: string | null;
   viaje_necesidades: string[];
   origen_lat: number;
   origen_lng: number;
@@ -214,6 +220,8 @@ export interface SolicitudCercana {
   destino_lng: number;
   viaje_destino_texto: string | null;
   viaje_comentario: string | null;
+  /** Duración en segundos de la nota de voz de la solicitud. null si no hay. */
+  viaje_comentario_audio_duracion: number | null;
   /** Cuándo lo quiere la persona. null = lo antes posible. */
   viaje_programado_at: string | null;
   viaje_duracion_est_min: number | null;

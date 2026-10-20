@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, AlertTriangle, Pencil, Trash2, UserPlus, Users, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, FileText, Pencil, Power, Trash2, UserPlus, Users, X } from "lucide-react";
 import { api } from "../../lib/api";
 import { useFetch } from "../../lib/useFetch";
 import { useToast } from "../../lib/toast";
@@ -16,8 +16,13 @@ interface UsuarioRow {
   usuarioActivo: boolean;
   usuarioEstadoValidacion: string;
   voluntarioPerfil?: { voluntarioValidado: boolean } | null;
+  deportistaPerfil?: { deportistaNivelAtletico: string | null } | null;
   _count?: { documentos: number };
 }
+
+/** Nivel atlético autodeclarado, para mostrarlo con su mayúscula. */
+const NIVEL_ATLETICO = ["principiante", "intermedio", "avanzado"] as const;
+const nivelLabel = (n: string) => n.charAt(0).toUpperCase() + n.slice(1);
 
 /** Cada estado de validación lleva su propio icono a través de <Estado>. */
 const tonoValidacion: Record<string, ClaseEstado> = {
@@ -95,8 +100,19 @@ export function Usuarios() {
                 const pendiente = !esAdmin && estado !== "aprobado";
                 return (
                   <tr key={u.usuarioId}>
-                    <td data-label="Nombre" style={{ fontWeight: 600 }}>{u.usuarioNombre}</td>
-                    <td data-label="Correo" className="sutil">{u.usuarioCorreo}</td>
+                    <td data-label="Nombre" style={{ fontWeight: 600 }}>
+                      {u.usuarioNombre}
+                      {u.usuarioRol === "deportista" && (
+                        <span className="sutil" style={{ display: "block", fontWeight: 400, fontSize: 13 }}>
+                          {u.deportistaPerfil?.deportistaNivelAtletico
+                            ? `Nivel ${nivelLabel(u.deportistaPerfil.deportistaNivelAtletico)}`
+                            : "Nivel sin indicar"}
+                        </span>
+                      )}
+                    </td>
+                    <td data-label="Correo" className="sutil celda-trunca" title={u.usuarioCorreo}>
+                      {u.usuarioCorreo}
+                    </td>
                     <td data-label="Rol" style={{ textTransform: "capitalize" }}>{u.usuarioRol}</td>
                     <td data-label="Cuenta">
                       <Estado tipo={u.usuarioActivo ? "exito" : "neutro"}>
@@ -117,42 +133,52 @@ export function Usuarios() {
                         `${u._count?.documentos ?? 0}`
                       )}
                     </td>
-                    <td data-label="Acciones" style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      {pendiente && (
-                        <Link
-                          to="/admin/validaciones"
-                          className="btn btn-secundario btn-sm"
-                          style={{ marginRight: 8 }}
+                    <td data-label="Acciones" style={{ textAlign: "right" }}>
+                      <div style={{ display: "inline-flex", gap: 8 }}>
+                        {pendiente && (
+                          <Link
+                            to="/admin/validaciones"
+                            className="btn btn-secundario btn-sm btn-icono"
+                            title="Revisar documentos"
+                            aria-label={`Revisar documentos de ${u.usuarioNombre}`}
+                          >
+                            <FileText size={16} aria-hidden="true" />
+                          </Link>
+                        )}
+                        <button
+                          className="btn btn-fantasma btn-sm btn-icono"
+                          title="Editar"
+                          aria-label={`Editar a ${u.usuarioNombre}`}
+                          onClick={() => setEditar(u)}
                         >
-                          Revisar documentos
-                        </Link>
-                      )}
-                      <button
-                        className="btn btn-fantasma btn-sm"
-                        style={{ marginRight: 8 }}
-                        onClick={() => setEditar(u)}
-                      >
-                        <Pencil size={15} aria-hidden="true" /> Editar
-                      </button>
-                      <button
-                        className={`btn btn-sm ${u.usuarioActivo ? "btn-critico" : "btn-fantasma"}`}
-                        disabled={ocupado === u.usuarioId}
-                        onClick={() =>
-                          accion(
-                            () =>
-                              api(`/admin/usuarios/${u.usuarioId}/activo`, {
-                                method: "PATCH",
-                                body: { activo: !u.usuarioActivo },
-                              }),
-                            u.usuarioId,
+                          <Pencil size={16} aria-hidden="true" />
+                        </button>
+                        <button
+                          className={`btn btn-sm btn-icono ${u.usuarioActivo ? "btn-critico" : "btn-fantasma"}`}
+                          title={u.usuarioActivo ? "Desactivar" : "Activar"}
+                          aria-label={
                             u.usuarioActivo
-                              ? `Se desactivó la cuenta de ${u.usuarioNombre}.`
-                              : `Se activó la cuenta de ${u.usuarioNombre}.`,
-                          )
-                        }
-                      >
-                        {u.usuarioActivo ? "Desactivar" : "Activar"}
-                      </button>
+                              ? `Desactivar la cuenta de ${u.usuarioNombre}`
+                              : `Activar la cuenta de ${u.usuarioNombre}`
+                          }
+                          disabled={ocupado === u.usuarioId}
+                          onClick={() =>
+                            accion(
+                              () =>
+                                api(`/admin/usuarios/${u.usuarioId}/activo`, {
+                                  method: "PATCH",
+                                  body: { activo: !u.usuarioActivo },
+                                }),
+                              u.usuarioId,
+                              u.usuarioActivo
+                                ? `Se desactivó la cuenta de ${u.usuarioNombre}.`
+                                : `Se activó la cuenta de ${u.usuarioNombre}.`,
+                            )
+                          }
+                        >
+                          <Power size={16} aria-hidden="true" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -335,6 +361,9 @@ function ModalEditarUsuario({
   const [correo, setCorreo] = useState(usuario.usuarioCorreo);
   const [telefono, setTelefono] = useState(usuario.usuarioTelefono ?? "");
   const [rol, setRol] = useState(usuario.usuarioRol);
+  const [nivelAtletico, setNivelAtletico] = useState(
+    usuario.deportistaPerfil?.deportistaNivelAtletico ?? "",
+  );
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
@@ -350,7 +379,13 @@ function ModalEditarUsuario({
     try {
       await api(`/admin/usuarios/${usuario.usuarioId}`, {
         method: "PATCH",
-        body: { nombre, correo, telefono: telefono.trim() || null, rol },
+        body: {
+          nombre,
+          correo,
+          telefono: telefono.trim() || null,
+          rol,
+          ...(rol === "deportista" ? { nivelAtletico: nivelAtletico || null } : {}),
+        },
       });
       onGuardado();
     } catch (err) {
@@ -429,6 +464,24 @@ function ModalEditarUsuario({
             </select>
             <p className="ayuda">Cambiar el rol crea el perfil correspondiente si aún no existe.</p>
           </div>
+
+          {rol === "deportista" && (
+            <div>
+              <label className="campo" htmlFor="ed-nivel">Nivel atlético</label>
+              <select
+                id="ed-nivel"
+                className="input"
+                value={nivelAtletico}
+                onChange={(e) => setNivelAtletico(e.target.value)}
+              >
+                <option value="">Sin indicar</option>
+                {NIVEL_ATLETICO.map((n) => (
+                  <option key={n} value={n}>{nivelLabel(n)}</option>
+                ))}
+              </select>
+              <p className="ayuda">Lo declara la propia persona; aquí puedes corregirlo.</p>
+            </div>
+          )}
 
           <div className="modal-acciones">
             <button type="button" className="btn btn-fantasma" onClick={onCerrar}>Cancelar</button>

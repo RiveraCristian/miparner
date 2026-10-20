@@ -21,7 +21,9 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LocateFixed, MapPin, Send } from "lucide-react-native";
 import { colors, font, fuente, radius } from "../../../../shared/theme";
-import { api } from "../../../../shared/api";
+import { api, apiUpload } from "../../../../shared/api";
+import { GrabadorVoz, type GrabacionVoz } from "../../../../shared/GrabadorVoz";
+import { archivoVoz } from "../../../../shared/voz";
 import { Mapa } from "../../../../shared/Mapa";
 import { MAPA_CENTRO_DEFECTO } from "../../../../shared/config";
 import { useMiUbicacion } from "../../../../shared/ubicacion";
@@ -53,6 +55,7 @@ export function SolicitarScreen() {
   const [destino, setDestino] = useState<Punto | null>(null);
   const [necesidades, setNecesidades] = useState<string[]>(["silla_ruedas"]);
   const [comentario, setComentario] = useState("");
+  const [notaVoz, setNotaVoz] = useState<GrabacionVoz | null>(null);
   const [cuando, setCuando] = useState<Cuando>(null);
   const [busy, setBusy] = useState(false);
   /** Origen movido a mano sobre el mapa; mientras sea null, manda el GPS. */
@@ -107,6 +110,20 @@ export function SolicitarScreen() {
           programadoAt: cuando ? cuando.toISOString() : undefined,
         },
       });
+      // La nota de voz es opcional y va aparte: el viaje ya existe, así que si
+      // la subida falla la solicitud igual queda hecha (con su texto).
+      if (notaVoz) {
+        try {
+          await apiUpload(
+            `/viajes/${viaje.viajeId}/comentario-voz`,
+            archivoVoz(notaVoz.uri),
+            { duracion: String(notaVoz.duracion) },
+            "audio",
+          );
+        } catch {
+          /* la solicitud ya está creada; la nota de voz es un extra */
+        }
+      }
       nav.replace("EnViaje", { viajeId: viaje.viajeId });
     } catch (e) {
       Alert.alert("No se pudo solicitar", e instanceof Error ? e.message : "");
@@ -234,6 +251,13 @@ export function SolicitarScreen() {
       <Text style={[font.tiny, { marginTop: 6 }]}>
         Opcional. Lo lee el voluntario antes de aceptar. {comentario.length}/{MAX_COMENTARIO}
       </Text>
+
+      {/* Alternativa a escribir: contarlo con la voz. El voluntario la escucha
+          antes de aceptar, igual que el texto. */}
+      <Text style={[font.tiny, { marginTop: 14, marginBottom: 8 }]}>
+        O cuéntalo con tu voz:
+      </Text>
+      <GrabadorVoz value={notaVoz} onChange={setNotaVoz} disabled={busy} />
 
       <View style={{ height: 28 }} />
       {!destino && (

@@ -37,6 +37,11 @@ export const solicitarSchema = z.object({
   duracionEstMin: z.number().int().min(15).max(600).optional(),
 });
 
+// La duración llega como campo de texto del multipart: coerce desde string.
+export const comentarioVozSchema = z.object({
+  duracion: z.coerce.number().int().min(1).max(600),
+});
+
 export const cambiarEstadoSchema = z.object({
   estado: z.enum(["en_camino", "en_accion", "finalizado", "cancelado"]),
 });

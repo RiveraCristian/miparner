@@ -63,7 +63,11 @@ interface Solicitud {
   usuarioEstadoValidacion: string;
   usuarioMotivoRechazo: string | null;
   usuarioFechaCreacion: string;
-  deportistaPerfil: { deportistaDisciplina: string | null; deportistaNecesidades: string[] } | null;
+  deportistaPerfil: {
+    deportistaDisciplina: string | null;
+    deportistaNecesidades: string[];
+    deportistaNivelAtletico: string | null;
+  } | null;
   voluntarioPerfil: { voluntarioVehiculo: string | null; voluntarioPatente: string | null } | null;
   documentos: Documento[];
   grupos: Grupo[];
@@ -240,7 +244,14 @@ function FichaSolicitud({
               ? [s.voluntarioPerfil?.voluntarioVehiculo, s.voluntarioPerfil?.voluntarioPatente]
                   .filter(Boolean)
                   .join(" · ") || "Voluntario sin vehículo registrado"
-              : s.deportistaPerfil?.deportistaDisciplina ?? "Deportista"}
+              : [
+                  s.deportistaPerfil?.deportistaDisciplina,
+                  s.deportistaPerfil?.deportistaNivelAtletico
+                    ? `Nivel ${s.deportistaPerfil.deportistaNivelAtletico}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Deportista"}
           </p>
         </div>
         <div className="ficha__estados">

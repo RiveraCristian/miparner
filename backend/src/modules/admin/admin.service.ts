@@ -18,6 +18,7 @@ export async function listarUsuarios(rol?: string) {
       usuarioEstadoValidacion: true,
       usuarioFechaCreacion: true,
       voluntarioPerfil: { select: { voluntarioValidado: true } },
+      deportistaPerfil: { select: { deportistaNivelAtletico: true } },
       _count: { select: { documentos: { where: { isDeleted: false } } } },
     },
   });
@@ -103,6 +104,7 @@ export async function actualizarUsuario(
     correo?: string;
     telefono?: string | null;
     rol?: "deportista" | "voluntario" | "admin";
+    nivelAtletico?: "principiante" | "intermedio" | "avanzado" | null;
   },
 ) {
   const usuario = await prisma.usuario.findUnique({ where: { usuarioId: id } });
@@ -149,6 +151,15 @@ export async function actualizarUsuario(
           });
         }
       }
+    }
+
+    // Nivel atlético: solo tiene sentido en un deportista. updateMany evita
+    // reventar si el perfil aún no existe (no pasa nada si no toca filas).
+    if (dto.nivelAtletico !== undefined && (dto.rol ?? usuario.usuarioRol) === "deportista") {
+      await tx.deportistaPerfil.updateMany({
+        where: { deportistaUsuarioId: id },
+        data: { deportistaNivelAtletico: dto.nivelAtletico, modifiedBy: adminId },
+      });
     }
 
     return actualizado;
@@ -349,6 +360,7 @@ export async function listarValidaciones(estado: string) {
           deportistaRegion: true,
           deportistaFechaNacimiento: true,
           deportistaNivelAutonomia: true,
+          deportistaNivelAtletico: true,
         },
       },
       voluntarioPerfil: {

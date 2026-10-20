@@ -30,6 +30,8 @@ export const perfilDeportistaSchema = z.object({
   // Apoyos del trayecto: esto sí lo ve el voluntario.
   apoyos: z.array(z.string().refine(esApoyo, "Apoyo desconocido")).max(30).optional(),
   nivelAutonomia: z.string().refine(esAutonomia, "Nivel desconocido").optional(),
+  // Nivel atlético autodeclarado por el propio deportista.
+  nivelAtletico: z.enum(["principiante", "intermedio", "avanzado"]).optional(),
   comunicacion: z.string().refine(esComunicacion, "Forma de comunicación desconocida").optional(),
   observaciones: z.string().trim().max(1000).optional(),
   emergenciaNombre: z.string().trim().max(255).optional(),

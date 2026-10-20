@@ -56,11 +56,12 @@ export async function apiUpload<T = unknown>(
   path: string,
   archivo: ArchivoLocal,
   campos: Record<string, string> = {},
+  campoArchivo = "archivo",
 ): Promise<T> {
   const token = await loadToken();
   const form = new FormData();
   Object.entries(campos).forEach(([k, v]) => form.append(k, v));
-  form.append("archivo", archivo as unknown as Blob);
+  form.append(campoArchivo, archivo as unknown as Blob);
 
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",

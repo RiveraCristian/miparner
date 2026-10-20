@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/http-error";
+import { eliminarArchivo, rutaDe } from "../../lib/uploads";
 import { emitToRide, emitToUsuario, RIDE_EVENTS } from "../../realtime/socket";
 
 interface Actor {
@@ -13,6 +14,9 @@ const SELECT_MENSAJE = {
   mensajeEmisorId: true,
   mensajeReceptorId: true,
   mensajeTexto: true,
+  mensajeAudioArchivo: true,
+  mensajeAudioDuracion: true,
+  mensajeAudioMime: true,
   mensajeLeidoAt: true,
   createdAt: true,
 } as const;
@@ -98,6 +102,62 @@ export async function enviar(viajeId: number, actor: Actor, texto: string) {
   emitToRide(viajeId, RIDE_EVENTS.MESSAGE_NEW, mensaje);
   emitToUsuario(contraparte.usuarioId, RIDE_EVENTS.MESSAGE_NEW, mensaje);
   return mensaje;
+}
+
+/**
+ * Envía un mensaje de voz. El binario ya quedó en disco (lo guardó multer);
+ * aquí solo se registra el metadato. Si la conversación no admite el mensaje,
+ * se borra el archivo para no dejar huérfanos.
+ */
+export async function enviarVoz(
+  viajeId: number,
+  actor: Actor,
+  audio: { archivo: string; mime: string; duracion: number },
+) {
+  const { esParticipante, contraparte } = await contexto(viajeId, actor);
+  if (!esParticipante) {
+    eliminarArchivo(audio.archivo);
+    throw AppError.forbidden("Solo el deportista y su voluntario pueden escribir");
+  }
+  if (!contraparte) {
+    eliminarArchivo(audio.archivo);
+    throw AppError.conflict("Todavía no hay un voluntario asignado a este acompañamiento");
+  }
+
+  const mensaje = await prisma.mensaje.create({
+    data: {
+      mensajeViajeId: viajeId,
+      mensajeEmisorId: actor.usuarioId,
+      mensajeReceptorId: contraparte.usuarioId,
+      mensajeAudioArchivo: audio.archivo,
+      mensajeAudioDuracion: audio.duracion,
+      mensajeAudioMime: audio.mime,
+      createdBy: actor.usuarioId,
+    },
+    select: SELECT_MENSAJE,
+  });
+
+  emitToRide(viajeId, RIDE_EVENTS.MESSAGE_NEW, mensaje);
+  emitToUsuario(contraparte.usuarioId, RIDE_EVENTS.MESSAGE_NEW, mensaje);
+  return mensaje;
+}
+
+/**
+ * Ubicación en disco del audio de un mensaje, validando que quien lo pide
+ * participe en el acompañamiento (o sea admin). Reutiliza `contexto`, que
+ * lanza si no corresponde.
+ */
+export async function audioDe(viajeId: number, mensajeId: number, actor: Actor) {
+  await contexto(viajeId, actor);
+  const mensaje = await prisma.mensaje.findFirst({
+    where: { mensajeId, mensajeViajeId: viajeId },
+    select: { mensajeAudioArchivo: true, mensajeAudioMime: true },
+  });
+  if (!mensaje?.mensajeAudioArchivo) throw AppError.notFound("Este mensaje no tiene audio");
+  return {
+    ruta: rutaDe(mensaje.mensajeAudioArchivo),
+    mime: mensaje.mensajeAudioMime ?? "audio/mp4",
+  };
 }
 
 /** Marca como leídos los mensajes recibidos en un acompañamiento. */

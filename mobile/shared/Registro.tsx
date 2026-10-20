@@ -55,6 +55,16 @@ const PASOS_VOLUNTARIO: Paso[] = [
   { clave: "permisos", titulo: "Tus autorizaciones", bajada: "Decides tú, una por una." },
 ];
 
+/**
+ * Nivel atlético autodeclarado. Lo elige el propio deportista; es orientativo,
+ * no una evaluación. Las claves van al backend; el texto es lo que se muestra.
+ */
+const NIVELES_ATLETICOS: { clave: string; titulo: string }[] = [
+  { clave: "principiante", titulo: "Principiante" },
+  { clave: "intermedio", titulo: "Intermedio" },
+  { clave: "avanzado", titulo: "Avanzado" },
+];
+
 /** Regiones de Chile. La comuna se escribe: son 346 y una lista sería peor. */
 const REGIONES = [
   "Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo",
@@ -84,6 +94,7 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
   const [tipos, setTipos] = useState<string[]>([]);
   const [apoyos, setApoyos] = useState<string[]>([]);
   const [nivelAutonomia, setNivelAutonomia] = useState("");
+  const [nivelAtletico, setNivelAtletico] = useState("");
   const [comunicacion, setComunicacion] = useState("");
   const [decisiones, setDecisiones] = useState<DecisionConsentimiento[]>([]);
   const [permisosCompletos, setPermisosCompletos] = useState(false);
@@ -138,6 +149,7 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
                 tiposDiscapacidad: tipos,
                 apoyos,
                 nivelAutonomia: nivelAutonomia || undefined,
+                nivelAtletico: nivelAtletico || undefined,
                 comunicacion: comunicacion || undefined,
                 observaciones: f.observaciones.trim() || undefined,
                 emergenciaNombre: f.emergenciaNombre.trim() || undefined,
@@ -215,6 +227,21 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
               <CampoTexto label="Comuna" value={f.comuna} onChangeText={set("comuna")} placeholder="Providencia" maxLength={120} />
               <CampoTexto label="Dirección" ayuda="Opcional. Solo se usa para proponerte el punto de partida." value={f.direccion} onChangeText={set("direccion")} maxLength={255} />
               <CampoTexto label="Disciplina que practicas" value={f.disciplina} onChangeText={set("disciplina")} placeholder="Paratletismo" maxLength={120} />
+
+              <Etiqueta style={{ marginBottom: 6 }}>Tu nivel atlético</Etiqueta>
+              <Text style={[font.tiny, { marginBottom: 10 }]}>
+                Tú lo eliges, es solo orientativo.
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                {NIVELES_ATLETICOS.map((n) => (
+                  <Pill
+                    key={n.clave}
+                    label={n.titulo}
+                    active={nivelAtletico === n.clave}
+                    onPress={() => setNivelAtletico(nivelAtletico === n.clave ? "" : n.clave)}
+                  />
+                ))}
+              </View>
             </>
           )}
 
