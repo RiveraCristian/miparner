@@ -14,7 +14,7 @@ interface Metricas {
 }
 
 /** Estados del acompañamiento, ordenados como ocurren en la realidad. */
-const ORDEN_VIAJE = ["solicitado", "asignado", "en_camino", "a_bordo", "finalizado", "cancelado"];
+const ORDEN_VIAJE = ["solicitado", "asignado", "en_camino", "en_accion", "finalizado", "cancelado"];
 
 const legible = (s: string) => s.replace(/_/g, " ");
 

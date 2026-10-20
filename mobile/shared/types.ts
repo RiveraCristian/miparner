@@ -189,6 +189,8 @@ export interface Viaje {
   necesidades: string[];
   /** Lo que la persona escribió con sus palabras al pedir el acompañamiento. */
   comentario: string | null;
+  programadoAt: string | null;
+  duracionEstMin: number | null;
   solicitadoAt: string;
   eventos?: { tipo: string; at: string; lat: number | null; lng: number | null }[];
 }
@@ -212,5 +214,9 @@ export interface SolicitudCercana {
   destino_lng: number;
   viaje_destino_texto: string | null;
   viaje_comentario: string | null;
+  /** Cuándo lo quiere la persona. null = lo antes posible. */
+  viaje_programado_at: string | null;
+  viaje_duracion_est_min: number | null;
+  viaje_solicitado_at: string;
   distancia_m: number;
 }

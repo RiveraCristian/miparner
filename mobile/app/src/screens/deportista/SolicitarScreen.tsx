@@ -1,3 +1,20 @@
+/**
+ * Pedir un acompañamiento.
+ *
+ * Dos cosas que cambiaron tras las primeras pruebas con usuarios:
+ *
+ *  · El destino era una lista de tres direcciones escritas en el código. Quien
+ *    entrenaba en cualquier otro sitio no podía pedir nada. Ahora se escribe y
+ *    el buscador propone direcciones reales, con el mapa siguiendo lo elegido.
+ *  · Todo era inmediato, y por eso el voluntario no veía día ni hora al
+ *    aceptar: el "cuándo" era siempre ahora. Ahora se puede agendar, y quien
+ *    tiene una urgencia sigue teniendo "lo antes posible" a un toque.
+ *
+ * El mapa y el buscador son dos caminos al mismo sitio, no alternativas
+ * excluyentes: se escribe la dirección y el mapa la muestra, o se toca el mapa
+ * y el campo dice qué se marcó. Quien no puede escribir una dirección exacta
+ * puede señalarla, y quien no ve el mapa puede escribirla.
+ */
 import { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -8,18 +25,15 @@ import { api } from "../../../../shared/api";
 import { Mapa } from "../../../../shared/Mapa";
 import { MAPA_CENTRO_DEFECTO } from "../../../../shared/config";
 import { useMiUbicacion } from "../../../../shared/ubicacion";
+import { BuscadorDireccion, PistaBuscar, type Lugar } from "../../../../shared/BuscadorDireccion";
+import { CuandoLoQuiero, type Cuando } from "../../../../shared/CuandoLoQuiero";
+import { anunciar } from "../../../../shared/anuncios";
 import { Card, Etiqueta, Pill, PrimaryButton, Screen } from "../../../../shared/ui";
 import type { LatLng, Viaje } from "../../../../shared/types";
 import type { RootStackParams } from "../../navigation";
 
 /** Si el GPS no responde (permiso denegado, interior sin señal), se parte de aquí. */
 const ORIGEN_RESPALDO = { ...MAPA_CENTRO_DEFECTO, texto: "Centro de Santiago" };
-
-const DESTINOS = [
-  { texto: "Centro de Alto Rendimiento", lat: -33.4515, lng: -70.61 },
-  { texto: "Estadio Nacional", lat: -33.464, lng: -70.6108 },
-  { texto: "Centro médico", lat: -33.437, lng: -70.634 },
-];
 
 const NECESIDADES = [
   { key: "silla_ruedas", label: "Silla de ruedas" },
@@ -30,35 +44,54 @@ const NECESIDADES = [
 
 const MAX_COMENTARIO = 1000;
 
+interface Punto extends LatLng {
+  texto: string;
+}
+
 export function SolicitarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const [destino, setDestino] = useState<{ texto: string; lat: number; lng: number }>(DESTINOS[0]);
+  const [destino, setDestino] = useState<Punto | null>(null);
   const [necesidades, setNecesidades] = useState<string[]>(["silla_ruedas"]);
   const [comentario, setComentario] = useState("");
+  const [cuando, setCuando] = useState<Cuando>(null);
   const [busy, setBusy] = useState(false);
   /** Origen movido a mano sobre el mapa; mientras sea null, manda el GPS. */
-  const [origenManual, setOrigenManual] = useState<LatLng | null>(null);
+  const [origenManual, setOrigenManual] = useState<Punto | null>(null);
   /** Qué mueve el próximo toque en el mapa. */
   const [moviendo, setMoviendo] = useState<"origen" | "destino">("destino");
 
   const { punto: gps, error: errorGps } = useMiUbicacion(true, 25);
 
-  const origen = origenManual ?? gps ?? ORIGEN_RESPALDO;
-  const origenTexto = origenManual
-    ? "Punto elegido en el mapa"
-    : gps
-      ? "Tu ubicación actual"
-      : ORIGEN_RESPALDO.texto;
+  const origen: Punto = origenManual ?? (gps
+    ? { lat: gps.lat, lng: gps.lng, texto: "Tu ubicación actual" }
+    : ORIGEN_RESPALDO);
 
   const toggle = (k: string) =>
     setNecesidades((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
 
   function elegirEnMapa(p: LatLng) {
-    if (moviendo === "origen") setOrigenManual(p);
-    else setDestino({ ...p, texto: "Punto elegido en el mapa" });
+    const punto = { ...p, texto: "Punto marcado en el mapa" };
+    if (moviendo === "origen") {
+      setOrigenManual(punto);
+      void anunciar("Origen marcado en el mapa.");
+    } else {
+      setDestino(punto);
+      void anunciar("Destino marcado en el mapa.");
+    }
   }
 
+  function elegirDestinoBuscado(l: Lugar) {
+    setDestino({ lat: l.lat, lng: l.lng, texto: l.nombre });
+  }
+
+  function elegirOrigenBuscado(l: Lugar) {
+    setOrigenManual({ lat: l.lat, lng: l.lng, texto: l.nombre });
+  }
+
+  const puedePedir = !!destino && !busy;
+
   async function solicitar() {
+    if (!destino) return;
     setBusy(true);
     try {
       const viaje = await api<Viaje>("/viajes", {
@@ -66,10 +99,12 @@ export function SolicitarScreen() {
         body: {
           origen: { lat: origen.lat, lng: origen.lng },
           destino: { lat: destino.lat, lng: destino.lng },
-          origenTexto,
+          origenTexto: origen.texto,
           destinoTexto: destino.texto,
           necesidades,
           comentario: comentario.trim() || undefined,
+          // Ausente significa "lo antes posible".
+          programadoAt: cuando ? cuando.toISOString() : undefined,
         },
       });
       nav.replace("EnViaje", { viajeId: viaje.viajeId });
@@ -89,7 +124,11 @@ export function SolicitarScreen() {
         miUbicacion
         interactivo
         onElegirPunto={elegirEnMapa}
-        descripcion={`Recorrido de ${origenTexto} a ${destino.texto}.`}
+        descripcion={
+          destino
+            ? `Recorrido de ${origen.texto} a ${destino.texto}.`
+            : `Tu origen es ${origen.texto}. Todavía no elegiste destino.`
+        }
       />
 
       {/* Qué mueve el toque en el mapa: sin esto, el gesto es ambiguo. */}
@@ -97,22 +136,30 @@ export function SolicitarScreen() {
         <Pill label="Mover origen" active={moviendo === "origen"} onPress={() => setMoviendo("origen")} />
         <Pill label="Mover destino" active={moviendo === "destino"} onPress={() => setMoviendo("destino")} />
       </View>
+      <PistaBuscar />
 
-      <Card style={{ padding: 0, overflow: "hidden", marginTop: 16 }}>
-        {/* Origen en índigo, destino en coral: dos formas distintas, no dos matices. */}
-        <View style={styles.punto}>
+      {/* ------------------------------------------------------- Origen */}
+      <Card style={{ marginTop: 16, gap: 12 }}>
+        <View style={styles.cabecera}>
           <View style={[styles.puntoIcono, { backgroundColor: colors.lavanda }]}>
-            {origenManual || !gps ? (
+            {origenManual ? (
               <MapPin color={colors.indigo} size={19} />
             ) : (
               <LocateFixed color={colors.indigo} size={19} />
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Etiqueta>Origen</Etiqueta>
-            <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>{origenTexto}</Text>
+            <Etiqueta>Desde</Etiqueta>
+            <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>
+              {origen.texto}
+            </Text>
             {origenManual ? (
-              <Text style={font.tiny} onPress={() => setOrigenManual(null)} accessibilityRole="button">
+              <Text
+                style={[font.tiny, { color: colors.indigo }]}
+                onPress={() => setOrigenManual(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Volver a mi ubicación actual"
+              >
                 Volver a mi ubicación actual
               </Text>
             ) : errorGps ? (
@@ -122,24 +169,45 @@ export function SolicitarScreen() {
             ) : null}
           </View>
         </View>
-        <View style={[styles.punto, { borderBottomWidth: 0 }]}>
+
+        <BuscadorDireccion
+          label="O escribe desde dónde sales"
+          valor={origenManual?.texto ?? ""}
+          onElegir={elegirOrigenBuscado}
+          cerca={gps}
+        />
+      </Card>
+
+      {/* ------------------------------------------------------ Destino */}
+      <Card style={{ marginTop: 12, gap: 12 }}>
+        <View style={styles.cabecera}>
           <View style={[styles.puntoIcono, { backgroundColor: colors.coralBg }]}>
             <MapPin color={colors.coral} size={19} />
           </View>
           <View style={{ flex: 1 }}>
-            <Etiqueta>Destino</Etiqueta>
-            <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>{destino.texto}</Text>
+            <Etiqueta>Hasta</Etiqueta>
+            <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>
+              {destino?.texto ?? "Todavía sin elegir"}
+            </Text>
           </View>
         </View>
+
+        <BuscadorDireccion
+          label="¿A dónde vas?"
+          ayuda="Escribe la calle y el número, o el nombre del lugar."
+          valor={destino?.texto ?? ""}
+          onElegir={elegirDestinoBuscado}
+          cerca={gps}
+          obligatorio
+        />
       </Card>
 
-      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>¿A dónde vas?</Etiqueta>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {DESTINOS.map((d) => (
-          <Pill key={d.texto} label={d.texto} active={destino.texto === d.texto} onPress={() => setDestino(d)} />
-        ))}
+      {/* ------------------------------------------------------- Cuándo */}
+      <View style={{ marginTop: 22 }}>
+        <CuandoLoQuiero valor={cuando} onCambiar={setCuando} />
       </View>
 
+      {/* ------------------------------------------------------- Apoyos */}
       <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Apoyo que necesito</Etiqueta>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {NECESIDADES.map((n) => (
@@ -168,25 +236,24 @@ export function SolicitarScreen() {
       </Text>
 
       <View style={{ height: 28 }} />
+      {!destino && (
+        <Text style={[font.muted, { marginBottom: 10 }]}>
+          Falta elegir a dónde vas: escríbelo arriba o tócalo en el mapa.
+        </Text>
+      )}
       <PrimaryButton
-        title={busy ? "Buscando voluntario…" : "Buscar voluntario"}
+        title={busy ? "Enviando tu solicitud…" : cuando ? "Agendar acompañamiento" : "Buscar voluntario ahora"}
         icon={<Send color={colors.white} size={18} />}
-        disabled={busy}
+        disabled={!puedePedir}
         onPress={solicitar}
       />
+      <View style={{ height: 16 }} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  punto: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line2,
-  },
+  cabecera: { flexDirection: "row", alignItems: "center", gap: 12 },
   puntoIcono: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   comentario: {
     minHeight: 104,

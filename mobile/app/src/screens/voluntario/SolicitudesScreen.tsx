@@ -2,12 +2,44 @@ import { useCallback, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Inbox, MapPin, MessageSquare } from "lucide-react-native";
+import { Inbox, MapPin, MessageSquare, CalendarClock } from "lucide-react-native";
 import { colors, font, fuente, radius } from "../../../../shared/theme";
 import { api } from "../../../../shared/api";
 import { Card, Estado, EsqueletoTarjeta, PrimaryButton, Screen, Vacio } from "../../../../shared/ui";
 import type { SolicitudCercana } from "../../../../shared/types";
 import type { RootStackParams } from "../../navigation";
+
+/**
+ * Cuándo es, dicho como lo diría una persona.
+ *
+ * El voluntario decide con esto: "mañana a las 9" se evalúa de un vistazo,
+ * una marca de tiempo ISO no. Sin programación, el acompañamiento es para
+ * ahora, y eso también hay que decirlo.
+ */
+function formatearCuando(programado: string | null): { texto: string; urgente: boolean } {
+  if (!programado) return { texto: "Lo antes posible", urgente: true };
+
+  const d = new Date(programado);
+  const ahora = new Date();
+  const hh = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+  const dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+  const mismoDia = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  const manana = new Date(ahora);
+  manana.setDate(ahora.getDate() + 1);
+
+  if (mismoDia(d, ahora)) {
+    const faltan = Math.round((d.getTime() - ahora.getTime()) / 60000);
+    // Menos de dos horas es "pronto": merece destacarse.
+    return { texto: `Hoy a las ${hh}`, urgente: faltan <= 120 };
+  }
+  if (mismoDia(d, manana)) return { texto: `Mañana a las ${hh}`, urgente: false };
+  return { texto: `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}, ${hh}`, urgente: false };
+}
 
 export function SolicitudesScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -55,6 +87,20 @@ export function SolicitudesScreen() {
               <Text style={[font.h3]} numberOfLines={1}>{s.deportista_nombre}</Text>
               <Text style={font.muted}>a {Math.round(s.distancia_m)} m de ti</Text>
             </View>
+          </View>
+
+          {/* Cuándo es: sin esto el voluntario aceptaba a ciegas. */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 }}>
+            <CalendarClock
+              color={formatearCuando(s.viaje_programado_at).urgente ? colors.coral : colors.indigo}
+              size={18}
+            />
+            <Text style={[font.body, { fontFamily: fuente.fuerte, flex: 1 }]}>
+              {formatearCuando(s.viaje_programado_at).texto}
+            </Text>
+            {s.viaje_duracion_est_min ? (
+              <Text style={font.tiny}>~{s.viaje_duracion_est_min} min</Text>
+            ) : null}
           </View>
 
           {(s.viaje_necesidades ?? []).length > 0 && (

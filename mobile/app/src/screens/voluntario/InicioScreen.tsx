@@ -33,7 +33,7 @@ interface ViajeItem {
 }
 
 /** Estados en los que el voluntario tiene un acompañamiento activo al que volver. */
-const ACTIVOS_VOL = ["asignado", "en_camino", "a_bordo"];
+const ACTIVOS_VOL = ["asignado", "en_camino", "en_accion"];
 
 /** ¿La fecha ISO cae en el día de hoy? */
 function esHoy(iso: string | null): boolean {

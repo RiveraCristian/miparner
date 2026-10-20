@@ -20,7 +20,7 @@ const tonoEstado: Record<string, ClaseEstado> = {
   solicitado: "atencion",
   asignado: "indigo",
   en_camino: "indigo",
-  a_bordo: "indigo",
+  en_accion: "indigo",
   finalizado: "exito",
   cancelado: "critico",
 };

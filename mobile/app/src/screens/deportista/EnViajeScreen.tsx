@@ -31,17 +31,17 @@ import {
 import type { Mensaje, Viaje } from "../../../../shared/types";
 import type { RootStackParams } from "../../navigation";
 
-const ORDEN = ["solicitado", "asignado", "en_camino", "a_bordo", "finalizado"];
+const ORDEN = ["solicitado", "asignado", "en_camino", "en_accion", "finalizado"];
 const ETIQUETAS: Record<string, string> = {
   solicitado: "Buscando voluntario",
   asignado: "Voluntario asignado",
   en_camino: "En camino",
-  a_bordo: "A bordo",
+  en_accion: "En acción",
   finalizado: "Finalizado",
 };
 
 /** Estados en los que el acompañamiento sigue vivo y el GPS tiene sentido. */
-const EN_CURSO = ["solicitado", "asignado", "en_camino", "a_bordo"];
+const EN_CURSO = ["solicitado", "asignado", "en_camino", "en_accion"];
 
 const metros = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
 
