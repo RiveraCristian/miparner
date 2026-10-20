@@ -15,6 +15,7 @@ import {
 } from "lucide-react-native";
 import { colors, font, fuente } from "../../../../shared/theme";
 import { api } from "../../../../shared/api";
+import { anunciarEstado, anunciarMensaje } from "../../../../shared/anuncios";
 import { connectSocket, joinRide, leaveRide, emitPanic } from "../../../../shared/socket";
 import { Mapa } from "../../../../shared/Mapa";
 import { distanciaM, useCompartirPosicion, usePosicionDe } from "../../../../shared/ubicacion";
@@ -65,12 +66,18 @@ export function EnViajeScreen() {
     const onStatus = (d: { rideId: number; estado: string }) => {
       if (d.rideId !== viajeId) return;
       setEstado(d.estado);
+      // Lo provoca el voluntario, no quien mira la pantalla. Sin decirlo en
+      // voz alta, alguien con lector de pantalla no se entera de que ya viene.
+      anunciarEstado(d.estado, "deportista");
       // Al asignarse un voluntario aparece su usuarioId, y solo entonces se
       // puede empezar a seguir su posición: hay que releer el viaje.
       api<Viaje>(`/viajes/${viajeId}`).then(setViaje).catch(() => {});
     };
     const onMensaje = (m: Mensaje) => {
-      if (m.mensajeViajeId === viajeId) setSinLeer((n) => n + 1);
+      if (m.mensajeViajeId !== viajeId) return;
+      setSinLeer((n) => n + 1);
+      // Un distintivo rojo no existe para quien no ve la pantalla.
+      anunciarMensaje("tu voluntario");
     };
 
     api<Viaje>(`/viajes/${viajeId}`)

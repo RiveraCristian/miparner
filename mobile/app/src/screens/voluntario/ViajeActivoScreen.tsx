@@ -13,6 +13,7 @@ import {
 } from "lucide-react-native";
 import { colors, font, fuente } from "../../../../shared/theme";
 import { api } from "../../../../shared/api";
+import { anunciarEstado, anunciarMensaje } from "../../../../shared/anuncios";
 import { connectSocket, joinRide, leaveRide } from "../../../../shared/socket";
 import { Mapa } from "../../../../shared/Mapa";
 import { distanciaM, useCompartirPosicion, usePosicionDe } from "../../../../shared/ubicacion";
@@ -62,10 +63,17 @@ export function ViajeActivoScreen() {
   useEffect(() => {
     let socket: Socket | undefined;
     const onMensaje = (m: Mensaje) => {
-      if (m.mensajeViajeId === viajeId) setSinLeer((n) => n + 1);
+      if (m.mensajeViajeId !== viajeId) return;
+      setSinLeer((n) => n + 1);
+      // Un distintivo rojo no existe para quien no ve la pantalla.
+      anunciarMensaje("la persona que acompañas");
     };
     const onStatus = (d: { rideId: number; estado: string }) => {
-      if (d.rideId === viajeId) setEstado(d.estado);
+      if (d.rideId !== viajeId) return;
+      setEstado(d.estado);
+      // Lo más importante que puede llegar por aquí es una cancelación del
+      // deportista: quien no mira la pantalla tiene que enterarse igual.
+      anunciarEstado(d.estado, "voluntario");
     };
 
     api<Viaje>(`/viajes/${viajeId}`)
