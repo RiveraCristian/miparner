@@ -65,3 +65,13 @@ export const revisarDocumentoSchema = z.object({
 export const idParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
+
+export const listarReportesQuerySchema = z.object({
+  estado: z.enum(["pendiente", "retirado", "desestimado"]).default("pendiente"),
+});
+
+/** Resolución de un reporte de audio: retirar el audio o desestimar el reporte. */
+export const resolverReporteSchema = z.object({
+  accion: z.enum(["retirar", "desestimar"]),
+  nota: z.string().trim().max(500).optional(),
+});

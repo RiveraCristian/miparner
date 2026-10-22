@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Check, Mic, Pause, Play, RotateCcw, Trash2, X } from "lucide-react-native";
 import AudioRecorderPlayer from "react-native-audio-recorder-player";
-import { AUDIO_SET, mmss, pedirPermisoMic } from "./voz";
+import { AUDIO_SET, MAX_SEGS, mmss, pedirPermisoMic } from "./voz";
 import { TOQUE_MIN, colors, font, fuente, radius } from "./theme";
 
 export interface GrabacionVoz {
@@ -65,7 +65,12 @@ export function GrabadorVoz({
       await arp.startRecorder(undefined, AUDIO_SET);
       setSegs(0);
       setGrabando(true);
-      arp.addRecordBackListener((e) => setSegs(Math.floor(e.currentPosition / 1000)));
+      arp.addRecordBackListener((e) => {
+        const s = Math.floor(e.currentPosition / 1000);
+        setSegs(Math.min(s, MAX_SEGS));
+        // Al llegar al minuto, corta sola y entrega la nota.
+        if (s >= MAX_SEGS) terminar(MAX_SEGS);
+      });
     } catch {
       setGrabando(false);
       setError("No pudimos acceder al micrófono.");
@@ -83,10 +88,10 @@ export function GrabadorVoz({
     setSegs(0);
   }
 
-  async function terminar() {
+  async function terminar(durOverride?: number) {
     if (!grabando) return;
     arp.removeRecordBackListener();
-    const dur = segs;
+    const dur = durOverride ?? segs;
     let uri: string;
     try {
       uri = await arp.stopRecorder();
@@ -149,10 +154,12 @@ export function GrabadorVoz({
           </Pressable>
           <View style={estilos.info}>
             <View style={estilos.puntoRojo} />
-            <Text style={[font.body, { fontFamily: fuente.fuerte }]}>Grabando {mmss(segs)}</Text>
+            <Text style={[font.body, { fontFamily: fuente.fuerte }]}>
+              Grabando {mmss(segs)} / {mmss(MAX_SEGS)}
+            </Text>
           </View>
           <Pressable
-            onPress={terminar}
+            onPress={() => terminar()}
             accessibilityRole="button"
             accessibilityLabel="Terminar la grabación"
             style={[estilos.boton, { backgroundColor: colors.indigo }]}

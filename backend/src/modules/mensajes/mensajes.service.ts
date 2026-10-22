@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/http-error";
 import { eliminarArchivo, rutaDe } from "../../lib/uploads";
+import { comprimirAudio } from "../../lib/audio";
 import { emitToRide, emitToUsuario, RIDE_EVENTS } from "../../realtime/socket";
 
 interface Actor {
@@ -17,6 +18,7 @@ const SELECT_MENSAJE = {
   mensajeAudioArchivo: true,
   mensajeAudioDuracion: true,
   mensajeAudioMime: true,
+  mensajeModeradoAt: true,
   mensajeLeidoAt: true,
   createdAt: true,
 } as const;
@@ -124,14 +126,17 @@ export async function enviarVoz(
     throw AppError.conflict("Todavía no hay un voluntario asignado a este acompañamiento");
   }
 
+  // Recomprime a voz liviana y recorta a 60 s antes de dejarlo en la base.
+  const comprimido = await comprimirAudio(audio);
+
   const mensaje = await prisma.mensaje.create({
     data: {
       mensajeViajeId: viajeId,
       mensajeEmisorId: actor.usuarioId,
       mensajeReceptorId: contraparte.usuarioId,
-      mensajeAudioArchivo: audio.archivo,
-      mensajeAudioDuracion: audio.duracion,
-      mensajeAudioMime: audio.mime,
+      mensajeAudioArchivo: comprimido.archivo,
+      mensajeAudioDuracion: comprimido.duracion,
+      mensajeAudioMime: comprimido.mime,
       createdBy: actor.usuarioId,
     },
     select: SELECT_MENSAJE,
@@ -158,6 +163,54 @@ export async function audioDe(viajeId: number, mensajeId: number, actor: Actor) 
     ruta: rutaDe(mensaje.mensajeAudioArchivo),
     mime: mensaje.mensajeAudioMime ?? "audio/mp4",
   };
+}
+
+/**
+ * Un participante denuncia un mensaje de voz por lenguaje inapropiado. No se
+ * puede reportar el audio propio ni un mensaje de texto. Es idempotente: si ya
+ * hay un reporte pendiente del mismo usuario sobre ese audio, no crea otro.
+ */
+export async function reportar(
+  viajeId: number,
+  mensajeId: number,
+  actor: Actor,
+  motivo?: string,
+) {
+  await contexto(viajeId, actor);
+  const mensaje = await prisma.mensaje.findFirst({
+    where: { mensajeId, mensajeViajeId: viajeId },
+    select: { mensajeId: true, mensajeEmisorId: true, mensajeAudioArchivo: true },
+  });
+  if (!mensaje) throw AppError.notFound("Mensaje no encontrado");
+  if (!mensaje.mensajeAudioArchivo) {
+    throw AppError.badRequest("Este mensaje no tiene un audio que reportar");
+  }
+  if (mensaje.mensajeEmisorId === actor.usuarioId) {
+    throw AppError.badRequest("No puedes reportar tu propio audio");
+  }
+
+  const existente = await prisma.reporteAudio.findFirst({
+    where: {
+      reporteMensajeId: mensajeId,
+      reporteReportanteId: actor.usuarioId,
+      reporteEstado: "pendiente",
+    },
+    select: { reporteId: true },
+  });
+  if (existente) return { reporteId: existente.reporteId, yaReportado: true };
+
+  const r = await prisma.reporteAudio.create({
+    data: {
+      reporteOrigen: "mensaje",
+      reporteMensajeId: mensajeId,
+      reporteViajeId: viajeId,
+      reporteReportanteId: actor.usuarioId,
+      reporteMotivo: motivo ?? null,
+      createdBy: actor.usuarioId,
+    },
+    select: { reporteId: true },
+  });
+  return { reporteId: r.reporteId, yaReportado: false };
 }
 
 /** Marca como leídos los mensajes recibidos en un acompañamiento. */

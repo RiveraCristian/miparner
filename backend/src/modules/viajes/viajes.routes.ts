@@ -8,6 +8,7 @@ import {
   candidatosQuerySchema,
   comentarioVozSchema,
   posicionSchema,
+  reportarVozSchema,
   solicitarSchema,
 } from "./viajes.schemas";
 import { mensajesDeViajeRouter } from "../mensajes/mensajes.routes";
@@ -69,6 +70,21 @@ router.get("/:id/comentario-voz", async (req, res, next) => {
     next(err);
   }
 });
+
+// Reportar la nota de voz de la solicitud por lenguaje inapropiado.
+router.post(
+  "/:id/comentario-voz/reportar",
+  validate({ body: reportarVozSchema }),
+  async (req, res, next) => {
+    try {
+      res.status(201).json(
+        await viajes.reportarComentarioVoz(Number(req.params.id), actor(req), req.body.motivo),
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // Mis viajes (deportista o voluntario)
 router.get("/", async (req, res, next) => {

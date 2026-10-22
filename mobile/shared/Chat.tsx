@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   PermissionsAndroid,
@@ -24,7 +25,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Check, MessageSquare, Mic, Pause, Play, SendHorizontal, X } from "lucide-react-native";
+import { Check, Flag, MessageSquare, Mic, Pause, Play, SendHorizontal, VolumeX, X } from "lucide-react-native";
 import AudioRecorderPlayer, {
   AudioEncoderAndroidType,
   AVEncodingOption,
@@ -54,6 +55,10 @@ const AUDIO_SET: AudioSet = {
   AVFormatIDKeyIOS: AVEncodingOption.aac,
 };
 
+/** Tope de duración de una nota de voz: 1 minuto. La grabación se corta sola
+ *  al llegar; el backend además recorta el binario a esta duración. */
+const MAX_SEGS = 60;
+
 type EstadoVoz = "cargando" | "suena" | "pausa";
 
 export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
@@ -66,6 +71,9 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
   const [grabando, setGrabando] = useState(false);
   const [segsGrab, setSegsGrab] = useState(0);
   const [subiendoVoz, setSubiendoVoz] = useState(false);
+
+  // Audios que este usuario ya reportó en esta sesión (para deshabilitar el botón).
+  const [reportados, setReportados] = useState<Set<number>>(new Set());
 
   // Reproducción: qué mensaje suena ahora y por dónde va.
   const [vozId, setVozId] = useState<number | null>(null);
@@ -230,7 +238,12 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
       await arp.startRecorder(undefined, AUDIO_SET);
       setSegsGrab(0);
       setGrabando(true);
-      arp.addRecordBackListener((e) => setSegsGrab(Math.floor(e.currentPosition / 1000)));
+      arp.addRecordBackListener((e) => {
+        const s = Math.floor(e.currentPosition / 1000);
+        setSegsGrab(Math.min(s, MAX_SEGS));
+        // Al llegar al minuto, corta sola y envía.
+        if (s >= MAX_SEGS) enviarVoz(MAX_SEGS);
+      });
     } catch {
       setGrabando(false);
       setError("No pudimos acceder al micrófono.");
@@ -248,10 +261,10 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
     setSegsGrab(0);
   }
 
-  async function enviarVoz() {
+  async function enviarVoz(durOverride?: number) {
     if (!grabando || subiendoVoz) return;
     arp.removeRecordBackListener();
-    const dur = segsGrab;
+    const dur = durOverride ?? segsGrab;
     let uri: string;
     try {
       uri = await arp.stopRecorder();
@@ -288,6 +301,35 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
     } finally {
       setSubiendoVoz(false);
     }
+  }
+
+  // --- Reporte ---------------------------------------------------------------
+
+  /** Denuncia un audio recibido por lenguaje inapropiado (lo revisa el equipo). */
+  function reportarVoz(m: Mensaje) {
+    if (reportados.has(m.mensajeId)) return;
+    Alert.alert(
+      "Reportar audio",
+      "¿Reportar este audio por lenguaje inapropiado? El equipo de Miparner lo revisará.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Reportar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api(`/viajes/${viajeId}/mensajes/${m.mensajeId}/reportar`, {
+                method: "POST",
+                body: { motivo: "lenguaje inapropiado" },
+              });
+              setReportados((s) => new Set(s).add(m.mensajeId));
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "No se pudo reportar el audio");
+            }
+          },
+        },
+      ],
+    );
   }
 
   const puedeEnviarTexto = texto.trim().length > 0 && !enviando && !sinContraparte;
@@ -337,7 +379,7 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
             ref={lista}
             data={conv.mensajes}
             keyExtractor={(m) => String(m.mensajeId)}
-            extraData={{ vozId, vozEstado, vozPos, vozDur }}
+            extraData={{ vozId, vozEstado, vozPos, vozDur, reportados }}
             contentContainerStyle={{ padding: 16, paddingBottom: 8, flexGrow: 1 }}
             onContentSizeChange={alFinal}
             ListEmptyComponent={
@@ -360,6 +402,8 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
                 posMs={vozPos}
                 durMs={vozDur}
                 onReproducir={reproducirVoz}
+                onReportar={reportarVoz}
+                reportado={reportados.has(item.mensajeId)}
               />
             )}
           />
@@ -377,10 +421,12 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
             </Pressable>
             <View style={estilos.grabInfo}>
               <View style={estilos.puntoRojo} />
-              <Text style={[font.body, { fontFamily: fuente.fuerte }]}>Grabando {mmss(segsGrab)}</Text>
+              <Text style={[font.body, { fontFamily: fuente.fuerte }]}>
+                Grabando {mmss(segsGrab)} / {mmss(MAX_SEGS)}
+              </Text>
             </View>
             <Pressable
-              onPress={enviarVoz}
+              onPress={() => enviarVoz()}
               accessibilityRole="button"
               accessibilityLabel="Enviar el mensaje de voz"
               style={[estilos.boton, { backgroundColor: colors.indigo }]}
@@ -463,6 +509,8 @@ function Burbuja({
   posMs,
   durMs,
   onReproducir,
+  onReportar,
+  reportado,
 }: {
   mensaje: Mensaje;
   mio: boolean;
@@ -471,12 +519,24 @@ function Burbuja({
   posMs: number;
   durMs: number;
   onReproducir: (m: Mensaje) => void;
+  onReportar: (m: Mensaje) => void;
+  reportado: boolean;
 }) {
+  const retirado = !!mensaje.mensajeModeradoAt;
   const esVoz = !!mensaje.mensajeAudioArchivo;
+  // El botón de reporte solo en audios recibidos y aún disponibles.
+  const puedeReportar = !mio && esVoz && !retirado;
   return (
     <View style={[estilos.fila, { justifyContent: mio ? "flex-end" : "flex-start" }]}>
       <View style={[estilos.burbuja, mio ? estilos.burbujaMia : estilos.burbujaSuya]}>
-        {esVoz ? (
+        {retirado ? (
+          <View style={estilos.retirado}>
+            <VolumeX size={18} color={mio ? colors.lav200 : colors.ink3} />
+            <Text style={[font.body, { fontStyle: "italic" }, mio ? { color: colors.lav200 } : { color: colors.ink3 }]}>
+              Audio retirado por moderación
+            </Text>
+          </View>
+        ) : esVoz ? (
           <Voz
             mensaje={mensaje}
             mio={mio}
@@ -489,6 +549,22 @@ function Burbuja({
         ) : (
           <Text style={[font.body, mio && { color: colors.white }]}>{mensaje.mensajeTexto}</Text>
         )}
+
+        {puedeReportar ? (
+          <Pressable
+            onPress={() => onReportar(mensaje)}
+            disabled={reportado}
+            accessibilityRole="button"
+            accessibilityLabel={reportado ? "Audio reportado" : "Reportar este audio por lenguaje inapropiado"}
+            style={estilos.reportar}
+          >
+            <Flag size={13} color={reportado ? colors.ink3 : colors.coral} />
+            <Text style={[font.tiny, { color: reportado ? colors.ink3 : colors.coral }]}>
+              {reportado ? "Reportado" : "Reportar"}
+            </Text>
+          </Pressable>
+        ) : null}
+
         <Text style={[font.tiny, { marginTop: 4 }, mio && { color: colors.lav200 }]}>
           {hora(mensaje.createdAt)}
           {mio ? (mensaje.mensajeLeidoAt ? " · leído" : " · enviado") : ""}
@@ -594,6 +670,11 @@ const estilos = StyleSheet.create({
   },
   vozPista: { height: 4, borderRadius: 2, overflow: "hidden" },
   vozProgreso: { height: 4, borderRadius: 2 },
+
+  // Aviso de audio retirado por moderación.
+  retirado: { flexDirection: "row", alignItems: "center", gap: 8, minWidth: 180 },
+  // Enlace "Reportar" bajo un audio recibido.
+  reportar: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6, alignSelf: "flex-start" },
 
   error: {
     backgroundColor: colors.coralBg,

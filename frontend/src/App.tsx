@@ -11,6 +11,7 @@ import { Validaciones } from "./pages/admin/Validaciones";
 import { ListaEsperaAdmin } from "./pages/admin/ListaEspera";
 import { Viajes } from "./pages/admin/Viajes";
 import { Panicos } from "./pages/admin/Panicos";
+import { Reportes } from "./pages/admin/Reportes";
 import { MiCuenta } from "./pages/admin/MiCuenta";
 import type { ReactNode } from "react";
 
@@ -50,6 +51,7 @@ export function App() {
         <Route path="lista-espera" element={<ListaEsperaAdmin />} />
         <Route path="viajes" element={<Viajes />} />
         <Route path="panicos" element={<Panicos />} />
+        <Route path="reportes" element={<Reportes />} />
       </Route>
       <Route path="*" element={<NoEncontrado />} />
     </Routes>

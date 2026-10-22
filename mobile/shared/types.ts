@@ -164,6 +164,9 @@ export interface Mensaje {
   mensajeAudioArchivo: string | null;
   mensajeAudioDuracion: number | null;
   mensajeAudioMime: string | null;
+  // Sello de cuándo un admin retiró el audio por moderación. Si viene, la
+  // burbuja muestra "audio retirado" en vez del reproductor.
+  mensajeModeradoAt: string | null;
   mensajeLeidoAt: string | null;
   createdAt: string;
 }

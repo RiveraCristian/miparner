@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Activity, Inbox, MapPin, MessageSquare, CalendarClock, Pause, Play } from "lucide-react-native";
+import { Activity, Flag, Inbox, MapPin, MessageSquare, CalendarClock, Pause, Play } from "lucide-react-native";
 import AudioRecorderPlayer from "react-native-audio-recorder-player";
 import { colors, font, fuente, radius } from "../../../../shared/theme";
 import { api, loadToken } from "../../../../shared/api";
@@ -54,6 +54,8 @@ export function SolicitudesScreen() {
   // Nota de voz: qué solicitud suena ahora y si está cargando.
   const [vozId, setVozId] = useState<number | null>(null);
   const [vozCargando, setVozCargando] = useState(false);
+  // Notas de voz ya reportadas en esta sesión (para deshabilitar el botón).
+  const [reportadas, setReportadas] = useState<Set<number>>(new Set());
   const arp = useRef(new AudioRecorderPlayer()).current;
 
   const cargar = useCallback(() => {
@@ -102,6 +104,33 @@ export function SolicitudesScreen() {
       await pararNota();
       Alert.alert("No se pudo reproducir", "La nota de voz no está disponible.");
     }
+  }
+
+  /** Denuncia la nota de voz de una solicitud por lenguaje inapropiado. */
+  function reportarNota(viajeId: number) {
+    if (reportadas.has(viajeId)) return;
+    Alert.alert(
+      "Reportar nota de voz",
+      "¿Reportar esta nota de voz por lenguaje inapropiado? El equipo de Miparner la revisará.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Reportar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api(`/viajes/${viajeId}/comentario-voz/reportar`, {
+                method: "POST",
+                body: { motivo: "lenguaje inapropiado" },
+              });
+              setReportadas((s) => new Set(s).add(viajeId));
+            } catch (e) {
+              Alert.alert("No se pudo reportar", e instanceof Error ? e.message : "");
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function aceptar(id: number) {
@@ -196,30 +225,48 @@ export function SolicitudesScreen() {
 
           {/* Nota de voz de la solicitud: se escucha ANTES de aceptar. */}
           {s.viaje_comentario_audio_duracion ? (
-            <Pressable
-              onPress={() => reproducirNota(s.viaje_id)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                vozId === s.viaje_id ? "Pausar la nota de voz" : "Escuchar la nota de voz de la solicitud"
-              }
-              style={styles.notaVoz}
-            >
-              <View style={styles.notaVozBoton}>
-                {vozCargando && vozId === s.viaje_id ? (
-                  <ActivityIndicator size="small" color={colors.white} />
-                ) : vozId === s.viaje_id ? (
-                  <Pause size={18} color={colors.white} />
-                ) : (
-                  <Play size={18} color={colors.white} />
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[font.tiny, { color: colors.ink2, fontFamily: fuente.fuerte }]}>
-                  Nota de voz
+            <>
+              <Pressable
+                onPress={() => reproducirNota(s.viaje_id)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  vozId === s.viaje_id ? "Pausar la nota de voz" : "Escuchar la nota de voz de la solicitud"
+                }
+                style={styles.notaVoz}
+              >
+                <View style={styles.notaVozBoton}>
+                  {vozCargando && vozId === s.viaje_id ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : vozId === s.viaje_id ? (
+                    <Pause size={18} color={colors.white} />
+                  ) : (
+                    <Play size={18} color={colors.white} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[font.tiny, { color: colors.ink2, fontFamily: fuente.fuerte }]}>
+                    Nota de voz
+                  </Text>
+                  <Text style={font.body}>Escuchar · {mmss(s.viaje_comentario_audio_duracion)}</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => reportarNota(s.viaje_id)}
+                disabled={reportadas.has(s.viaje_id)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  reportadas.has(s.viaje_id)
+                    ? "Nota de voz reportada"
+                    : "Reportar la nota de voz por lenguaje inapropiado"
+                }
+                style={styles.reportar}
+              >
+                <Flag size={13} color={reportadas.has(s.viaje_id) ? colors.ink3 : colors.coral} />
+                <Text style={[font.tiny, { color: reportadas.has(s.viaje_id) ? colors.ink3 : colors.coral }]}>
+                  {reportadas.has(s.viaje_id) ? "Reportada" : "Reportar"}
                 </Text>
-                <Text style={font.body}>Escuchar · {mmss(s.viaje_comentario_audio_duracion)}</Text>
-              </View>
-            </Pressable>
+              </Pressable>
+            </>
           ) : null}
 
           <View style={{ height: 16 }} />
@@ -266,5 +313,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.indigo,
     alignItems: "center",
     justifyContent: "center",
+  },
+  reportar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+    paddingVertical: 4,
+    alignSelf: "flex-start",
   },
 });

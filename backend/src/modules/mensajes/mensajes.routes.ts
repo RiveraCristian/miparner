@@ -7,6 +7,7 @@ import {
   audioParamSchema,
   enviarMensajeSchema,
   enviarVozSchema,
+  reportarVozSchema,
   viajeParamSchema,
 } from "./mensajes.schemas";
 import * as mensajes from "./mensajes.service";
@@ -76,6 +77,26 @@ mensajesDeViajeRouter.get(
       res.sendFile(ruta, (err) => {
         if (err) next(AppError.notFound("El audio ya no está disponible"));
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Reportar un mensaje de voz por lenguaje inapropiado.
+mensajesDeViajeRouter.post(
+  "/:mensajeId/reportar",
+  validate({ params: audioParamSchema, body: reportarVozSchema }),
+  async (req, res, next) => {
+    try {
+      res.status(201).json(
+        await mensajes.reportar(
+          Number(req.params.viajeId),
+          Number(req.params.mensajeId),
+          actor(req),
+          req.body.motivo,
+        ),
+      );
     } catch (err) {
       next(err);
     }

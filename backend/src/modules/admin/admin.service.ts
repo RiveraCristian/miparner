@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/http-error";
 import { hashPassword } from "../../lib/password";
+import { eliminarArchivo } from "../../lib/uploads";
 import { evaluarGrupos } from "../documentos/documentos.catalogo";
 
 export async function listarUsuarios(rol?: string) {
@@ -510,4 +511,180 @@ export async function revisarDocumento(
     },
     select: SELECT_DOCUMENTO,
   });
+}
+
+// --- Reportes de audio inapropiado ---
+
+const SELECT_PERSONA = {
+  usuarioId: true,
+  usuarioNombre: true,
+  usuarioRol: true,
+} as const;
+
+/**
+ * Cola de reportes de audio. Normaliza los dos orígenes (mensaje de voz del
+ * chat y nota de voz de la solicitud) a una ficha común: quién reportó, autor
+ * del audio, duración, la URL protegida para reproducirlo y si el audio sigue
+ * disponible (deja de estarlo cuando ya se retiró).
+ */
+export async function listarReportes(estado = "pendiente") {
+  const reportes = await prisma.reporteAudio.findMany({
+    where: { reporteEstado: estado },
+    orderBy: { reporteId: "desc" },
+    take: 200,
+    select: {
+      reporteId: true,
+      reporteOrigen: true,
+      reporteMensajeId: true,
+      reporteViajeId: true,
+      reporteMotivo: true,
+      reporteEstado: true,
+      reporteResolucion: true,
+      reporteResueltoAt: true,
+      createdAt: true,
+      reportante: { select: SELECT_PERSONA },
+      mensaje: {
+        select: {
+          mensajeAudioDuracion: true,
+          mensajeAudioArchivo: true,
+          mensajeModeradoAt: true,
+          emisor: { select: SELECT_PERSONA },
+        },
+      },
+      viaje: {
+        select: {
+          viajeComentarioAudioDuracion: true,
+          viajeComentarioAudio: true,
+          viajeComentarioModeradoAt: true,
+          deportista: { select: SELECT_PERSONA },
+        },
+      },
+    },
+  });
+
+  return reportes.map((r) => {
+    const esMensaje = r.reporteOrigen === "mensaje";
+    const autor = esMensaje ? r.mensaje?.emisor : r.viaje?.deportista;
+    const duracion = esMensaje
+      ? r.mensaje?.mensajeAudioDuracion
+      : r.viaje?.viajeComentarioAudioDuracion;
+    const disponible = esMensaje
+      ? !!r.mensaje?.mensajeAudioArchivo
+      : !!r.viaje?.viajeComentarioAudio;
+    const moderadoAt = esMensaje
+      ? r.mensaje?.mensajeModeradoAt
+      : r.viaje?.viajeComentarioModeradoAt;
+    // URL del endpoint protegido que el panel usa (con Bearer) para oír el audio.
+    const audioUrl =
+      esMensaje && r.reporteViajeId && r.reporteMensajeId
+        ? `/viajes/${r.reporteViajeId}/mensajes/${r.reporteMensajeId}/audio`
+        : r.reporteViajeId
+          ? `/viajes/${r.reporteViajeId}/comentario-voz`
+          : null;
+
+    return {
+      reporteId: r.reporteId,
+      origen: r.reporteOrigen,
+      estado: r.reporteEstado,
+      motivo: r.reporteMotivo,
+      resolucion: r.reporteResolucion,
+      resueltoAt: r.reporteResueltoAt,
+      createdAt: r.createdAt,
+      viajeId: r.reporteViajeId,
+      reportante: r.reportante,
+      autor: autor ?? null,
+      duracion: duracion ?? null,
+      audioUrl,
+      audioDisponible: disponible,
+      moderadoAt: moderadoAt ?? null,
+    };
+  });
+}
+
+/**
+ * Resuelve un reporte pendiente. "desestimar" solo marca este reporte;
+ * "retirar" borra el binario del audio, sella el origen (mensaje o viaje) para
+ * que la app muestre "audio retirado" y cierra de paso los demás reportes
+ * pendientes sobre ese mismo audio.
+ */
+export async function resolverReporte(
+  adminId: number,
+  reporteId: number,
+  accion: "retirar" | "desestimar",
+  nota?: string,
+) {
+  const reporte = await prisma.reporteAudio.findUnique({
+    where: { reporteId },
+    select: {
+      reporteEstado: true,
+      reporteOrigen: true,
+      reporteMensajeId: true,
+      reporteViajeId: true,
+    },
+  });
+  if (!reporte) throw AppError.notFound("Reporte no encontrado");
+  if (reporte.reporteEstado !== "pendiente") {
+    throw AppError.conflict("Este reporte ya fue resuelto");
+  }
+
+  const ahora = new Date();
+  const resolucion = {
+    reporteResolucion: nota ?? null,
+    reporteResueltoPor: adminId,
+    reporteResueltoAt: ahora,
+    modifiedBy: adminId,
+  };
+
+  if (accion === "desestimar") {
+    await prisma.reporteAudio.update({
+      where: { reporteId },
+      data: { reporteEstado: "desestimado", ...resolucion },
+    });
+    return { reporteId, estado: "desestimado" as const };
+  }
+
+  // accion === "retirar": elimina el audio del origen correspondiente.
+  if (reporte.reporteOrigen === "mensaje" && reporte.reporteMensajeId) {
+    const mensajeId = reporte.reporteMensajeId;
+    const mensaje = await prisma.mensaje.findUnique({
+      where: { mensajeId },
+      select: { mensajeAudioArchivo: true },
+    });
+    await prisma.$transaction([
+      prisma.mensaje.update({
+        where: { mensajeId },
+        data: { mensajeAudioArchivo: null, mensajeModeradoAt: ahora, modifiedBy: adminId },
+      }),
+      prisma.reporteAudio.updateMany({
+        where: { reporteMensajeId: mensajeId, reporteEstado: "pendiente" },
+        data: { reporteEstado: "retirado", ...resolucion },
+      }),
+    ]);
+    if (mensaje?.mensajeAudioArchivo) eliminarArchivo(mensaje.mensajeAudioArchivo);
+  } else if (reporte.reporteViajeId) {
+    const viajeId = reporte.reporteViajeId;
+    const viaje = await prisma.viaje.findUnique({
+      where: { viajeId },
+      select: { viajeComentarioAudio: true },
+    });
+    await prisma.$transaction([
+      prisma.viaje.update({
+        where: { viajeId },
+        data: {
+          viajeComentarioAudio: null,
+          viajeComentarioAudioDuracion: null,
+          viajeComentarioAudioMime: null,
+          viajeComentarioModeradoAt: ahora,
+          modifiedBy: adminId,
+        },
+      }),
+      prisma.reporteAudio.updateMany({
+        where: { reporteOrigen: "solicitud", reporteViajeId: viajeId, reporteEstado: "pendiente" },
+        data: { reporteEstado: "retirado", ...resolucion },
+      }),
+    ]);
+    if (viaje?.viajeComentarioAudio) eliminarArchivo(viaje.viajeComentarioAudio);
+  }
+
+  return { reporteId, estado: "retirado" as const };
 }

@@ -9,6 +9,10 @@ import {
   type AudioSet,
 } from "react-native-audio-recorder-player";
 
+/** Tope de duración de una nota de voz: 1 minuto. La grabación se corta sola
+ *  al llegar y el backend además recorta el binario a esta duración. */
+export const MAX_SEGS = 60;
+
 /** Segundos → "m:ss". El contador de grabación y el de reproducción. */
 export const mmss = (secs: number) => {
   const s = Math.max(0, Math.floor(secs));
