@@ -7,8 +7,10 @@ import {
   atenderPanicoSchema,
   estadoUsuarioSchema,
   idParamSchema,
+  listarReportesQuerySchema,
   listarUsuariosQuerySchema,
   listarValidacionesQuerySchema,
+  resolverReporteSchema,
   resolverValidacionSchema,
   revisarDocumentoSchema,
   validarVoluntarioSchema,
@@ -158,6 +160,32 @@ router.patch("/panicos/:id", validate({ body: atenderPanicoSchema }), async (req
     next(err);
   }
 });
+
+// --- Reportes de audio inapropiado ---
+
+// Cola de reportes. Por defecto, los pendientes.
+router.get("/reportes", validate({ query: listarReportesQuerySchema }), async (req, res, next) => {
+  try {
+    res.json(await admin.listarReportes(String(req.query.estado ?? "pendiente")));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Resolver un reporte: retirar el audio o desestimar.
+router.patch(
+  "/reportes/:id",
+  validate({ params: idParamSchema, body: resolverReporteSchema }),
+  async (req, res, next) => {
+    try {
+      res.json(
+        await admin.resolverReporte(actorId(req), Number(req.params.id), req.body.accion, req.body.nota),
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // Métricas de flota
 router.get("/metricas", async (_req, res, next) => {

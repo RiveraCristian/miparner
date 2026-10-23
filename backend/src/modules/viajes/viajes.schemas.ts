@@ -37,6 +37,17 @@ export const solicitarSchema = z.object({
   duracionEstMin: z.number().int().min(15).max(600).optional(),
 });
 
+// La duración llega como campo de texto del multipart: coerce desde string.
+// Tope de 60 s (1 min): el backend además recorta el binario a esa duración.
+export const comentarioVozSchema = z.object({
+  duracion: z.coerce.number().int().min(1).max(60),
+});
+
+// Reporte de la nota de voz de la solicitud por lenguaje inapropiado.
+export const reportarVozSchema = z.object({
+  motivo: z.string().trim().max(500).optional(),
+});
+
 export const cambiarEstadoSchema = z.object({
   estado: z.enum(["en_camino", "en_accion", "finalizado", "cancelado"]),
 });

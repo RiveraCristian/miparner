@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Contrast, Heart, LogOut, ShieldCheck, Type, Vibrate, Volume2, Trash2 } from "lucide-react-native";
+import { Activity, Contrast, Heart, LogOut, ShieldCheck, Type, Vibrate, Volume2, Trash2 } from "lucide-react-native";
 import { colors, font, fuente } from "../../../../shared/theme";
 import { api } from "../../../../shared/api";
 import { useAuth } from "../../../../shared/auth";
@@ -11,8 +11,19 @@ import { Card, Estado, Etiqueta, GhostButton, PanelIndigo, Screen } from "../../
 import type { RootStackParams } from "../../navigation";
 
 interface Me {
-  deportistaPerfil?: { deportistaDisciplina: string | null; deportistaNecesidades: string[] } | null;
+  deportistaPerfil?: {
+    deportistaDisciplina: string | null;
+    deportistaNecesidades: string[];
+    deportistaNivelAtletico: string | null;
+  } | null;
 }
+
+/** Nivel atlético autodeclarado, con la mayúscula para mostrarlo. */
+const NIVEL_ATLETICO: Record<string, string> = {
+  principiante: "Principiante",
+  intermedio: "Intermedio",
+  avanzado: "Avanzado",
+};
 
 const AJUSTES = [
   { key: "voz", label: "Lectura por voz", hint: "VoiceOver / TalkBack", icon: Volume2, def: true },
@@ -40,6 +51,9 @@ export function PerfilScreen() {
   const perfil = me?.deportistaPerfil;
   const estadoCuenta = validacion?.estadoValidacion ?? user?.estadoValidacion ?? "pendiente";
   const cuenta = ESTADO_CUENTA[estadoCuenta] ?? ESTADO_CUENTA.pendiente;
+  const nivelAtletico = perfil?.deportistaNivelAtletico
+    ? NIVEL_ATLETICO[perfil.deportistaNivelAtletico] ?? perfil.deportistaNivelAtletico
+    : null;
 
   return (
     <Screen>
@@ -55,6 +69,21 @@ export function PerfilScreen() {
           <Estado text={cuenta.texto} tipo={cuenta.tipo} />
         </View>
       </PanelIndigo>
+
+      {nivelAtletico && (
+        <>
+          <Etiqueta style={{ marginBottom: 10 }}>Tu deporte</Etiqueta>
+          <Card style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 22 }}>
+            <View style={[styles.filaIcono, { backgroundColor: colors.lavanda }]}>
+              <Activity color={colors.indigo} size={20} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[font.body, { fontFamily: fuente.fuerte }]}>Nivel atlético</Text>
+              <Text style={font.tiny}>{nivelAtletico}</Text>
+            </View>
+          </Card>
+        </>
+      )}
 
       <Etiqueta style={{ marginBottom: 10 }}>Estado de la cuenta</Etiqueta>
       <Card style={{ gap: 12 }}>

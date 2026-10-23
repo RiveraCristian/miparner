@@ -25,6 +25,8 @@ export const actualizarUsuarioSchema = z
     correo: z.string().trim().email().optional(),
     telefono: z.string().trim().min(6).max(30).nullable().optional(),
     rol: z.enum(["deportista", "voluntario", "admin"]).optional(),
+    // Nivel atlético autodeclarado del deportista. null para borrarlo.
+    nivelAtletico: z.enum(["principiante", "intermedio", "avanzado"]).nullable().optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), {
     message: "No hay cambios que guardar",
@@ -62,4 +64,14 @@ export const revisarDocumentoSchema = z.object({
 
 export const idParamSchema = z.object({
   id: z.coerce.number().int().positive(),
+});
+
+export const listarReportesQuerySchema = z.object({
+  estado: z.enum(["pendiente", "retirado", "desestimado"]).default("pendiente"),
+});
+
+/** Resolución de un reporte de audio: retirar el audio o desestimar el reporte. */
+export const resolverReporteSchema = z.object({
+  accion: z.enum(["retirar", "desestimar"]),
+  nota: z.string().trim().max(500).optional(),
 });

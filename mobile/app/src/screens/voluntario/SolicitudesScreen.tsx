@@ -1,13 +1,19 @@
-import { useCallback, useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Inbox, MapPin, MessageSquare, CalendarClock } from "lucide-react-native";
+import { Activity, Flag, Inbox, MapPin, MessageSquare, CalendarClock, Pause, Play } from "lucide-react-native";
+import AudioRecorderPlayer from "react-native-audio-recorder-player";
 import { colors, font, fuente, radius } from "../../../../shared/theme";
-import { api } from "../../../../shared/api";
+import { api, loadToken } from "../../../../shared/api";
+import { API_URL } from "../../../../shared/config";
+import { mmss } from "../../../../shared/voz";
 import { Card, Estado, EsqueletoTarjeta, PrimaryButton, Screen, Vacio } from "../../../../shared/ui";
 import type { SolicitudCercana } from "../../../../shared/types";
 import type { RootStackParams } from "../../navigation";
+
+/** Nivel atlético autodeclarado, con su mayúscula para mostrarlo. */
+const nivelLabel = (n: string) => n.charAt(0).toUpperCase() + n.slice(1);
 
 /**
  * Cuándo es, dicho como lo diría una persona.
@@ -45,11 +51,87 @@ export function SolicitudesScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [items, setItems] = useState<SolicitudCercana[] | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
+  // Nota de voz: qué solicitud suena ahora y si está cargando.
+  const [vozId, setVozId] = useState<number | null>(null);
+  const [vozCargando, setVozCargando] = useState(false);
+  // Notas de voz ya reportadas en esta sesión (para deshabilitar el botón).
+  const [reportadas, setReportadas] = useState<Set<number>>(new Set());
+  const arp = useRef(new AudioRecorderPlayer()).current;
 
   const cargar = useCallback(() => {
     api<SolicitudCercana[]>("/voluntarios/me/solicitudes?radio=8000").then(setItems).catch(() => setItems([]));
   }, []);
   useFocusEffect(useCallback(() => cargar(), [cargar]));
+
+  useEffect(
+    () => () => {
+      arp.removePlayBackListener();
+      arp.stopPlayer().catch(() => {});
+    },
+    [arp],
+  );
+
+  async function pararNota() {
+    arp.removePlayBackListener();
+    try {
+      await arp.stopPlayer();
+    } catch {
+      /* nada que detener */
+    }
+    setVozId(null);
+    setVozCargando(false);
+  }
+
+  async function reproducirNota(viajeId: number) {
+    if (vozId === viajeId) {
+      await pararNota();
+      return;
+    }
+    await pararNota();
+    const token = await loadToken();
+    setVozId(viajeId);
+    setVozCargando(true);
+    try {
+      await arp.startPlayer(
+        `${API_URL}/viajes/${viajeId}/comentario-voz`,
+        token ? { Authorization: `Bearer ${token}` } : undefined,
+      );
+      setVozCargando(false);
+      arp.addPlayBackListener((e) => {
+        if (e.duration > 0 && e.currentPosition >= e.duration) pararNota();
+      });
+    } catch {
+      await pararNota();
+      Alert.alert("No se pudo reproducir", "La nota de voz no está disponible.");
+    }
+  }
+
+  /** Denuncia la nota de voz de una solicitud por lenguaje inapropiado. */
+  function reportarNota(viajeId: number) {
+    if (reportadas.has(viajeId)) return;
+    Alert.alert(
+      "Reportar nota de voz",
+      "¿Reportar esta nota de voz por lenguaje inapropiado? El equipo de Miparner la revisará.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Reportar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api(`/viajes/${viajeId}/comentario-voz/reportar`, {
+                method: "POST",
+                body: { motivo: "lenguaje inapropiado" },
+              });
+              setReportadas((s) => new Set(s).add(viajeId));
+            } catch (e) {
+              Alert.alert("No se pudo reportar", e instanceof Error ? e.message : "");
+            }
+          },
+        },
+      ],
+    );
+  }
 
   async function aceptar(id: number) {
     setBusy(id);
@@ -88,6 +170,16 @@ export function SolicitudesScreen() {
               <Text style={font.muted}>a {Math.round(s.distancia_m)} m de ti</Text>
             </View>
           </View>
+
+          {/* Nivel atlético autodeclarado: le dice al voluntario qué esperar. */}
+          {s.deportista_nivel_atletico ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 }}>
+              <Activity color={colors.indigo} size={16} />
+              <Text style={[font.body, { fontFamily: fuente.fuerte }]}>
+                Nivel {nivelLabel(s.deportista_nivel_atletico)}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Cuándo es: sin esto el voluntario aceptaba a ciegas. */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 }}>
@@ -131,6 +223,52 @@ export function SolicitudesScreen() {
             </View>
           ) : null}
 
+          {/* Nota de voz de la solicitud: se escucha ANTES de aceptar. */}
+          {s.viaje_comentario_audio_duracion ? (
+            <>
+              <Pressable
+                onPress={() => reproducirNota(s.viaje_id)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  vozId === s.viaje_id ? "Pausar la nota de voz" : "Escuchar la nota de voz de la solicitud"
+                }
+                style={styles.notaVoz}
+              >
+                <View style={styles.notaVozBoton}>
+                  {vozCargando && vozId === s.viaje_id ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : vozId === s.viaje_id ? (
+                    <Pause size={18} color={colors.white} />
+                  ) : (
+                    <Play size={18} color={colors.white} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[font.tiny, { color: colors.ink2, fontFamily: fuente.fuerte }]}>
+                    Nota de voz
+                  </Text>
+                  <Text style={font.body}>Escuchar · {mmss(s.viaje_comentario_audio_duracion)}</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => reportarNota(s.viaje_id)}
+                disabled={reportadas.has(s.viaje_id)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  reportadas.has(s.viaje_id)
+                    ? "Nota de voz reportada"
+                    : "Reportar la nota de voz por lenguaje inapropiado"
+                }
+                style={styles.reportar}
+              >
+                <Flag size={13} color={reportadas.has(s.viaje_id) ? colors.ink3 : colors.coral} />
+                <Text style={[font.tiny, { color: reportadas.has(s.viaje_id) ? colors.ink3 : colors.coral }]}>
+                  {reportadas.has(s.viaje_id) ? "Reportada" : "Reportar"}
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+
           <View style={{ height: 16 }} />
           <PrimaryButton
             title={busy === s.viaje_id ? "Aceptando…" : "Aceptar acompañamiento"}
@@ -158,5 +296,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lavanda,
     borderRadius: radius.md,
     padding: 12,
+  },
+  notaVoz: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.lavanda,
+    borderRadius: radius.md,
+    padding: 12,
+  },
+  notaVozBoton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.indigo,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reportar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+    paddingVertical: 4,
+    alignSelf: "flex-start",
   },
 });

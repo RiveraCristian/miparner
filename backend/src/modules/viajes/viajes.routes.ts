@@ -1,10 +1,14 @@
 import { Router } from "express";
 import { authenticate, requireRole, requireValidado, actorId } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
+import { AppError } from "../../lib/http-error";
+import { recibirAudio } from "../../lib/uploads";
 import {
   cambiarEstadoSchema,
   candidatosQuerySchema,
+  comentarioVozSchema,
   posicionSchema,
+  reportarVozSchema,
   solicitarSchema,
 } from "./viajes.schemas";
 import { mensajesDeViajeRouter } from "../mensajes/mensajes.routes";
@@ -28,6 +32,59 @@ router.post("/", requireRole("deportista"), requireValidado, validate({ body: so
     next(err);
   }
 });
+
+// Adjuntar la nota de voz de la solicitud (solo el deportista dueño).
+// multipart/form-data: campo `audio` + campo `duracion`.
+router.post(
+  "/:id/comentario-voz",
+  requireRole("deportista"),
+  requireValidado,
+  recibirAudio,
+  async (req, res, next) => {
+    try {
+      if (!req.file) throw AppError.badRequest("Adjunta el audio de la nota");
+      const { duracion } = comentarioVozSchema.parse(req.body);
+      res.status(201).json(
+        await viajes.adjuntarComentarioVoz(Number(req.params.id), actorId(req), {
+          archivo: req.file.filename,
+          mime: req.file.mimetype,
+          duracion,
+        }),
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Escuchar la nota de voz de la solicitud (dueño, voluntario o admin).
+router.get("/:id/comentario-voz", async (req, res, next) => {
+  try {
+    const { ruta, mime } = await viajes.comentarioVozDe(Number(req.params.id), actor(req));
+    res.type(mime);
+    res.setHeader("Content-Disposition", "inline");
+    res.sendFile(ruta, (err) => {
+      if (err) next(AppError.notFound("La nota de voz ya no está disponible"));
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Reportar la nota de voz de la solicitud por lenguaje inapropiado.
+router.post(
+  "/:id/comentario-voz/reportar",
+  validate({ body: reportarVozSchema }),
+  async (req, res, next) => {
+    try {
+      res.status(201).json(
+        await viajes.reportarComentarioVoz(Number(req.params.id), actor(req), req.body.motivo),
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // Mis viajes (deportista o voluntario)
 router.get("/", async (req, res, next) => {

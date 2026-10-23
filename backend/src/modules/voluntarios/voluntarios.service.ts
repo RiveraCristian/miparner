@@ -30,6 +30,7 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
     {
       viaje_id: number;
       deportista_nombre: string;
+      deportista_nivel_atletico: string | null;
       viaje_necesidades: string[];
       origen_lat: number;
       origen_lng: number;
@@ -38,6 +39,7 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
       destino_lng: number;
       viaje_destino_texto: string | null;
       viaje_comentario: string | null;
+      viaje_comentario_audio_duracion: number | null;
       viaje_programado_at: Date | null;
       viaje_duracion_est_min: number | null;
       viaje_solicitado_at: Date;
@@ -46,6 +48,7 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
   >`
     SELECT v.viaje_id                          AS "viaje_id",
            u.usuario_nombre                    AS "deportista_nombre",
+           dp.deportista_nivel_atletico        AS "deportista_nivel_atletico",
            v.viaje_necesidades                 AS "viaje_necesidades",
            ST_Y(v.viaje_origen::geometry)      AS "origen_lat",
            ST_X(v.viaje_origen::geometry)      AS "origen_lng",
@@ -54,6 +57,7 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
            ST_X(v.viaje_destino::geometry)     AS "destino_lng",
            v.viaje_destino_texto               AS "viaje_destino_texto",
            v.viaje_comentario                  AS "viaje_comentario",
+           v.viaje_comentario_audio_duracion   AS "viaje_comentario_audio_duracion",
            v.viaje_programado_at               AS "viaje_programado_at",
            v.viaje_duracion_est_min            AS "viaje_duracion_est_min",
            v.viaje_solicitado_at               AS "viaje_solicitado_at",
@@ -61,6 +65,7 @@ export async function solicitudesCercanas(usuarioId: number, radio: number) {
       FROM viajes v
       JOIN voluntario_perfil vp ON vp.voluntario_usuario_id = ${usuarioId}
       JOIN usuarios u ON u.usuario_id = v.viaje_deportista_id
+      LEFT JOIN deportista_perfil dp ON dp.deportista_usuario_id = v.viaje_deportista_id
      WHERE v.is_deleted = false
        AND v.viaje_estado = 'solicitado'
        AND v.viaje_voluntario_id IS NULL

@@ -63,6 +63,7 @@ model Usuario {
   validados            Usuario[]               @relation("UsuarioValidador")
   consentimientos      UsuarioConsentimiento[]
   esperaContactados    ListaEspera[]           @relation("EsperaContactadoPor")
+  reportesAudio        ReporteAudio[]          @relation("ReporteReportante")
   planes               PlanEntrenamiento[]
 
   @@index([usuarioEstadoValidacion])
@@ -90,6 +91,8 @@ model DeportistaPerfil {
   // DATO SENSIBLE. Nunca se expone al voluntario.
   deportistaTiposDiscapacidad Json      @default("[]") @map("deportista_tipos_discapacidad")
   deportistaNivelAutonomia    String?   @map("deportista_nivel_autonomia") @db.VarChar(30)
+  // Nivel atlético autodeclarado: principiante | intermedio | avanzado.
+  deportistaNivelAtletico     String?   @map("deportista_nivel_atletico") @db.VarChar(20)
   deportistaComunicacion      String?   @map("deportista_comunicacion") @db.VarChar(30)
   deportistaObservaciones     String?   @map("deportista_observaciones") @db.VarChar(1000)
 
@@ -151,6 +154,15 @@ model Viaje {
   viajeNecesidades    Json                                  @default("[]") @map("viaje_necesidades")
   // Lo que el deportista escribe con sus palabras al pedir el acompañamiento.
   viajeComentario     String?                               @map("viaje_comentario") @db.VarChar(1000)
+  // Nota de voz opcional de la solicitud: el deportista puede contar lo que
+  // necesita grabándolo en vez de (o además de) escribirlo. El binario vive en
+  // disco como los documentos; aquí el nombre, la duración en segundos y el mime.
+  viajeComentarioAudio         String?                        @map("viaje_comentario_audio") @db.VarChar(255)
+  viajeComentarioAudioDuracion Int?                           @map("viaje_comentario_audio_duracion")
+  viajeComentarioAudioMime     String?                        @map("viaje_comentario_audio_mime") @db.VarChar(60)
+  // Cuándo un admin retiró la nota de voz por moderación (lenguaje inapropiado).
+  // Al retirarla se borra el binario y se anulan los campos de audio de arriba.
+  viajeComentarioModeradoAt    DateTime?                      @map("viaje_comentario_moderado_at")
   // Cuándo lo quiere la persona. NULL = lo antes posible, que es como
   // funcionaba todo antes de que existiera la programación.
   viajeProgramadoAt   DateTime?                             @map("viaje_programado_at")
@@ -173,6 +185,7 @@ model Viaje {
   eventos    ViajeEvento[]
   panicos    PanicoAlerta[]
   mensajes   Mensaje[]
+  reportes   ReporteAudio[]
 
   @@index([viajeEstado])
   @@index([viajeProgramadoAt])
@@ -387,8 +400,18 @@ model Mensaje {
   mensajeViajeId    Int       @map("mensaje_viaje_id")
   mensajeEmisorId   Int       @map("mensaje_emisor_id")
   mensajeReceptorId Int       @map("mensaje_receptor_id")
-  mensajeTexto      String    @map("mensaje_texto") @db.VarChar(1000)
-  mensajeLeidoAt    DateTime? @map("mensaje_leido_at")
+  // Un mensaje es de texto O de voz. El texto deja de ser obligatorio; cuando
+  // es de voz, el binario vive en disco (como los documentos) y aquí queda su
+  // nombre, la duración en segundos y el mime real para servirlo.
+  mensajeTexto         String?   @map("mensaje_texto") @db.VarChar(1000)
+  mensajeAudioArchivo  String?   @map("mensaje_audio_archivo") @db.VarChar(255)
+  mensajeAudioDuracion Int?      @map("mensaje_audio_duracion")
+  mensajeAudioMime     String?   @map("mensaje_audio_mime") @db.VarChar(60)
+  mensajeLeidoAt       DateTime? @map("mensaje_leido_at")
+  // Cuándo un admin retiró el audio por moderación (lenguaje inapropiado). Al
+  // retirarlo se borra el binario y se anula mensajeAudioArchivo; este sello
+  // distingue "audio retirado" de "mensaje de texto" en la app.
+  mensajeModeradoAt    DateTime? @map("mensaje_moderado_at")
 
   createdBy  Int      @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -398,6 +421,7 @@ model Mensaje {
   viaje    Viaje   @relation(fields: [mensajeViajeId], references: [viajeId])
   emisor   Usuario @relation("MensajeEmisor", fields: [mensajeEmisorId], references: [usuarioId])
   receptor Usuario @relation("MensajeReceptor", fields: [mensajeReceptorId], references: [usuarioId])
+  reportes ReporteAudio[]
 
   @@index([mensajeViajeId, mensajeId])
   @@index([mensajeReceptorId])
@@ -534,4 +558,40 @@ model AuditLog {
   @@index([auditTabla, auditRegistroId])
   @@index([auditTimestamp])
   @@map("audit_log")
+}
+
+// ============================================================
+// Reportes de audio inapropiado (moderados por el equipo admin)
+// ============================================================
+// Un usuario puede denunciar un audio con lenguaje inapropiado. El audio vive
+// en dos lugares: el mensaje de voz del chat (origen "mensaje") o la nota de
+// voz de la solicitud (origen "solicitud"). Según el origen se llena
+// reporteMensajeId o reporteViajeId. El equipo admin revisa la cola: puede
+// "retirar" el audio (borra el binario y marca el mensaje/viaje) o
+// "desestimar" el reporte.
+model ReporteAudio {
+  reporteId          Int       @id @default(autoincrement()) @map("reporte_id")
+  reporteOrigen      String    @map("reporte_origen") @db.VarChar(20) // mensaje | solicitud
+  reporteMensajeId   Int?      @map("reporte_mensaje_id")
+  reporteViajeId     Int?      @map("reporte_viaje_id")
+  reporteReportanteId Int      @map("reporte_reportante_id")
+  reporteMotivo      String?   @map("reporte_motivo") @db.VarChar(500)
+  reporteEstado      String    @default("pendiente") @map("reporte_estado") @db.VarChar(20) // pendiente | retirado | desestimado
+  reporteResolucion  String?   @map("reporte_resolucion") @db.VarChar(500)
+  reporteResueltoPor Int?      @map("reporte_resuelto_por")
+  reporteResueltoAt  DateTime? @map("reporte_resuelto_at")
+
+  createdBy  Int      @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  modifiedBy Int?     @map("modified_by")
+  modifiedAt DateTime @default(now()) @map("modified_at")
+
+  mensaje    Mensaje? @relation(fields: [reporteMensajeId], references: [mensajeId])
+  viaje      Viaje?   @relation(fields: [reporteViajeId], references: [viajeId])
+  reportante Usuario  @relation("ReporteReportante", fields: [reporteReportanteId], references: [usuarioId])
+
+  @@index([reporteEstado])
+  @@index([reporteMensajeId])
+  @@index([reporteViajeId])
+  @@map("reportes_audio")
 }

@@ -1,5 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../lib/http-error";
+import { eliminarArchivo, rutaDe } from "../../lib/uploads";
+import { comprimirAudio } from "../../lib/audio";
 import { emitToRide, RIDE_EVENTS } from "../../realtime/socket";
 import { otorgarPuntosPorViaje } from "../gamificacion/gamificacion.service";
 import type { SolicitarDto } from "./viajes.schemas";
@@ -124,6 +126,136 @@ export async function solicitar(deportistaId: number, dto: SolicitarDto) {
   const viajeId = filas[0].viaje_id;
   await crearEvento(viajeId, "solicitado", deportistaId);
   return mapViaje(await obtenerFila(viajeId));
+}
+
+/**
+ * Adjunta (o reemplaza) la nota de voz de la solicitud. Solo el deportista
+ * dueño puede hacerlo. El binario ya quedó en disco (lo guardó multer); si
+ * había una nota previa se borra para no dejar archivos huérfanos.
+ */
+export async function adjuntarComentarioVoz(
+  viajeId: number,
+  deportistaId: number,
+  audio: { archivo: string; mime: string; duracion: number },
+) {
+  const viaje = await prisma.viaje.findUnique({
+    where: { viajeId },
+    select: { viajeDeportistaId: true, isDeleted: true, viajeComentarioAudio: true },
+  });
+  if (!viaje || viaje.isDeleted) {
+    eliminarArchivo(audio.archivo);
+    throw AppError.notFound("Acompañamiento no encontrado");
+  }
+  if (viaje.viajeDeportistaId !== deportistaId) {
+    eliminarArchivo(audio.archivo);
+    throw AppError.forbidden("Solo puedes adjuntar una nota de voz a tu propia solicitud");
+  }
+
+  // Recomprime a voz liviana y recorta a 60 s antes de guardar.
+  const comprimido = await comprimirAudio(audio);
+
+  const anterior = viaje.viajeComentarioAudio;
+  await prisma.viaje.update({
+    where: { viajeId },
+    data: {
+      viajeComentarioAudio: comprimido.archivo,
+      viajeComentarioAudioDuracion: comprimido.duracion,
+      viajeComentarioAudioMime: comprimido.mime,
+      // Una nota nueva reabre la posibilidad de oírla: limpia una moderación previa.
+      viajeComentarioModeradoAt: null,
+      modifiedBy: deportistaId,
+    },
+  });
+  if (anterior) eliminarArchivo(anterior);
+
+  return { viajeId, duracion: comprimido.duracion };
+}
+
+/**
+ * Ubicación en disco de la nota de voz de una solicitud. La oye el dueño, el
+ * voluntario asignado, el admin, o cualquier voluntario mientras la solicitud
+ * siga abierta (para escucharla antes de aceptar, igual que la ve en la lista).
+ */
+export async function comentarioVozDe(viajeId: number, actor: Actor) {
+  const viaje = await prisma.viaje.findUnique({
+    where: { viajeId },
+    select: {
+      viajeDeportistaId: true,
+      viajeVoluntarioId: true,
+      viajeEstado: true,
+      isDeleted: true,
+      viajeComentarioAudio: true,
+      viajeComentarioAudioMime: true,
+    },
+  });
+  if (!viaje || viaje.isDeleted) throw AppError.notFound("Acompañamiento no encontrado");
+
+  const esDueno = viaje.viajeDeportistaId === actor.usuarioId;
+  const esAsignado = viaje.viajeVoluntarioId === actor.usuarioId;
+  const esSolicitudAbierta =
+    actor.rol === "voluntario" && viaje.viajeEstado === "solicitado" && viaje.viajeVoluntarioId === null;
+  if (!esDueno && !esAsignado && !esSolicitudAbierta && actor.rol !== "admin") {
+    throw AppError.forbidden("No puedes escuchar esta nota de voz");
+  }
+
+  if (!viaje.viajeComentarioAudio) throw AppError.notFound("Esta solicitud no tiene nota de voz");
+  return {
+    ruta: rutaDe(viaje.viajeComentarioAudio),
+    mime: viaje.viajeComentarioAudioMime ?? "audio/mp4",
+  };
+}
+
+/**
+ * Denuncia la nota de voz de una solicitud por lenguaje inapropiado. La puede
+ * reportar quien tiene derecho a oírla (voluntario asignado, voluntario de una
+ * solicitud abierta o admin), nunca el propio deportista dueño. Idempotente por
+ * usuario mientras el reporte siga pendiente.
+ */
+export async function reportarComentarioVoz(viajeId: number, actor: Actor, motivo?: string) {
+  const viaje = await prisma.viaje.findUnique({
+    where: { viajeId },
+    select: {
+      viajeDeportistaId: true,
+      viajeVoluntarioId: true,
+      viajeEstado: true,
+      isDeleted: true,
+      viajeComentarioAudio: true,
+    },
+  });
+  if (!viaje || viaje.isDeleted) throw AppError.notFound("Acompañamiento no encontrado");
+  if (!viaje.viajeComentarioAudio) throw AppError.badRequest("Esta solicitud no tiene nota de voz");
+
+  const esDueno = viaje.viajeDeportistaId === actor.usuarioId;
+  const esAsignado = viaje.viajeVoluntarioId === actor.usuarioId;
+  const esSolicitudAbierta =
+    actor.rol === "voluntario" && viaje.viajeEstado === "solicitado" && viaje.viajeVoluntarioId === null;
+  if (esDueno) throw AppError.badRequest("No puedes reportar tu propia nota de voz");
+  if (!esAsignado && !esSolicitudAbierta && actor.rol !== "admin") {
+    throw AppError.forbidden("No puedes reportar esta nota de voz");
+  }
+
+  const existente = await prisma.reporteAudio.findFirst({
+    where: {
+      reporteOrigen: "solicitud",
+      reporteViajeId: viajeId,
+      reporteReportanteId: actor.usuarioId,
+      reporteEstado: "pendiente",
+    },
+    select: { reporteId: true },
+  });
+  if (existente) return { reporteId: existente.reporteId, yaReportado: true };
+
+  const r = await prisma.reporteAudio.create({
+    data: {
+      reporteOrigen: "solicitud",
+      reporteViajeId: viajeId,
+      reporteReportanteId: actor.usuarioId,
+      reporteMotivo: motivo ?? null,
+      createdBy: actor.usuarioId,
+    },
+    select: { reporteId: true },
+  });
+  return { reporteId: r.reporteId, yaReportado: false };
 }
 
 export async function getDetalle(viajeId: number, actor: Actor) {

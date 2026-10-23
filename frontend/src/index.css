@@ -130,6 +130,9 @@ button{font:inherit;color:inherit}
 .btn-critico{background:var(--coral-bg);color:var(--ink);border-color:var(--coral)}
 .btn-critico:hover:not(:disabled){background:var(--coral);color:#fff;font-weight:700}
 .btn-sm{min-height:36px;padding:8px 16px;font-size:14px;border-radius:var(--r-pill)}
+/* Botón sólo-icono para tablas densas: cuadrado. El nombre lo da el aria-label. */
+.btn-icono{width:36px;min-height:36px;padding:0;gap:0}
+.btn-icono svg{margin:0}
 .btn-blanco{background:#fff;color:var(--indigo)}
 .btn-blanco:hover{background:var(--lavanda)}
 .btn-contorno-blanco{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
@@ -195,6 +198,9 @@ td{padding:14px;border-bottom:1px solid var(--line-2);font-size:15px;vertical-al
 tbody tr:last-child td{border-bottom:0}
 tbody tr:hover{background:var(--bg)}
 .num{font-variant-numeric:tabular-nums}
+/* Celda que trunca con elipsis en escritorio (el valor completo va en title).
+   En móvil se desactiva: la tabla se apila y el texto puede ocupar su ancho. */
+.celda-trunca{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Tabla apilada en móvil: cada fila pasa a ser una tarjeta con etiqueta+valor.
    La cabecera se oculta (queda para lectores) y cada celda muestra su rótulo
@@ -223,6 +229,8 @@ tbody tr:hover{background:var(--bg)}
     margin-top:6px;padding-top:12px;border-top:1px solid var(--line-2);white-space:normal;
   }
   .tabla-apilada td[data-label="Acciones"]::before{width:100%}
+  /* En apilado el correo no se trunca: hay ancho de sobra en vertical. */
+  .celda-trunca{max-width:none;overflow:visible;white-space:normal}
 }
 
 /* --- Utilidades ---------------------------------------------------------- */

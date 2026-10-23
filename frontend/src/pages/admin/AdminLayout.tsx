@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { BadgeCheck, Inbox, HeartHandshake, LayoutDashboard, Siren, UserCog, UsersRound } from "lucide-react";
+import { BadgeCheck, Flag, Inbox, HeartHandshake, LayoutDashboard, Siren, UserCog, UsersRound } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 import { Sidebar, type ItemNav } from "../../components/layout/Sidebar";
 
@@ -11,6 +11,7 @@ const items: ItemNav[] = [
   { to: "/admin/lista-espera", icon: Inbox, label: "Lista de espera" },
   { to: "/admin/viajes", icon: HeartHandshake, label: "Acompañamientos" },
   { to: "/admin/panicos", icon: Siren, label: "Alertas" },
+  { to: "/admin/reportes", icon: Flag, label: "Reportes" },
   { to: "/admin/cuenta", icon: UserCog, label: "Mi cuenta" },
 ];
 
