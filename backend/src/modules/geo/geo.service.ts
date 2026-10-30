@@ -1,33 +1,22 @@
 /**
  * Búsqueda de direcciones (geocodificación).
  *
- * Usa Nominatim, el buscador de OpenStreetMap: gratuito, sin clave y con los
- * mismos datos que ya pinta el mapa, así que lo que la persona busca y lo que
- * ve coinciden.
+ * Usa Photon (photon.komoot.io), geocodificador basado en datos de
+ * OpenStreetMap: gratuito, sin clave y con los mismos datos que ya pinta el
+ * mapa, así que lo que la persona busca y lo que ve coinciden.
  *
  * Por qué pasa por el backend y no lo llama la app directamente:
  *
- *  · Nominatim limita a una petición por segundo POR CLIENTE y exige
- *    identificarse. Mil teléfonos escribiendo en el buscador nos dejarían
- *    bloqueados en una tarde; desde aquí hay un solo cliente, con su
- *    identificación y su freno.
  *  · Lo que se busca se cachea. Las direcciones de Santiago se repiten mucho:
  *    el centro de alto rendimiento lo va a buscar mucha gente.
- *  · Cambiar de proveedor —Photon, MapTiler, uno propio— no obliga a publicar
- *    una versión nueva de la app.
+ *  · Cambiar de proveedor —MapTiler, uno propio— es cambiar este archivo.
  */
 import { AppError } from "../../lib/http-error";
 
-const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+const PHOTON = "https://photon.komoot.io/api";
 
-/**
- * Nominatim exige identificar la aplicación con un contacto real. Omitirlo o
- * falsearlo es motivo de bloqueo, y además sería mentir sobre quién consulta.
- */
-const IDENTIFICACION = "Miparner/1.0 (https://miparner.com; contacto@miparner.com)";
-
-/** Chile. Buscar en todo el mundo devolvería ruido inútil. */
-const PAIS = "cl";
+/** Bounding box de Chile para acotar resultados: left,bottom,right,top. */
+const BBOX_CHILE = "-75.64,-55.98,-66.42,-17.5";
 
 export interface Lugar {
   nombre: string;
@@ -50,28 +39,45 @@ const CACHE = new Map<string, Entrada>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // Las direcciones no se mueven.
 const CACHE_MAX = 500;
 
-/* ------------------------------------------------- Freno de una por segundo */
-
-let ultimaPeticion = 0;
-const MINIMO_ENTRE_PETICIONES_MS = 1100;
-
-async function esperarTurno() {
-  const desde = Date.now() - ultimaPeticion;
-  if (desde < MINIMO_ENTRE_PETICIONES_MS) {
-    await new Promise((r) => setTimeout(r, MINIMO_ENTRE_PETICIONES_MS - desde));
-  }
-  ultimaPeticion = Date.now();
-}
-
 /* ---------------------------------------------------------------- Búsqueda */
 
-interface ResultadoNominatim {
-  display_name?: string;
+interface PropiedadesPhoton {
   name?: string;
-  lat?: string;
-  lon?: string;
+  street?: string;
+  housenumber?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   type?: string;
-  addresstype?: string;
+  osm_key?: string;
+  osm_value?: string;
+}
+
+interface FeaturePhoton {
+  geometry: { coordinates: [number, number] };
+  properties: PropiedadesPhoton;
+}
+
+interface RespuestaPhoton {
+  features: FeaturePhoton[];
+}
+
+function construirNombre(p: PropiedadesPhoton): string {
+  if (p.name) return p.name;
+  const partes = [p.street, p.housenumber].filter(Boolean).join(" ");
+  return partes || p.city || "Sin nombre";
+}
+
+function construirDireccion(p: PropiedadesPhoton): string {
+  const partes: string[] = [];
+  if (p.name) {
+    const calle = [p.street, p.housenumber].filter(Boolean).join(" ");
+    if (calle) partes.push(calle);
+  }
+  if (p.city) partes.push(p.city);
+  if (p.state && p.state !== p.city) partes.push(p.state);
+  if (p.country) partes.push(p.country);
+  return partes.join(", ");
 }
 
 /**
@@ -93,36 +99,26 @@ export async function buscarDireccion(
 
   const params = new URLSearchParams({
     q,
-    format: "jsonv2",
-    addressdetails: "0",
     limit: "6",
-    countrycodes: PAIS,
-    "accept-language": "es",
+    // Sin `lang`: Photon solo acepta default/de/en/fr y responde 400 con "es".
+    // Por defecto devuelve el nombre local, que en Chile ya está en español.
+    bbox: BBOX_CHILE,
   });
 
-  // Caja de sesgo alrededor de la persona: ~50 km, suficiente para una ciudad.
   if (cerca) {
-    const d = 0.45;
-    params.set(
-      "viewbox",
-      [cerca.lng - d, cerca.lat + d, cerca.lng + d, cerca.lat - d].join(","),
-    );
-    params.set("bounded", "0"); // sesga, pero no descarta lo de fuera
+    params.set("lat", String(cerca.lat));
+    params.set("lon", String(cerca.lng));
   }
 
-  await esperarTurno();
-
-  let datos: ResultadoNominatim[];
+  let datos: RespuestaPhoton;
   try {
-    const res = await fetch(`${NOMINATIM}?${params}`, {
-      headers: { "User-Agent": IDENTIFICACION, Accept: "application/json" },
+    const res = await fetch(`${PHOTON}?${params}`, {
+      headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) throw new Error(`Nominatim respondió ${res.status}`);
-    datos = (await res.json()) as ResultadoNominatim[];
+    if (!res.ok) throw new Error(`Photon respondió ${res.status}`);
+    datos = (await res.json()) as RespuestaPhoton;
   } catch (e) {
-    // Que el buscador falle no debe romper la pantalla: la persona siempre
-    // puede marcar el punto en el mapa a mano.
     console.warn("Búsqueda de direcciones no disponible:", (e as Error).message);
     throw new AppError(
       503,
@@ -131,14 +127,14 @@ export async function buscarDireccion(
     );
   }
 
-  const lugares: Lugar[] = datos
-    .filter((d) => d.lat && d.lon)
-    .map((d) => ({
-      nombre: d.name?.trim() || (d.display_name ?? "").split(",")[0].trim(),
-      direccion: d.display_name ?? "",
-      lat: Number(d.lat),
-      lng: Number(d.lon),
-      tipo: d.addresstype ?? d.type ?? null,
+  const lugares: Lugar[] = (datos.features ?? [])
+    .filter((f) => f.geometry?.coordinates?.length === 2)
+    .map((f) => ({
+      nombre: construirNombre(f.properties),
+      direccion: construirDireccion(f.properties),
+      lat: f.geometry.coordinates[1],
+      lng: f.geometry.coordinates[0],
+      tipo: f.properties.osm_value ?? f.properties.type ?? null,
     }));
 
   // Caché sencilla: al llenarse, se tira la entrada más antigua.

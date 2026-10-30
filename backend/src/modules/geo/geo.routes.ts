@@ -9,7 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 // Se escribe letra a letra desde la app, así que el límite es generoso; lo que
-// protege a Nominatim de verdad es el freno y la caché del servicio.
+// protege al geocodificador de verdad es la caché del servicio.
 const limitador = rateLimit({
   windowMs: 60 * 1000,
   limit: 60,

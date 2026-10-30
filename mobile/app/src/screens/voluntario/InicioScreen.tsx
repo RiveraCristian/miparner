@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { Switch, Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { Alert, Switch, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
@@ -51,6 +51,8 @@ export function InicioScreen() {
   const [activo, setActivo] = useState<ViajeItem | null>(null);
   const [acompanadosHoy, setAcompanadosHoy] = useState(0);
   const [puntos, setPuntos] = useState<number | null>(null);
+  /** Sube con cada toque del switch: descarta respuestas que llegan tarde. */
+  const versionToggle = useRef(0);
 
   /*
    * Mientras está en línea, el teléfono publica su posición real: es la que
@@ -70,6 +72,17 @@ export function InicioScreen() {
   }, [aprobado]);
   useFocusEffect(
     useCallback(() => {
+      // Sincroniza el interruptor con el estado real guardado en el backend:
+      // sin esto, volver a esta pantalla (o reiniciar la app) siempre mostraba
+      // el switch apagado aunque el voluntario se hubiera puesto en línea antes.
+      // Si el voluntario toca el switch mientras esta lectura viaja, la respuesta
+      // ya es vieja: aplicarla lo apagaría justo después de encenderlo.
+      const version = versionToggle.current;
+      api<{ voluntarioEnLinea: boolean }>("/voluntarios/me")
+        .then((p) => {
+          if (versionToggle.current === version) setEnLinea(p.voluntarioEnLinea);
+        })
+        .catch(() => {});
       refrescar();
       api<ViajeItem[]>("/viajes")
         .then((vs) => {
@@ -87,13 +100,24 @@ export function InicioScreen() {
   );
 
   async function toggle(v: boolean) {
+    const version = ++versionToggle.current;
     setEnLinea(v);
     try {
-      await api("/voluntarios/me/estado", { method: "PATCH", body: { enLinea: v } });
+      const r = await api<{ voluntarioEnLinea: boolean }>("/voluntarios/me/estado", {
+        method: "PATCH",
+        body: { enLinea: v },
+      });
+      if (versionToggle.current === version) setEnLinea(r.voluntarioEnLinea);
       // La ubicación la publica el hook en cuanto llega la primera lectura.
       if (v) refrescar();
-    } catch {
+    } catch (e) {
+      if (versionToggle.current !== version) return;
       setEnLinea(!v);
+      // Antes se revertía en silencio y parecía que el switch se apagaba solo.
+      Alert.alert(
+        v ? "No pudimos ponerte en línea" : "No pudimos ponerte fuera de línea",
+        e instanceof Error ? e.message : "Revisa tu conexión e inténtalo de nuevo.",
+      );
     }
   }
 
