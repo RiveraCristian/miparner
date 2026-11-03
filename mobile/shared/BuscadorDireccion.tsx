@@ -21,7 +21,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MapPin, Search, X } from "lucide-react-native";
-import { api } from "./api";
+import { api, consulta, esMensajeParaLaPersona } from "./api";
 import { anunciar } from "./anuncios";
 import { colors, elevacion, font, fuente, radius, TOQUE_MIN } from "./theme";
 import { CampoTexto } from "./ui";
@@ -74,12 +74,9 @@ export function BuscadorDireccion({ label, ayuda, valor, onElegir, cerca, obliga
       setBuscando(true);
       setError("");
       try {
-        const params = new URLSearchParams({ q });
-        if (cerca) {
-          params.set("lat", String(cerca.lat));
-          params.set("lng", String(cerca.lng));
-        }
-        const r = await api<Lugar[]>(`/geo/buscar?${params}`);
+        const r = await api<Lugar[]>(
+          `/geo/buscar${consulta({ q, lat: cerca?.lat, lng: cerca?.lng })}`,
+        );
         setResultados(r);
         // Quien no ve la pantalla no sabe que aparecieron sugerencias.
         void anunciar(
@@ -89,11 +86,15 @@ export function BuscadorDireccion({ label, ayuda, valor, onElegir, cerca, obliga
         );
       } catch (e) {
         setResultados(null);
+        // Solo se enseña el texto si lo escribió el servidor para la persona.
+        // Un fallo interno lleva un mensaje en inglés que no dice nada a quien
+        // está intentando pedir un acompañamiento.
         setError(
-          e instanceof Error && e.message
+          esMensajeParaLaPersona(e)
             ? e.message
-            : "No pudimos buscar. Puedes marcar el punto en el mapa.",
+            : "No pudimos buscar la dirección. Puedes marcar el punto en el mapa.",
         );
+        if (!esMensajeParaLaPersona(e)) console.warn("Buscador de direcciones:", e);
       } finally {
         setBuscando(false);
       }
