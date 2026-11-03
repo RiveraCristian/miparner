@@ -10,7 +10,16 @@ const SALIDA_NATIVA = new RegExp(
   "[\\\\/]android[\\\\/](\\.gradle|\\.cxx|build|app[\\\\/](build|\\.cxx))[\\\\/].*",
 );
 
+// Cuantos procesos de transformacion levanta Metro. Por defecto uno por nucleo:
+// en un equipo de 16 nucleos son 16 procesos de Node a la vez, y si la memoria
+// libre escasea el empaquetado muere con "JavaScript heap out of memory" aunque
+// el proyecto sea pequeño (los montones que aparecen en el error son de 18 MB).
+// Sin la variable definida no cambia nada; al compilar en un equipo cargado se
+// pone METRO_WORKERS=3 y entra sin pelear por la RAM.
+const trabajadores = Number(process.env.METRO_WORKERS) || undefined;
+
 const config = {
+  ...(trabajadores ? { maxWorkers: trabajadores } : {}),
   watchFolders: [sharedRoot, path.resolve(__dirname, "../node_modules")],
   resolver: {
     // Workspace: dependencias hoisteadas a mobile/node_modules + fallback local.
