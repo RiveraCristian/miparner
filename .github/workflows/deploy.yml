@@ -139,6 +139,37 @@ jobs:
             UPLOAD_MAX_MB=8
             EOF
 
+            # Hacer sitio ANTES de descargar, no después.
+            #
+            # El disco son 10 GB y cada despliegue trae imágenes nuevas. La
+            # anterior se queda sin etiqueta pero sigue ocupando: el backend
+            # arrastra los motores de Prisma, que son más de 100 MB por capa.
+            # Limpiar solo al final no basta, porque la descarga ya reventó
+            # antes de llegar ahí ("no space left on device" a mitad de
+            # extraer una capa).
+            #
+            # `-a` borra toda imagen que ningún contenedor esté usando. Los
+            # contenedores en marcha apuntan a las imágenes actuales, así que
+            # la versión que está sirviendo ahora mismo no se toca.
+            echo "--- Disco antes de limpiar ---"
+            df -h / | tail -1
+            docker image prune -af || true
+            docker builder prune -af || true
+            echo "--- Disco después de limpiar ---"
+            df -h / | tail -1
+            docker system df || true
+
+            # Si aun así no hay sitio, se dice aquí y con todas las letras. El
+            # error de containerd por disco lleno aparece sepultado entre
+            # cientos de líneas de descarga y cuesta reconocerlo.
+            LIBRE_MB=$(df --output=avail -m / | tail -1 | tr -d ' ')
+            if [ "$LIBRE_MB" -lt 2000 ]; then
+              echo "ERROR: quedan ${LIBRE_MB} MB libres y hacen falta unos 2000"
+              echo "para descargar las imágenes. Mira qué ocupa el disco:"
+              du -xh --max-depth=2 /var /opt 2>/dev/null | sort -rh | head -20
+              exit 1
+            fi
+
             docker compose -f docker-compose.prod.yml pull
 
             # Las migraciones corren DENTRO del droplet, contra el PostgreSQL
@@ -150,8 +181,15 @@ jobs:
 
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
-            # Disco de 10 GB: las imágenes viejas lo llenan en pocas semanas.
-            docker image prune -af --filter "until=168h"
+            # Segunda pasada: al recrear los contenedores, las imágenes de la
+            # versión anterior se quedan sin nadie que las use y ahora sí se
+            # pueden borrar. Sin filtro de antigüedad a propósito: el filtro
+            # `until=168h` que había aquí conservaba durante una semana cada
+            # imagen vieja, y con varios despliegues por semana eso es
+            # exactamente lo que llenó el disco.
+            docker image prune -af || true
+            echo "--- Disco al terminar ---"
+            df -h / | tail -1
 
             # El token ya no sirve para nada, pero no se deja escrito en disco.
             docker logout ghcr.io
