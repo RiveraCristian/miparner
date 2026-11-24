@@ -54,6 +54,21 @@ router.post("/refresh", validate({ body: refreshSchema }), async (req, res, next
   }
 });
 
+/**
+ * Cierra la sesión de este dispositivo revocando su token de renovación.
+ *
+ * No exige el token de acceso: puede estar vencido justo cuando la persona
+ * pulsa "Cerrar sesión", y lo que importa revocar es el de renovación, que es
+ * el que dura treinta días.
+ */
+router.post("/logout", validate({ body: refreshSchema }), async (req, res, next) => {
+  try {
+    res.json(await authService.logout(req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/me", authenticate, async (req, res, next) => {
   try {
     res.json(await authService.me(actorId(req)));

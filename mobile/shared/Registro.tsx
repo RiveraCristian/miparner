@@ -11,12 +11,14 @@
  * backend no crea la cuenta, así que el botón se queda deshabilitado hasta que
  * estén marcadas.
  */
-import { useCallback, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View, type TextInput } from "react-native";
 import { AlertCircle, ArrowLeft, ArrowRight, Check } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { anunciar } from "./anuncios";
 import { useAuth } from "./auth";
 import { useCatalogo, apoyosSugeridos } from "./catalogos";
+import { enmascararFecha, validarFechaNacimiento } from "./fecha";
 import { FormularioConsentimientos } from "./Privacidad";
 import { Logo } from "./brand/Logo";
 import { colors, font, fuente, radius } from "./theme";
@@ -91,6 +93,47 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
   });
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
+  // Fecha de nacimiento: se escribe DD-MM-AAAA y se manda en ISO (ver fecha.ts).
+  // El error de "incompleta" espera a que la persona salga del campo, para no
+  // regañarla mientras escribe; el de "no existe" sale en cuanto hay 8 cifras.
+  const [fechaTocada, setFechaTocada] = useState(false);
+  const fecha = validarFechaNacimiento(f.fechaNacimiento);
+  const errorFecha =
+    !fecha.ok && (fechaTocada || f.fechaNacimiento.length === 10) ? fecha.error : undefined;
+
+  function cambiarFecha(texto: string) {
+    const nueva = enmascararFecha(texto, f.fechaNacimiento);
+    setF((s) => ({ ...s, fechaNacimiento: nueva }));
+    setFechaTocada(false);
+    // Con TalkBack no se ve el texto rojo bajo el campo: si la fecha recién
+    // completada no vale, se dice en voz alta.
+    if (nueva.length === 10 && nueva !== f.fechaNacimiento) {
+      const v = validarFechaNacimiento(nueva);
+      if (!v.ok) void anunciar(v.error);
+    }
+  }
+
+  // Campos encadenados con "Siguiente" en el teclado: quien usa TalkBack no
+  // tiene que cerrar el teclado y buscar a tientas el campo que sigue.
+  const refs = {
+    correo: useRef<TextInput>(null),
+    password: useRef<TextInput>(null),
+    telefono: useRef<TextInput>(null),
+    fecha: useRef<TextInput>(null),
+    genero: useRef<TextInput>(null),
+    direccion: useRef<TextInput>(null),
+    disciplina: useRef<TextInput>(null),
+    emergenciaTelefono: useRef<TextInput>(null),
+    emergenciaRelacion: useRef<TextInput>(null),
+    patente: useRef<TextInput>(null),
+  };
+  /** Props para que "Siguiente" lleve al campo `destino` sin cerrar el teclado. */
+  const siguiente = (destino: RefObject<TextInput>) => ({
+    returnKeyType: "next" as const,
+    submitBehavior: "submit" as const,
+    onSubmitEditing: () => destino.current?.focus(),
+  });
+
   const [tipos, setTipos] = useState<string[]>([]);
   const [apoyos, setApoyos] = useState<string[]>([]);
   const [nivelAutonomia, setNivelAutonomia] = useState("");
@@ -141,7 +184,8 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
           ? {
               perfil: {
                 disciplina: f.disciplina.trim() || undefined,
-                fechaNacimiento: f.fechaNacimiento.trim() || undefined,
+                // La API sigue recibiendo AAAA-MM-DD; el DD-MM-AAAA es solo de pantalla.
+                fechaNacimiento: fecha.ok ? fecha.iso : undefined,
                 genero: f.genero.trim() || undefined,
                 region: f.region || undefined,
                 comuna: f.comuna.trim() || undefined,
@@ -175,6 +219,29 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
   const actual = pasos[paso];
   const ultimo = paso === pasos.length - 1;
 
+  /**
+   * Pasa al paso siguiente. Lo usan el botón "Continuar" y el último campo de
+   * cada paso al pulsar "Siguiente" en el teclado.
+   */
+  function avanzar() {
+    // La fecha es opcional, pero si se escribió tiene que valer: si no, el
+    // backend rechazaría la cuenta al final y el error aparecería lejos del
+    // campo. Se avisa aquí y se deja a la persona en el campo para corregirlo.
+    if (actual.clave === "sobre_ti" && !fecha.ok) {
+      setFechaTocada(true);
+      refs.fecha.current?.focus();
+      void anunciar(fecha.error);
+      return;
+    }
+    if (!puedeAvanzar) {
+      if (actual.clave === "cuenta") {
+        void anunciar("Para continuar faltan tu nombre, un correo válido y una contraseña de al menos 8 caracteres.");
+      }
+      return;
+    }
+    setPaso((p) => p + 1);
+  }
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.indigo }}
@@ -205,17 +272,32 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
 
           {actual.clave === "cuenta" && (
             <>
-              <CampoTexto label="Nombre completo" value={f.nombre} onChangeText={set("nombre")} placeholder="Tu nombre y apellido" obligatorio />
-              <CampoTexto label="Correo" value={f.correo} onChangeText={set("correo")} placeholder="tu.correo@ejemplo.cl" autoCapitalize="none" keyboardType="email-address" obligatorio />
-              <CampoTexto label="Contraseña" ayuda="Al menos 8 caracteres." value={f.password} onChangeText={set("password")} secureTextEntry obligatorio />
-              <CampoTexto label="Teléfono" value={f.telefono} onChangeText={set("telefono")} placeholder="+56 9 1234 5678" keyboardType="phone-pad" />
+              <CampoTexto label="Nombre completo" value={f.nombre} onChangeText={set("nombre")} placeholder="Tu nombre y apellido" obligatorio {...siguiente(refs.correo)} />
+              <CampoTexto refEntrada={refs.correo} label="Correo" value={f.correo} onChangeText={set("correo")} placeholder="tu.correo@ejemplo.cl" autoCapitalize="none" keyboardType="email-address" obligatorio {...siguiente(refs.password)} />
+              <CampoTexto refEntrada={refs.password} label="Contraseña" ayuda="Al menos 8 caracteres." value={f.password} onChangeText={set("password")} secureTextEntry obligatorio {...siguiente(refs.telefono)} />
+              <CampoTexto refEntrada={refs.telefono} label="Teléfono" value={f.telefono} onChangeText={set("telefono")} placeholder="+56 9 1234 5678" keyboardType="phone-pad" returnKeyType="next" onSubmitEditing={avanzar} />
             </>
           )}
 
           {actual.clave === "sobre_ti" && (
             <>
-              <CampoTexto label="Fecha de nacimiento" ayuda="Formato AAAA-MM-DD, por ejemplo 1998-04-23." value={f.fechaNacimiento} onChangeText={set("fechaNacimiento")} placeholder="1998-04-23" keyboardType="numbers-and-punctuation" />
-              <CampoTexto label="Género" ayuda="Escríbelo como tú lo describas. Puedes dejarlo en blanco." value={f.genero} onChangeText={set("genero")} maxLength={40} />
+              {/* Solo números: los guiones los pone la máscara. Sin maxLength, para que
+                  al pegar "23 / 04 / 1998" no se corte antes de normalizarlo. */}
+              <CampoTexto
+                refEntrada={refs.fecha}
+                label="Fecha de nacimiento"
+                ayuda="Día, mes y año. Escribe solo los números, los guiones se ponen solos. Por ejemplo 23-04-1998."
+                value={f.fechaNacimiento}
+                onChangeText={cambiarFecha}
+                onBlur={() => setFechaTocada(true)}
+                error={errorFecha}
+                placeholder="23-04-1998"
+                keyboardType="number-pad"
+                {...siguiente(refs.genero)}
+              />
+              {/* Tras el género vienen las regiones, que se eligen tocando: el
+                  teclado se cierra ("Listo") en vez de saltárselas. */}
+              <CampoTexto refEntrada={refs.genero} label="Género" ayuda="Escríbelo como tú lo describas. Puedes dejarlo en blanco." value={f.genero} onChangeText={set("genero")} maxLength={40} returnKeyType="done" />
 
               <Etiqueta style={{ marginBottom: 10 }}>Región</Etiqueta>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
@@ -224,9 +306,10 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
                 ))}
               </View>
 
-              <CampoTexto label="Comuna" value={f.comuna} onChangeText={set("comuna")} placeholder="Providencia" maxLength={120} />
-              <CampoTexto label="Dirección" ayuda="Opcional. Solo se usa para proponerte el punto de partida." value={f.direccion} onChangeText={set("direccion")} maxLength={255} />
-              <CampoTexto label="Disciplina que practicas" value={f.disciplina} onChangeText={set("disciplina")} placeholder="Paratletismo" maxLength={120} />
+              <CampoTexto label="Comuna" value={f.comuna} onChangeText={set("comuna")} placeholder="Providencia" maxLength={120} {...siguiente(refs.direccion)} />
+              <CampoTexto refEntrada={refs.direccion} label="Dirección" ayuda="Opcional. Solo se usa para proponerte el punto de partida." value={f.direccion} onChangeText={set("direccion")} maxLength={255} {...siguiente(refs.disciplina)} />
+              {/* Después va el nivel atlético, que también se toca: "Listo". */}
+              <CampoTexto refEntrada={refs.disciplina} label="Disciplina que practicas" value={f.disciplina} onChangeText={set("disciplina")} placeholder="Paratletismo" maxLength={120} returnKeyType="done" />
 
               <Etiqueta style={{ marginBottom: 6 }}>Tu nivel atlético</Etiqueta>
               <Text style={[font.tiny, { marginBottom: 10 }]}>
@@ -270,16 +353,16 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
                 Si activas el botón de pánico durante un acompañamiento, avisaremos a esta
                 persona junto con tu ubicación. Puedes dejarlo para después.
               </Text>
-              <CampoTexto label="Nombre" value={f.emergenciaNombre} onChangeText={set("emergenciaNombre")} maxLength={255} />
-              <CampoTexto label="Teléfono" value={f.emergenciaTelefono} onChangeText={set("emergenciaTelefono")} keyboardType="phone-pad" maxLength={30} />
-              <CampoTexto label="¿Quién es de ti?" value={f.emergenciaRelacion} onChangeText={set("emergenciaRelacion")} placeholder="Madre, pareja, entrenador…" maxLength={60} />
+              <CampoTexto label="Nombre" value={f.emergenciaNombre} onChangeText={set("emergenciaNombre")} maxLength={255} {...siguiente(refs.emergenciaTelefono)} />
+              <CampoTexto refEntrada={refs.emergenciaTelefono} label="Teléfono" value={f.emergenciaTelefono} onChangeText={set("emergenciaTelefono")} keyboardType="phone-pad" maxLength={30} {...siguiente(refs.emergenciaRelacion)} />
+              <CampoTexto refEntrada={refs.emergenciaRelacion} label="¿Quién es de ti?" value={f.emergenciaRelacion} onChangeText={set("emergenciaRelacion")} placeholder="Madre, pareja, entrenador…" maxLength={60} returnKeyType="next" onSubmitEditing={avanzar} />
             </>
           )}
 
           {actual.clave === "vehiculo" && (
             <>
-              <CampoTexto label="Vehículo" ayuda="Déjalo en blanco si acompañas a pie o en transporte público." value={f.vehiculo} onChangeText={set("vehiculo")} placeholder="Toyota Yaris gris" maxLength={120} />
-              <CampoTexto label="Patente" value={f.patente} onChangeText={set("patente")} placeholder="ABCD12" autoCapitalize="characters" maxLength={20} />
+              <CampoTexto label="Vehículo" ayuda="Déjalo en blanco si acompañas a pie o en transporte público." value={f.vehiculo} onChangeText={set("vehiculo")} placeholder="Toyota Yaris gris" maxLength={120} {...siguiente(refs.patente)} />
+              <CampoTexto refEntrada={refs.patente} label="Patente" value={f.patente} onChangeText={set("patente")} placeholder="ABCD12" autoCapitalize="characters" maxLength={20} returnKeyType="next" onSubmitEditing={avanzar} />
             </>
           )}
 
@@ -301,7 +384,7 @@ export function Registro({ rol, onVolver }: { rol: Rol; onVolver: () => void }) 
               title="Continuar"
               icon={<ArrowRight color={colors.white} size={18} />}
               disabled={!puedeAvanzar}
-              onPress={() => setPaso((p) => p + 1)}
+              onPress={avanzar}
             />
           )}
 

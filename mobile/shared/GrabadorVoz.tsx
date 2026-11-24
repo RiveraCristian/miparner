@@ -7,16 +7,33 @@
  * módulo nativo que usa el chat.
  */
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Check, Mic, Pause, Play, RotateCcw, Trash2, X } from "lucide-react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
+import { Check, Mic, Pause, Play, RotateCcw, Settings, Trash2, X } from "lucide-react-native";
 import AudioRecorderPlayer from "react-native-audio-recorder-player";
-import { AUDIO_SET, MAX_SEGS, mmss, pedirPermisoMic } from "./voz";
+import {
+  AUDIO_SET,
+  MAX_SEGS,
+  abrirAjustes,
+  asegurarPermisoMic,
+  grabadorDisponible,
+  mensajeFalloGrabacion,
+  mmss,
+} from "./voz";
 import { TOQUE_MIN, colors, font, fuente, radius } from "./theme";
 
 export interface GrabacionVoz {
   uri: string;
   duracion: number;
 }
+
+/** "1:05" se lee mal con lector de pantalla; esto se lee "1 minuto 5 segundos". */
+const durHablada = (secs: number) => {
+  const s = Math.max(0, Math.floor(secs));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  const seg = `${r} ${r === 1 ? "segundo" : "segundos"}`;
+  return m > 0 ? `${m} ${m === 1 ? "minuto" : "minutos"}${r ? ` ${seg}` : ""}` : seg;
+};
 
 export function GrabadorVoz({
   value,
@@ -32,6 +49,13 @@ export function GrabadorVoz({
   const [segs, setSegs] = useState(0);
   const [reproduciendo, setReproduciendo] = useState(false);
   const [error, setError] = useState("");
+  // El permiso quedó en "no volver a preguntar": se ofrece abrir los ajustes.
+  const [permisoBloqueado, setPermisoBloqueado] = useState(false);
+  // El listener de grabación se crea una vez al empezar y cierra sobre el
+  // estado de ese render (grabando = false). Con refs, el corte automático al
+  // minuto ve el valor actual en vez del congelado y de verdad termina.
+  const grabandoRef = useRef(false);
+  const segsRef = useRef(0);
 
   useEffect(
     () => () => {
@@ -42,6 +66,16 @@ export function GrabadorVoz({
     },
     [arp],
   );
+
+  function fijarGrabando(v: boolean) {
+    grabandoRef.current = v;
+    setGrabando(v);
+  }
+
+  function fijarSegs(v: number) {
+    segsRef.current = v;
+    setSegs(v);
+  }
 
   async function pararReproduccion() {
     arp.removePlayBackListener();
@@ -54,27 +88,39 @@ export function GrabadorVoz({
   }
 
   async function iniciar() {
-    if (disabled || grabando) return;
-    if (!(await pedirPermisoMic())) {
-      setError("Necesitamos permiso del micrófono para grabar.");
+    if (disabled || grabandoRef.current) return;
+    setError("");
+    setPermisoBloqueado(false);
+    // Sin módulo nativo no tiene sentido pedir permisos: el fallo es del binario.
+    if (!grabadorDisponible()) {
+      setError(mensajeFalloGrabacion(null));
+      return;
+    }
+    const permiso = await asegurarPermisoMic();
+    if (!permiso.ok) {
+      setPermisoBloqueado(permiso.bloqueado);
+      setError(permiso.mensaje);
       return;
     }
     await pararReproduccion();
-    setError("");
     try {
       await arp.startRecorder(undefined, AUDIO_SET);
-      setSegs(0);
-      setGrabando(true);
-      arp.addRecordBackListener((e) => {
-        const s = Math.floor(e.currentPosition / 1000);
-        setSegs(Math.min(s, MAX_SEGS));
-        // Al llegar al minuto, corta sola y entrega la nota.
-        if (s >= MAX_SEGS) terminar(MAX_SEGS);
-      });
-    } catch {
-      setGrabando(false);
-      setError("No pudimos acceder al micrófono.");
+    } catch (e) {
+      fijarGrabando(false);
+      setError(mensajeFalloGrabacion(e));
+      return;
     }
+    fijarSegs(0);
+    fijarGrabando(true);
+    AccessibilityInfo.announceForAccessibility(
+      `Grabando. Máximo ${durHablada(MAX_SEGS)}. Toca Terminar para detener.`,
+    );
+    arp.addRecordBackListener((e) => {
+      const s = Math.floor(e.currentPosition / 1000);
+      fijarSegs(Math.min(s, MAX_SEGS));
+      // Al llegar al minuto, corta sola y entrega la nota.
+      if (s >= MAX_SEGS) terminar(MAX_SEGS);
+    });
   }
 
   async function cancelar() {
@@ -84,30 +130,36 @@ export function GrabadorVoz({
     } catch {
       /* nada que detener */
     }
-    setGrabando(false);
-    setSegs(0);
+    fijarGrabando(false);
+    fijarSegs(0);
+    AccessibilityInfo.announceForAccessibility("Grabación descartada.");
   }
 
   async function terminar(durOverride?: number) {
-    if (!grabando) return;
+    if (!grabandoRef.current) return;
+    // Se marca de inmediato: el listener puede disparar otra vez mientras
+    // stopRecorder aún no resuelve, y no queremos terminar dos veces.
+    grabandoRef.current = false;
     arp.removeRecordBackListener();
-    const dur = durOverride ?? segs;
+    const dur = durOverride ?? segsRef.current;
     let uri: string;
     try {
       uri = await arp.stopRecorder();
-    } catch {
-      setGrabando(false);
-      setError("No se pudo terminar la grabación.");
+    } catch (e) {
+      console.warn("[voz] stopRecorder falló", e);
+      fijarGrabando(false);
+      setError("No se pudo terminar la grabación. Inténtalo de nuevo.");
       return;
     }
-    setGrabando(false);
-    setSegs(0);
+    fijarGrabando(false);
+    fijarSegs(0);
     if (dur < 1) {
       setError("La nota de voz es muy corta.");
       onChange(null);
       return;
     }
     onChange({ uri, duracion: dur });
+    AccessibilityInfo.announceForAccessibility(`Nota de voz grabada, ${durHablada(dur)}.`);
   }
 
   async function alternarReproduccion() {
@@ -122,7 +174,8 @@ export function GrabadorVoz({
       arp.addPlayBackListener((e) => {
         if (e.duration > 0 && e.currentPosition >= e.duration) pararReproduccion();
       });
-    } catch {
+    } catch (e) {
+      console.warn("[voz] startPlayer falló", e);
       setReproduciendo(false);
       setError("No pudimos reproducir la nota.");
     }
@@ -132,6 +185,7 @@ export function GrabadorVoz({
     await pararReproduccion();
     setError("");
     onChange(null);
+    AccessibilityInfo.announceForAccessibility("Nota de voz quitada.");
   }
 
   async function regrabar() {
@@ -148,11 +202,16 @@ export function GrabadorVoz({
             onPress={cancelar}
             accessibilityRole="button"
             accessibilityLabel="Descartar la grabación"
+            accessibilityHint="Detiene la grabación sin guardarla"
             style={[estilos.boton, { backgroundColor: colors.surface2 }]}
           >
             <X size={20} color={colors.ink} />
           </Pressable>
-          <View style={estilos.info}>
+          <View
+            style={estilos.info}
+            accessible
+            accessibilityLabel={`Grabando, ${durHablada(segs)} de ${durHablada(MAX_SEGS)}`}
+          >
             <View style={estilos.puntoRojo} />
             <Text style={[font.body, { fontFamily: fuente.fuerte }]}>
               Grabando {mmss(segs)} / {mmss(MAX_SEGS)}
@@ -162,6 +221,7 @@ export function GrabadorVoz({
             onPress={() => terminar()}
             accessibilityRole="button"
             accessibilityLabel="Terminar la grabación"
+            accessibilityHint="Guarda la nota de voz para enviarla"
             style={[estilos.boton, { backgroundColor: colors.indigo }]}
           >
             <Check size={20} color={colors.white} />
@@ -177,7 +237,11 @@ export function GrabadorVoz({
           >
             {reproduciendo ? <Pause size={20} color={colors.white} /> : <Play size={20} color={colors.white} />}
           </Pressable>
-          <View style={estilos.info}>
+          <View
+            style={estilos.info}
+            accessible
+            accessibilityLabel={`Nota de voz de ${durHablada(value.duracion)}`}
+          >
             <Mic size={18} color={colors.indigo} />
             <Text style={[font.body, { fontFamily: fuente.fuerte }]}>Nota de voz · {mmss(value.duracion)}</Text>
           </View>
@@ -185,6 +249,7 @@ export function GrabadorVoz({
             onPress={regrabar}
             accessibilityRole="button"
             accessibilityLabel="Grabar de nuevo"
+            accessibilityHint="Reemplaza la nota de voz actual"
             style={[estilos.boton, { backgroundColor: colors.surface2 }]}
           >
             <RotateCcw size={18} color={colors.ink} />
@@ -204,6 +269,7 @@ export function GrabadorVoz({
           disabled={disabled}
           accessibilityRole="button"
           accessibilityLabel="Grabar una nota de voz"
+          accessibilityHint={`Empieza a grabar. Máximo ${durHablada(MAX_SEGS)}`}
           accessibilityState={{ disabled: !!disabled }}
           style={({ pressed }) => [
             estilos.iniciar,
@@ -218,9 +284,28 @@ export function GrabadorVoz({
       )}
 
       {error ? (
-        <Text style={[font.tiny, { color: colors.coral, marginTop: 6 }]} accessibilityRole="alert">
+        // liveRegion: en Android el rol "alert" por sí solo no hace que TalkBack
+        // lea el texto al aparecer; la región viva sí.
+        <Text
+          style={[font.tiny, { color: colors.coral, marginTop: 6 }]}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+        >
           {error}
         </Text>
+      ) : null}
+
+      {permisoBloqueado ? (
+        <Pressable
+          onPress={abrirAjustes}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir ajustes"
+          accessibilityHint="Abre los permisos de Miparner para activar el micrófono"
+          style={({ pressed }) => [estilos.ajustes, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Settings size={20} color={colors.indigo} />
+          <Text style={[font.body, { fontFamily: fuente.fuerte, color: colors.indigo }]}>Abrir ajustes</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -256,5 +341,16 @@ const estilos = StyleSheet.create({
     borderStyle: "dashed",
     borderRadius: radius.md,
     backgroundColor: colors.surface,
+  },
+  ajustes: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 8,
+    minHeight: TOQUE_MIN,
+    marginTop: 6,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface2,
   },
 });

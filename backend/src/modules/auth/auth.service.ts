@@ -234,6 +234,30 @@ export async function refresh(dto: RefreshDto) {
   return { usuario: toPublicUser(usuario), ...tokens };
 }
 
+/**
+ * Revoca un token de renovación. Siempre responde ok: un token inválido,
+ * vencido o ya revocado no tiene nada que revocar, y responder distinto solo
+ * daría pistas a quien pruebe tokens.
+ */
+export async function logout(dto: RefreshDto) {
+  let payload: { sub: number };
+  try {
+    payload = verifyRefreshToken(dto.refreshToken);
+  } catch {
+    return { ok: true };
+  }
+
+  await prisma.refreshToken.updateMany({
+    where: {
+      refreshTokenHash: hashToken(dto.refreshToken),
+      refreshTokenUsuarioId: payload.sub,
+      refreshTokenRevocado: false,
+    },
+    data: { refreshTokenRevocado: true, modifiedBy: payload.sub },
+  });
+  return { ok: true };
+}
+
 /** Edita la propia cuenta (nombre, correo, teléfono). */
 export async function actualizarPerfil(usuarioId: number, dto: ActualizarPerfilDto) {
   if (dto.correo) {

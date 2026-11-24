@@ -10,7 +10,7 @@
  * La cabecera cambia de mensaje según lo elegido: quien viene a pedir
  * acompañamiento y quien viene a darlo no responden al mismo texto.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +18,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { AlertCircle, HandHeart, PersonStanding } from "lucide-react-native";
@@ -41,12 +42,15 @@ export function LoginScreen() {
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   const set = (k: keyof typeof f) => (v: string) => setF((s) => ({ ...s, [k]: v }));
+  const refPassword = useRef<TextInput>(null);
 
   if (modo.pantalla === "registro") {
     return <Registro rol={modo.rol} onVolver={() => setModo({ pantalla: "elegir" })} />;
   }
 
   async function entrar() {
+    // El "Iniciar sesión" del teclado puede llegar mientras ya se envía.
+    if (enviando) return;
     setError("");
     setEnviando(true);
     try {
@@ -106,20 +110,45 @@ export function LoginScreen() {
                 </View>
               ) : null}
 
+              {/*
+                * Todo el acceso se hace sin soltar el teclado: "Siguiente" en
+                * el correo salta a la contraseña con el teclado abierto, y la
+                * tecla de acción de la contraseña inicia sesión. Antes había
+                * que cerrar el teclado, buscar el campo siguiente y bajar
+                * hasta el botón: con TalkBack eran media docena de gestos.
+                * Los tipos de autocompletado dejan además que el gestor de
+                * contraseñas del teléfono rellene los dos campos.
+                */}
               <CampoTexto
                 label="Correo"
                 value={f.correo}
                 onChangeText={set("correo")}
                 placeholder="tu.correo@ejemplo.cl"
                 autoCapitalize="none"
+                autoCorrect={false}
                 keyboardType="email-address"
+                autoComplete="email"
+                textContentType="username"
+                importantForAutofill="yes"
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => refPassword.current?.focus()}
               />
               <CampoTexto
                 label="Contraseña"
+                refEntrada={refPassword}
                 value={f.password}
                 onChangeText={set("password")}
                 placeholder="Tu contraseña"
                 secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
+                importantForAutofill="yes"
+                returnKeyType="go"
+                returnKeyLabel="Iniciar sesión"
+                onSubmitEditing={() => void entrar()}
               />
 
               <View style={{ height: 10 }} />

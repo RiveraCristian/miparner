@@ -10,6 +10,9 @@ export const solicitarSchema = z.object({
   destino: punto,
   origenTexto: z.string().max(255).optional(),
   destinoTexto: z.string().max(255).optional(),
+  // Calle y comuna del destino cuando se eligió en el buscador. Es lo que
+  // permite reconocer el lugar después, en los destinos frecuentes.
+  destinoDireccion: z.string().trim().max(255).optional(),
   necesidades: z.array(z.string()).max(10).optional(),
   // Lo que la persona necesita, con sus palabras. Lo lee el voluntario antes
   // de aceptar, así que va en el mismo formulario de la solicitud.

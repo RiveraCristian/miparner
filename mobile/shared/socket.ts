@@ -1,6 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import { SOCKET_URL } from "./config";
-import { loadToken } from "./api";
+import { esSesionCerrada, renovarToken, tokenVigente } from "./api";
 
 let socket: Socket | null = null;
 
@@ -20,23 +20,63 @@ export async function connectSocket(): Promise<Socket> {
   // Reutiliza el socket existente (conectado o reconectando): nunca dos.
   if (socket) return socket;
 
-  const token = await loadToken();
-  socket = io(SOCKET_URL, {
+  // El token que viajó en el último intento: si el servidor lo rechaza, es
+  // ése el que hay que renovar (y no otro que ya se haya renovado entretanto).
+  let tokenEnviado: string | null = null;
+  const propio = io(SOCKET_URL, {
     transports: ["websocket"],
-    auth: { token },
+    // Función y no objeto: socket.io la llama en cada intento de conexión. Con
+    // un objeto fijo, una reconexión media hora después mandaba el token de
+    // acceso del arranque, ya vencido (dura quince minutos), y el servidor la
+    // rechazaba.
+    auth: (cb) => {
+      tokenVigente()
+        .then((token) => {
+          tokenEnviado = token;
+          cb({ token });
+        })
+        .catch(() => cb({ token: null }));
+    },
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 15000,
     randomizationFactor: 0.5,
   });
+  socket = propio;
+  let reintentosRechazo = 0;
 
   // En cada (re)conexión, volver a entrar a todas las salas activas.
-  socket.on("connect", () => {
-    for (const rideId of salasActivas) socket?.emit("join_ride", { rideId });
+  propio.on("connect", () => {
+    reintentosRechazo = 0;
+    for (const rideId of salasActivas) propio.emit("join_ride", { rideId });
   });
 
-  return socket;
+  /*
+   * Si el servidor rechaza el handshake (token vencido o revocado), socket.io
+   * no reintenta por su cuenta: sin esto la persona se quedaba sin seguimiento
+   * en vivo ni avisos de mensajes hasta reabrir la app. Se fuerza una
+   * renovación y se vuelve a conectar con espera creciente. Si la renovación
+   * la rechaza el servidor, la sesión se cierra y `disconnectSocket` corta el
+   * ciclo.
+   */
+  propio.on("connect_error", (err) => {
+    if (propio.active || err.message !== "unauthorized") return;
+    const espera = Math.min(1000 * 2 ** reintentosRechazo, 30_000);
+    reintentosRechazo++;
+    void (async () => {
+      try {
+        await renovarToken(tokenEnviado);
+      } catch (e) {
+        if (esSesionCerrada(e)) return;
+      }
+      setTimeout(() => {
+        if (socket === propio && !propio.connected) propio.connect();
+      }, espera);
+    })();
+  });
+
+  return propio;
 }
 
 export function getSocket(): Socket | null {

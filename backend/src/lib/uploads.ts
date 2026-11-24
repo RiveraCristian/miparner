@@ -27,6 +27,36 @@ const MIMES_PERMITIDOS: Record<string, string> = {
   "application/pdf": ".pdf",
 };
 
+/**
+ * Nombres distintos para los mismos formatos. Los proveedores de archivos de
+ * Android no se ponen de acuerdo: hay galerías que dicen `image/jpg` y
+ * teléfonos que guardan las fotos como `image/heif`. Rechazarlos por el nombre
+ * dejaba a la persona sin poder subir una foto perfectamente válida.
+ */
+const ALIAS_MIME: Record<string, string> = {
+  "image/jpg": "image/jpeg",
+  "image/pjpeg": "image/jpeg",
+  "image/heif": "image/heic",
+  "image/heic-sequence": "image/heic",
+  "image/heif-sequence": "image/heic",
+  "application/x-pdf": "application/pdf",
+};
+
+/**
+ * El dispositivo no supo decir qué es (pasa con archivos de Drive o de
+ * WhatsApp). No se rechaza de entrada: decide el contenido, en
+ * `verificarDocumento`.
+ */
+const MIMES_GENERICOS = new Set(["", "application/octet-stream", "binary/octet-stream"]);
+
+function normalizarMime(mime: string | undefined): string {
+  const m = (mime ?? "").trim().toLowerCase();
+  return ALIAS_MIME[m] ?? m;
+}
+
+const MENSAJE_FORMATO =
+  "Formato no admitido. Sube una foto (JPG, PNG, WEBP o HEIC) o un PDF del documento.";
+
 export function asegurarDirectorio() {
   fs.mkdirSync(env.uploadsDir, { recursive: true });
 }
@@ -48,8 +78,10 @@ const storage = multer.diskStorage({
     asegurarDirectorio();
     cb(null, env.uploadsDir);
   },
-  filename: (_req, file, cb) => {
-    cb(null, `${randomUUID()}${MIMES_PERMITIDOS[file.mimetype] ?? ""}`);
+  // Sin extensión todavía: la pone `verificarDocumento` cuando sabe, por el
+  // contenido, qué es de verdad.
+  filename: (_req, _file, cb) => {
+    cb(null, randomUUID());
   },
 });
 
@@ -58,16 +90,83 @@ export const recibirDocumento = multer({
   storage,
   limits: { fileSize: env.UPLOAD_MAX_MB * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (!MIMES_PERMITIDOS[file.mimetype]) {
-      return cb(
-        AppError.badRequest(
-          "Formato no admitido. Sube una foto (JPG, PNG o WEBP) o un PDF del documento.",
-        ),
-      );
+    const mime = normalizarMime(file.mimetype);
+    // Un tipo declarado y ajeno (vídeo, Word, ZIP…) se corta aquí, sin
+    // escribir nada en disco. Los genéricos pasan y los juzga el contenido.
+    if (!MIMES_PERMITIDOS[mime] && !MIMES_GENERICOS.has(mime)) {
+      return cb(AppError.badRequest(MENSAJE_FORMATO));
     }
     cb(null, true);
   },
 }).single("archivo");
+
+/**
+ * Qué es el archivo según sus primeros bytes, no según lo que dice el
+ * teléfono. El mime que manda el dispositivo es una pista y a veces miente:
+ * el selector de fotos de Android recomprime a JPEG pero conserva el nombre
+ * `.heic`, y los archivos de la nube llegan como `application/octet-stream`.
+ * Mirar la firma es a la vez más tolerante con esos casos y más estricto con
+ * lo que de verdad importa: que no se guarde nada que no sea una imagen o un
+ * PDF.
+ */
+function detectarTipo(cabecera: Buffer): string | null {
+  const ascii = (desde: number, hasta: number) => cabecera.subarray(desde, hasta).toString("latin1");
+
+  if (cabecera[0] === 0xff && cabecera[1] === 0xd8 && cabecera[2] === 0xff) return "image/jpeg";
+  if (ascii(0, 8) === "\x89PNG\r\n\x1a\n") return "image/png";
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp";
+  // HEIC/HEIF: caja `ftyp` en el byte 4 con una marca de la familia HEIF.
+  if (ascii(4, 8) === "ftyp" && /^(heic|heix|hevc|hevx|heim|heis|mif1|msf1|heif)$/.test(ascii(8, 12))) {
+    return "image/heic";
+  }
+  // La especificación de PDF admite basura antes de la cabecera dentro del
+  // primer KB, y algunos escáneres la dejan.
+  if (ascii(0, cabecera.length).includes("%PDF-")) return "application/pdf";
+  return null;
+}
+
+/**
+ * Va justo después de `recibirDocumento`. Comprueba el contenido real del
+ * archivo, le pone la extensión que le corresponde y corrige `mimetype`, que
+ * es lo que se guarda y lo que usa el panel para previsualizarlo.
+ */
+export async function verificarDocumento(req: Request, _res: Response, next: NextFunction) {
+  const archivo = req.file;
+  if (!archivo) return next();
+
+  try {
+    const cabecera = Buffer.alloc(1024);
+    const fh = await fs.promises.open(archivo.path, "r");
+    let leidos = 0;
+    try {
+      ({ bytesRead: leidos } = await fh.read(cabecera, 0, cabecera.length, 0));
+    } finally {
+      await fh.close();
+    }
+
+    const mime = leidos > 0 ? detectarTipo(cabecera.subarray(0, leidos)) : null;
+    if (!mime) {
+      eliminarArchivo(archivo.filename);
+      return next(
+        AppError.badRequest(
+          leidos === 0
+            ? "El archivo llegó vacío. Vuelve a elegirlo e inténtalo otra vez."
+            : MENSAJE_FORMATO,
+        ),
+      );
+    }
+
+    const nombre = `${path.parse(archivo.filename).name}${MIMES_PERMITIDOS[mime]}`;
+    const destino = rutaDe(nombre);
+    await fs.promises.rename(archivo.path, destino);
+    archivo.filename = nombre;
+    archivo.path = destino;
+    archivo.mimetype = mime;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Audio de los mensajes de voz del chat. Mismo disco y mismo esquema de nombre

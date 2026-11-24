@@ -13,6 +13,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { CalendarDays, History, House, Inbox, Trophy, User } from "lucide-react-native";
 import { colors, elevacion, fuente } from "../../shared/theme";
 import { useAuth } from "../../shared/auth";
+import type { PuntoElegido } from "../../shared/types";
 
 import { LoginScreen } from "./screens/comunes/LoginScreen";
 import { ChatScreen } from "./screens/comunes/ChatScreen";
@@ -42,7 +43,9 @@ import { PerfilScreen as PerfilVoluntario } from "./screens/voluntario/PerfilScr
 export type RootStackParams = {
   Tabs: undefined;
   // Deportista
-  Solicitar: undefined;
+  // Con `destino`, el formulario se abre con ese lugar ya elegido (lo usan
+  // los destinos frecuentes del inicio). Sin él, se abre vacío como siempre.
+  Solicitar: { destino?: PuntoElegido } | undefined;
   EnViaje: { viajeId: number };
   // Voluntario
   Solicitudes: undefined;

@@ -95,6 +95,17 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// Destinos frecuentes del deportista, para el inicio. Va antes de "/:id" para
+// que Express no lo tome por un id. Sin requireValidado: verlos no pide nada;
+// lo que exige la cuenta validada es solicitar, y eso ya lo controla POST /.
+router.get("/destinos-frecuentes", requireRole("deportista"), async (req, res, next) => {
+  try {
+    res.json(await viajes.destinosFrecuentes(actorId(req)));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Detalle
 router.get("/:id", async (req, res, next) => {
   try {

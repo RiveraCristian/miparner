@@ -23,6 +23,12 @@ import { asegurarDirectorio } from "./lib/uploads";
 export function createApp() {
   const app = express();
 
+  // Todo el tráfico entra por Caddy (un solo salto). Sin esto, req.ip es la IP
+  // del contenedor de Caddy y los limitadores por IP (login, subidas, lista de
+  // espera) meten a todos los usuarios en el mismo cupo. Con 1 se confía solo
+  // en el X-Forwarded-For que pone Caddy, no en uno que mande el cliente.
+  app.set("trust proxy", 1);
+
   // Los documentos de validación viven en disco, fuera de la base.
   asegurarDirectorio();
 

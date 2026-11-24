@@ -15,9 +15,9 @@
  * y el campo dice qué se marcó. Quien no puede escribir una dirección exacta
  * puede señalarla, y quien no ve el mapa puede escribirla.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LocateFixed, MapPin, Send } from "lucide-react-native";
 import { colors, font, fuente, radius } from "../../../../shared/theme";
@@ -31,7 +31,7 @@ import { BuscadorDireccion, PistaBuscar, type Lugar } from "../../../../shared/B
 import { CuandoLoQuiero, type Cuando } from "../../../../shared/CuandoLoQuiero";
 import { anunciar } from "../../../../shared/anuncios";
 import { Card, Etiqueta, Pill, PrimaryButton, Screen } from "../../../../shared/ui";
-import type { LatLng, Viaje } from "../../../../shared/types";
+import type { LatLng, PuntoElegido, Viaje } from "../../../../shared/types";
 import type { RootStackParams } from "../../navigation";
 
 /** Si el GPS no responde (permiso denegado, interior sin señal), se parte de aquí. */
@@ -46,13 +46,19 @@ const NECESIDADES = [
 
 const MAX_COMENTARIO = 1000;
 
-interface Punto extends LatLng {
-  texto: string;
-}
+/** `direccion` sólo la trae lo elegido en el buscador o en un destino frecuente. */
+type Punto = PuntoElegido;
 
 export function SolicitarScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const [destino, setDestino] = useState<Punto | null>(null);
+  /*
+   * Un destino frecuente del inicio llega aquí ya elegido. Entra por el mismo
+   * estado que el buscador y el toque en el mapa, así que el mapa lo marca y
+   * encuadra, el campo lo muestra y el aviso de "falta elegir" desaparece sin
+   * caminos especiales.
+   */
+  const destinoInicial = useRoute<RouteProp<RootStackParams, "Solicitar">>().params?.destino;
+  const [destino, setDestino] = useState<Punto | null>(destinoInicial ?? null);
   const [necesidades, setNecesidades] = useState<string[]>(["silla_ruedas"]);
   const [comentario, setComentario] = useState("");
   const [notaVoz, setNotaVoz] = useState<GrabacionVoz | null>(null);
@@ -69,6 +75,17 @@ export function SolicitarScreen() {
     ? { lat: gps.lat, lng: gps.lng, texto: "Tu ubicación actual" }
     : ORIGEN_RESPALDO);
 
+  // Si la pantalla ya estaba abierta y llega otro destino por parámetro, manda
+  // el nuevo. Se anuncia porque quien no ve la pantalla no sabría que el campo
+  // viene relleno.
+  useEffect(() => {
+    if (!destinoInicial) return;
+    setDestino(destinoInicial);
+    void anunciar(`Destino elegido: ${destinoInicial.texto}.`);
+    // Solo cuando cambia el lugar recibido, no su identidad de objeto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destinoInicial?.lat, destinoInicial?.lng, destinoInicial?.texto]);
+
   const toggle = (k: string) =>
     setNecesidades((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
 
@@ -84,7 +101,7 @@ export function SolicitarScreen() {
   }
 
   function elegirDestinoBuscado(l: Lugar) {
-    setDestino({ lat: l.lat, lng: l.lng, texto: l.nombre });
+    setDestino({ lat: l.lat, lng: l.lng, texto: l.nombre, direccion: l.direccion || null });
   }
 
   function elegirOrigenBuscado(l: Lugar) {
@@ -104,6 +121,8 @@ export function SolicitarScreen() {
           destino: { lat: destino.lat, lng: destino.lng },
           origenTexto: origen.texto,
           destinoTexto: destino.texto,
+          // Se guarda para reconocer el lugar después en los destinos frecuentes.
+          destinoDireccion: destino.direccion || undefined,
           necesidades,
           comentario: comentario.trim() || undefined,
           // Ausente significa "lo antes posible".
@@ -206,6 +225,11 @@ export function SolicitarScreen() {
             <Text style={[font.body, { fontFamily: fuente.fuerte, marginTop: 2 }]}>
               {destino?.texto ?? "Todavía sin elegir"}
             </Text>
+            {destino?.direccion ? (
+              <Text style={font.tiny} numberOfLines={2}>
+                {destino.direccion}
+              </Text>
+            ) : null}
           </View>
         </View>
 

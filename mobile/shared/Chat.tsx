@@ -16,7 +16,6 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
-  PermissionsAndroid,
   Platform,
   Pressable,
   StyleSheet,
@@ -37,6 +36,8 @@ import { API_URL } from "./config";
 import { connectSocket, joinRide, leaveRide } from "./socket";
 import { TOQUE_MIN, colors, elevacion, font, fuente, radius } from "./theme";
 import { Estado, Vacio } from "./ui";
+// Permisos y errores del micrófono, compartidos con la nota de voz de la solicitud.
+import { mensajeFalloGrabacion, pedirPermisoMic } from "./voz";
 import type { Conversacion, Mensaje } from "./types";
 
 const hora = (iso: string) =>
@@ -70,6 +71,9 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
   // Grabación en curso.
   const [grabando, setGrabando] = useState(false);
   const [segsGrab, setSegsGrab] = useState(0);
+  // El listener de grabación se crea una vez y ve el `grabando` de ese render
+  // (false): sin este ref, el envío automático al minuto nunca se disparaba.
+  const grabandoRef = useRef(false);
   const [subiendoVoz, setSubiendoVoz] = useState(false);
 
   // Audios que este usuario ya reportó en esta sesión (para deshabilitar el botón).
@@ -215,17 +219,6 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
 
   // --- Grabación ------------------------------------------------------------
 
-  async function pedirPermisoMic(): Promise<boolean> {
-    if (Platform.OS !== "android") return true;
-    const r = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, {
-      title: "Permiso de micrófono",
-      message: "Miparner necesita el micrófono para grabar tu mensaje de voz.",
-      buttonPositive: "Permitir",
-      buttonNegative: "Ahora no",
-    });
-    return r === PermissionsAndroid.RESULTS.GRANTED;
-  }
-
   async function iniciarGrabacion() {
     if (grabando || sinContraparte || subiendoVoz) return;
     if (!(await pedirPermisoMic())) {
@@ -237,6 +230,7 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
     try {
       await arp.startRecorder(undefined, AUDIO_SET);
       setSegsGrab(0);
+      grabandoRef.current = true;
       setGrabando(true);
       arp.addRecordBackListener((e) => {
         const s = Math.floor(e.currentPosition / 1000);
@@ -244,13 +238,15 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
         // Al llegar al minuto, corta sola y envía.
         if (s >= MAX_SEGS) enviarVoz(MAX_SEGS);
       });
-    } catch {
+    } catch (e) {
+      grabandoRef.current = false;
       setGrabando(false);
-      setError("No pudimos acceder al micrófono.");
+      setError(mensajeFalloGrabacion(e));
     }
   }
 
   async function cancelarGrabacion() {
+    grabandoRef.current = false;
     arp.removeRecordBackListener();
     try {
       await arp.stopRecorder();
@@ -262,7 +258,10 @@ export function Chat({ viajeId, yoId }: { viajeId: number; yoId: number }) {
   }
 
   async function enviarVoz(durOverride?: number) {
-    if (!grabando || subiendoVoz) return;
+    if (!grabandoRef.current || subiendoVoz) return;
+    // Se marca de inmediato: el listener puede volver a llamar antes de que
+    // termine stopRecorder y no debe enviarse dos veces.
+    grabandoRef.current = false;
     arp.removeRecordBackListener();
     const dur = durOverride ?? segsGrab;
     let uri: string;

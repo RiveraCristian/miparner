@@ -151,6 +151,9 @@ model Viaje {
   viajeDestino        Unsupported("geography(Point, 4326)") @map("viaje_destino")
   viajeOrigenTexto    String?                               @map("viaje_origen_texto") @db.VarChar(255)
   viajeDestinoTexto   String?                               @map("viaje_destino_texto") @db.VarChar(255)
+  // Calle, comuna y región del destino, aparte del nombre. Sin esto, los
+  // destinos frecuentes del inicio no tienen cómo decir cuál "Estadio" es.
+  viajeDestinoDireccion String?                             @map("viaje_destino_direccion") @db.VarChar(255)
   viajeNecesidades    Json                                  @default("[]") @map("viaje_necesidades")
   // Lo que el deportista escribe con sus palabras al pedir el acompañamiento.
   viajeComentario     String?                               @map("viaje_comentario") @db.VarChar(1000)

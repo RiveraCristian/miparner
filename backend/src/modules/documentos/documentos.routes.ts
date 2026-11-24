@@ -5,7 +5,7 @@ import { authenticate, actorId } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
 import { AppError } from "../../lib/http-error";
 import { env } from "../../config/env";
-import { eliminarArchivo, recibirDocumento } from "../../lib/uploads";
+import { eliminarArchivo, recibirDocumento, verificarDocumento } from "../../lib/uploads";
 import { gruposDelRol } from "./documentos.catalogo";
 import { idParamSchema, pedirVideollamadaSchema, subirDocumentoSchema } from "./documentos.schemas";
 import * as documentos from "./documentos.service";
@@ -13,12 +13,20 @@ import * as documentos from "./documentos.service";
 const router = Router();
 router.use(authenticate);
 
-// Subir documentos es caro y sensible: se limita por IP.
+// Subir documentos es caro y sensible: se limita por persona.
+//
+// Por persona y no por IP: en producción todas las peticiones llegan desde
+// Caddy, así que "por IP" era en la práctica un único cupo de 20 subidas cada
+// 15 minutos para TODA la aplicación. Bastaba con que unas pocas personas
+// subieran sus papeles (o reintentaran tras un fallo) para que el resto
+// recibiera "Demasiadas subidas". El router exige sesión antes de llegar
+// aquí, así que siempre hay un usuario al que atribuirle la subida.
 const subidaLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  keyGenerator: (req) => `usuario:${req.usuario?.usuarioId ?? req.ip ?? "anonimo"}`,
   message: { error: { code: "rate_limited", message: "Demasiadas subidas, prueba más tarde" } },
 });
 
@@ -75,14 +83,23 @@ router.get("/me", async (req, res, next) => {
 });
 
 // Subida (multipart/form-data: campo `archivo` + campo `tipo`).
-router.post("/", subidaLimiter, recibirArchivo, validate({ body: subirDocumentoSchema }), async (req, res, next) => {
-  try {
-    if (!req.file) throw AppError.badRequest("Adjunta el archivo del documento");
-    res.status(201).json(await documentos.subir(actorId(req), req.body.tipo, req.file));
-  } catch (err) {
-    next(err);
-  }
-});
+router.post(
+  "/",
+  subidaLimiter,
+  recibirArchivo,
+  // Antes de validar el resto: si el archivo no es una imagen o un PDF de
+  // verdad, se descarta aquí y no llega a la base.
+  verificarDocumento,
+  validate({ body: subirDocumentoSchema }),
+  async (req, res, next) => {
+    try {
+      if (!req.file) throw AppError.badRequest("Adjunta el archivo del documento");
+      res.status(201).json(await documentos.subir(actorId(req), req.body.tipo, req.file));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // Descarga del binario (dueño o administrador).
 router.get("/:id/archivo", validate({ params: idParamSchema }), async (req, res, next) => {

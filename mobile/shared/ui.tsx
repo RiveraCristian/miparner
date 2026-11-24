@@ -714,12 +714,19 @@ export function CampoTexto({
   ayuda,
   error,
   obligatorio,
+  refEntrada,
   ...props
 }: {
   label: string;
   ayuda?: string;
   error?: string;
   obligatorio?: boolean;
+  /**
+   * Referencia al TextInput de dentro, para encadenar campos con "Siguiente"
+   * en el teclado. Va como prop y no con forwardRef para no cambiar la firma
+   * del componente ni a quien ya lo usa.
+   */
+  refEntrada?: React.Ref<TextInput>;
 } & React.ComponentProps<typeof TextInput>) {
   return (
     <View style={{ marginBottom: 16 }}>
@@ -729,6 +736,7 @@ export function CampoTexto({
       </Text>
       {ayuda ? <Text style={[font.tiny, { marginBottom: 6 }]}>{ayuda}</Text> : null}
       <TextInput
+        ref={refEntrada}
         style={[styles.campoInput, error ? { borderColor: colors.coral } : null, props.multiline ? { minHeight: 96, textAlignVertical: "top" } : null]}
         placeholderTextColor={colors.ink3}
         accessibilityLabel={label}

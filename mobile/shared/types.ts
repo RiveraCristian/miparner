@@ -202,6 +202,27 @@ export interface Viaje {
   eventos?: { tipo: string; at: string; lat: number | null; lng: number | null }[];
 }
 
+/**
+ * Un lugar ya elegido, con lo que hace falta para pedir un acompañamiento:
+ * punto para el mapa, nombre para leerlo y, si se conoce, la dirección.
+ * Es lo que viaja de los destinos frecuentes del inicio a Solicitar.
+ */
+export interface PuntoElegido extends LatLng {
+  texto: string;
+  direccion?: string | null;
+}
+
+/** GET /viajes/destinos-frecuentes: sale de los viajes anteriores del deportista. */
+export interface DestinoFrecuente {
+  nombre: string;
+  /** Calle y comuna. Null en viajes anteriores a que se guardara. */
+  direccion: string | null;
+  lat: number;
+  lng: number;
+  veces: number;
+  ultimaVez: string;
+}
+
 export interface Progreso {
   puntos: number;
   nivel: number;

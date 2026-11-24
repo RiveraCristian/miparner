@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MessageSquare, Navigation, Plus } from "lucide-react-native";
-import { colors, font, fuente } from "../../../../shared/theme";
+import { ChevronRight, MapPin, MessageSquare, Navigation, Plus } from "lucide-react-native";
+import { colors, elevacion, font, fuente, radius, TOQUE_MIN } from "../../../../shared/theme";
 import { api } from "../../../../shared/api";
 import { Logo } from "../../../../shared/brand/Logo";
 import { useAuth } from "../../../../shared/auth";
@@ -16,11 +16,10 @@ import {
   Etiqueta,
   GhostButton,
   PanelIndigo,
-  Pill,
   PrimaryButton,
   Screen,
 } from "../../../../shared/ui";
-import type { NoLeidos } from "../../../../shared/types";
+import type { DestinoFrecuente, NoLeidos } from "../../../../shared/types";
 import type { RootStackParams } from "../../navigation";
 
 interface ViajeItem {
@@ -37,12 +36,17 @@ export function InicioScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [activo, setActivo] = useState<ViajeItem | null>(null);
   const [noLeidos, setNoLeidos] = useState(0);
+  /** null mientras carga o si falló: entonces la sección no se muestra. */
+  const [destinos, setDestinos] = useState<DestinoFrecuente[] | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       api<ViajeItem[]>("/viajes")
         .then((vs) => setActivo(vs.find((v) => ACTIVOS.includes(v.viajeEstado)) ?? null))
         .catch(() => {});
+      api<DestinoFrecuente[]>("/viajes/destinos-frecuentes")
+        .then(setDestinos)
+        .catch(() => setDestinos(null));
       api<NoLeidos>("/mensajes/no-leidos")
         .then((n) => setNoLeidos(n.total))
         .catch(() => {});
@@ -102,12 +106,42 @@ export function InicioScreen() {
         descripcion="Mapa de tu zona. Toda la información del acompañamiento está también en texto."
       />
 
-      <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Destinos frecuentes</Etiqueta>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
-        <Pill label="Entrenamiento" active onPress={() => nav.navigate("Solicitar")} />
-        <Pill label="Estadio" onPress={() => nav.navigate("Solicitar")} />
-        <Pill label="Centro médico" onPress={() => nav.navigate("Solicitar")} />
-      </View>
+      {/*
+        Destinos frecuentes. Eran tres botones fijos ("Entrenamiento", "Estadio",
+        "Centro médico") que no decían qué lugar eran y sólo abrían el formulario
+        vacío. Ahora salen de los viajes anteriores de la persona: cada uno es un
+        lugar concreto con su dirección, y tocarlo abre Solicitar con ese destino
+        ya puesto. Sin viajes todavía no se inventan opciones: se explica que
+        aparecerán. Si la carga falla, la sección simplemente no está.
+      */}
+      {destinos ? (
+        <>
+          <Etiqueta style={{ marginTop: 22, marginBottom: 10 }}>Destinos frecuentes</Etiqueta>
+          {destinos.length ? (
+            <View style={{ gap: 8 }}>
+              {destinos.map((d) => (
+                <BotonDestino
+                  key={`${d.nombre}|${d.lat}|${d.lng}`}
+                  destino={d}
+                  // Igual que el botón principal: sin cuenta validada no se
+                  // pide, y un atajo no puede saltarse eso.
+                  disabled={!aprobado}
+                  onPress={() =>
+                    nav.navigate("Solicitar", {
+                      destino: { lat: d.lat, lng: d.lng, texto: d.nombre, direccion: d.direccion },
+                    })
+                  }
+                />
+              ))}
+            </View>
+          ) : (
+            <Text style={font.muted}>
+              Tus destinos frecuentes aparecerán aquí después de tu primer acompañamiento.
+            </Text>
+          )}
+        </>
+      ) : null}
+      <View style={{ height: 24 }} />
 
       <PrimaryButton
         title={aprobado ? "Solicitar acompañamiento" : "Disponible al validar tu cuenta"}
@@ -123,3 +157,76 @@ export function InicioScreen() {
     </Screen>
   );
 }
+
+/**
+ * Un destino frecuente: nombre en negrita y la dirección debajo, que es lo que
+ * distingue un "Estadio" de otro. Lector de pantalla: lee las dos cosas juntas
+ * y la pista dice qué pasa al tocar.
+ */
+function BotonDestino({
+  destino,
+  disabled,
+  onPress,
+}: {
+  destino: DestinoFrecuente;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const etiqueta = destino.direccion ? `${destino.nombre}, ${destino.direccion}` : destino.nombre;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={etiqueta}
+      accessibilityHint={
+        disabled ? "Disponible al validar tu cuenta" : "Abre la solicitud con este destino"
+      }
+      accessibilityState={{ disabled: !!disabled }}
+      style={({ pressed }) => [
+        styles.destino,
+        pressed && !disabled && { backgroundColor: colors.lavanda, borderColor: colors.lav300 },
+        disabled && { opacity: 0.55 },
+      ]}
+    >
+      <View style={styles.destinoIcono}>
+        <MapPin color={colors.coral} size={20} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[font.body, { fontFamily: fuente.fuerte }]} numberOfLines={1}>
+          {destino.nombre}
+        </Text>
+        {destino.direccion ? (
+          <Text style={font.tiny} numberOfLines={1}>
+            {destino.direccion}
+          </Text>
+        ) : null}
+      </View>
+      <ChevronRight color={colors.ink3} size={20} />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  destino: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: TOQUE_MIN + 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    ...elevacion.suave,
+  },
+  destinoIcono: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.coralBg,
+  },
+});

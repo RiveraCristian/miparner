@@ -16,7 +16,16 @@
  * cambiar los requisitos no obliga a tocar la app.
  */
 import { useCallback, useState } from "react";
-import { Alert, Linking, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  PermissionsAndroid,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   Camera,
@@ -28,9 +37,21 @@ import {
   ShieldCheck,
   Video,
 } from "lucide-react-native";
-import { launchCamera, launchImageLibrary } from "react-native-image-picker";
-import { errorCodes, isErrorWithCode, pick, types } from "@react-native-documents/picker";
-import { api, apiUpload, type ArchivoLocal } from "./api";
+import {
+  launchCamera,
+  launchImageLibrary,
+  type CameraOptions,
+  type ImagePickerResponse,
+} from "react-native-image-picker";
+import {
+  errorCodes,
+  isErrorWithCode,
+  keepLocalCopy,
+  pick,
+  types,
+} from "@react-native-documents/picker";
+import { api, apiUpload, esMensajeParaLaPersona, type ArchivoLocal } from "./api";
+import { anunciar } from "./anuncios";
 import { useAuth } from "./auth";
 import { colors, font, fuente, radius } from "./theme";
 import {
@@ -105,21 +126,36 @@ export function PantallaDocumentos() {
 
   async function subir(tipo: string, archivo: ArchivoLocal) {
     setSubiendo(tipo);
+    // Con TalkBack, lo único que cambia en pantalla es una fila de estado:
+    // sin el aviso, la persona no sabe si el toque sirvió o si debe repetirlo.
+    void anunciar("Subiendo el documento. Espera un momento.");
     try {
       await apiUpload(`/documentos`, archivo, { tipo });
-      await refrescar();
-      Alert.alert(
-        "Documento enviado",
-        "Queda en revisión. Te avisamos cuando el equipo valide tu cuenta.",
-      );
     } catch (e) {
+      setSubiendo(null);
       Alert.alert(
         "No pudimos subir el documento",
-        e instanceof Error ? e.message : "Revisa tu conexión y vuelve a intentar.",
+        // Solo se enseña el texto si viene escrito para la persona; un error
+        // interno en inglés no le sirve de nada.
+        esMensajeParaLaPersona(e) ? e.message : "Revisa tu conexión y vuelve a intentarlo.",
       );
+      return;
+    }
+
+    // El documento ya está en el servidor. Si refrescar falla (la red se cae
+    // justo ahora), no se puede decir que la subida falló: la pantalla se
+    // pondrá al día la próxima vez que se abra.
+    try {
+      await refrescar();
+    } catch {
+      /* se reintenta al volver a la pantalla */
     } finally {
       setSubiendo(null);
     }
+    Alert.alert(
+      "Documento enviado",
+      "Queda en revisión. Te avisamos cuando el equipo valide tu cuenta.",
+    );
   }
 
   if (!validacion) {
@@ -187,6 +223,88 @@ export function PantallaDocumentos() {
   );
 }
 
+/* ------------------------------------------------- Elegir y preparar archivo */
+
+/**
+ * Tope de tamaño, en MB. Debe coincidir con `UPLOAD_MAX_MB` del backend (el
+ * servidor es quien manda y vuelve a comprobarlo). Se mira también aquí para
+ * no hacer esperar a nadie subiendo 15 MB por datos móviles solo para
+ * enterarse al final de que no cabían.
+ */
+const MAX_MB = 8;
+
+/**
+ * Las fotos se reducen antes de subirlas. Un teléfono actual saca fotos de
+ * 4000 px o más que pesan de 5 a 15 MB: pasaban el tope del servidor y la
+ * subida fallaba. A 2048 px un carnet o un certificado se sigue leyendo
+ * perfectamente y la foto queda por debajo de 1 MB.
+ */
+const OPCIONES_FOTO: CameraOptions = {
+  mediaType: "photo",
+  quality: 0.8,
+  maxWidth: 2048,
+  maxHeight: 2048,
+  saveToPhotos: false,
+};
+
+/** Extensión → mime, para cuando el proveedor de archivos no dice el tipo. */
+const MIME_POR_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heic",
+};
+
+function extension(nombre: string): string {
+  const i = nombre.lastIndexOf(".");
+  return i >= 0 ? nombre.slice(i + 1).toLowerCase() : "";
+}
+
+/**
+ * Nombre apto para el sistema de archivos. Algunos proveedores devuelven
+ * nombres con barras o con caracteres que no caben en una ruta, y
+ * `keepLocalCopy` los usa tal cual para crear la copia.
+ */
+function nombreSeguro(nombre: string | null, porDefecto: string): string {
+  const limpio = (nombre ?? "").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").trim();
+  return limpio || porDefecto;
+}
+
+/**
+ * Pide el permiso de cámara en Android.
+ *
+ * Es imprescindible: el manifiesto declara `CAMERA`, y en ese caso
+ * react-native-image-picker NO lo pide por su cuenta, sino que devuelve
+ * `errorCode: "permission"` sin abrir la cámara (ver
+ * `Utils.isCameraPermissionFulfilled` en la librería). Sin esta llamada,
+ * "Tomar foto" fallaba siempre en el primer uso y mandaba a la persona a los
+ * ajustes del teléfono por un permiso que nadie le había pedido.
+ */
+async function permisoCamara(): Promise<"si" | "no" | "nunca"> {
+  if (Platform.OS !== "android") return "si";
+  const permiso = PermissionsAndroid.PERMISSIONS.CAMERA;
+  if (await PermissionsAndroid.check(permiso)) return "si";
+  const r = await PermissionsAndroid.request(permiso, {
+    title: "Permiso de cámara",
+    message: "Miparner necesita la cámara para que fotografíes tu documento.",
+    buttonPositive: "Permitir",
+    buttonNegative: "Ahora no",
+  });
+  if (r === PermissionsAndroid.RESULTS.GRANTED) return "si";
+  return r === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN ? "nunca" : "no";
+}
+
+function avisarDemasiadoGrande(mb: number) {
+  Alert.alert(
+    "El archivo es demasiado grande",
+    `Pesa ${mb.toFixed(1)} MB y el máximo es ${MAX_MB} MB. Si es una foto, elígela desde ` +
+      "\"Elegir foto de la galería\": así se envía más liviana.",
+  );
+}
+
 /* -------------------------------------------------------- Tarjeta de grupo */
 
 const ESTADO_DOC: Record<string, { texto: string; tipo: "exito" | "atencion" | "critico" }> = {
@@ -238,24 +356,43 @@ function TarjetaGrupo({
   }
 
   async function conCamara() {
-    manejarImagen(await launchCamera({ mediaType: "photo", quality: 0.8, saveToPhotos: false }));
+    const permiso = await permisoCamara();
+    if (permiso !== "si") {
+      Alert.alert(
+        "Sin permiso de cámara",
+        permiso === "nunca"
+          ? "Activa el permiso de cámara de Miparner en los ajustes del teléfono, o elige una foto de la galería."
+          : "Para fotografiar el documento hace falta la cámara. También puedes elegir una foto de la galería.",
+        permiso === "nunca"
+          ? [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Abrir ajustes", onPress: () => void Linking.openSettings() },
+            ]
+          : undefined,
+      );
+      return;
+    }
+    manejarImagen(await launchCamera(OPCIONES_FOTO), "cámara");
   }
 
   async function conGaleria() {
-    manejarImagen(await launchImageLibrary({ mediaType: "photo", quality: 0.8, selectionLimit: 1 }));
+    manejarImagen(await launchImageLibrary({ ...OPCIONES_FOTO, selectionLimit: 1 }), "galería");
   }
 
-  function manejarImagen(res: Awaited<ReturnType<typeof launchImageLibrary>>) {
+  function manejarImagen(res: ImagePickerResponse, origen: "cámara" | "galería") {
     if (res.didCancel) return;
     if (res.errorCode) {
+      const sinPermiso = res.errorCode === "permission";
       Alert.alert(
-        "No pudimos abrir la cámara",
-        res.errorCode === "permission"
+        origen === "cámara" ? "No pudimos abrir la cámara" : "No pudimos abrir la galería",
+        sinPermiso
           ? "Da permiso de cámara a Miparner desde los ajustes del teléfono."
-          : (res.errorMessage ?? "Prueba eligiendo el archivo desde tu teléfono."),
-        res.errorCode === "permission"
+          : res.errorCode === "camera_unavailable"
+            ? "Este teléfono no tiene una cámara disponible. Elige una foto de la galería o un archivo."
+            : "Prueba eligiendo el archivo desde tu teléfono.",
+        sinPermiso
           ? [
-              { text: "Cancelar" },
+              { text: "Cancelar", style: "cancel" },
               { text: "Abrir ajustes", onPress: () => void Linking.openSettings() },
             ]
           : undefined,
@@ -263,28 +400,85 @@ function TarjetaGrupo({
       return;
     }
     const a = res.assets?.[0];
-    if (!a?.uri) return;
+    if (!a?.uri) {
+      Alert.alert("No pudimos leer la foto", "Vuelve a intentarlo o elige otra imagen.");
+      return;
+    }
+    if (a.fileSize && a.fileSize > MAX_MB * 1024 * 1024) {
+      avisarDemasiadoGrande(a.fileSize / (1024 * 1024));
+      return;
+    }
+    // Con `quality` < 1 la librería vuelve a codificar la imagen: PNG se
+    // queda en PNG y todo lo demás sale como JPEG, aunque el archivo conserve
+    // la extensión del original (`.heic`, `.gif`…). Se etiqueta por lo que de
+    // verdad contiene; el servidor lo confirma mirando los bytes.
+    const esPng = a.type === "image/png";
+    const base = opcion?.tipo ?? "documento";
     entregar({
       uri: a.uri,
-      name: a.fileName ?? `${opcion?.tipo ?? "documento"}.jpg`,
-      type: a.type ?? "image/jpeg",
+      name: `${base}.${esPng ? "png" : "jpg"}`,
+      type: esPng ? "image/png" : "image/jpeg",
     });
   }
 
   async function conArchivo() {
+    let f;
     try {
-      const [f] = await pick({ type: [types.pdf, types.images] });
-      if (!f?.uri) return;
-      entregar({
-        uri: f.uri,
-        name: f.name ?? `${opcion?.tipo ?? "documento"}.pdf`,
-        type: f.type ?? "application/pdf",
-      });
+      [f] = await pick({ type: [types.pdf, types.images] });
     } catch (e) {
       // Cancelar no es un error: se ignora en silencio.
       if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) return;
       Alert.alert("No pudimos abrir tus archivos", "Prueba tomando una foto del documento.");
+      return;
     }
+    if (!f?.uri) return;
+
+    // Algunos gestores de archivos ignoran el filtro de tipos y dejan elegir
+    // cualquier cosa. Mejor decirlo ahora que tras esperar la subida.
+    if (!f.hasRequestedType) {
+      Alert.alert(
+        "Formato no admitido",
+        "Elige un PDF o una foto (JPG, PNG, WEBP o HEIC) del documento.",
+      );
+      return;
+    }
+    if (f.size && f.size > MAX_MB * 1024 * 1024) {
+      avisarDemasiadoGrande(f.size / (1024 * 1024));
+      return;
+    }
+
+    const base = opcion?.tipo ?? "documento";
+    const nombre = nombreSeguro(f.name, `${base}.${f.type === "application/pdf" ? "pdf" : "jpg"}`);
+
+    // El selector devuelve un `content://`. Subirlo directo falla con los
+    // archivos de Drive, Google Fotos y otros proveedores en la nube: React
+    // Native mide la parte con `InputStream.available()`, que ahí vale 0, y
+    // OkHttp corta la subida ("Network request failed"). Era el fallo que
+    // impedía terminar la validación. Copiarlo antes a la caché de la app da
+    // un `file://` normal, con su tamaño real.
+    let uri: string;
+    try {
+      const [copia] = await keepLocalCopy({
+        files: [{ uri: f.uri, fileName: nombre }],
+        destination: "cachesDirectory",
+      });
+      if (copia.status !== "success") throw new Error(copia.copyError);
+      uri = copia.localUri;
+    } catch {
+      Alert.alert(
+        "No pudimos leer el archivo",
+        "Si está en Drive u otra nube, descárgalo primero al teléfono, o toma una foto del documento.",
+      );
+      return;
+    }
+
+    entregar({
+      uri,
+      name: nombre,
+      // Sin tipo, se deduce de la extensión. Si tampoco hay, va como genérico
+      // y el servidor decide por el contenido.
+      type: f.type ?? MIME_POR_EXTENSION[extension(nombre)] ?? "application/octet-stream",
+    });
   }
 
   return (
@@ -339,28 +533,40 @@ function TarjetaGrupo({
             </View>
           ) : null}
 
+          {/* Uno debajo de otro y con el texto completo: el lector de pantalla
+              lee el título como etiqueta, y "Galería" o "Archivo" a secas no
+              decían qué iba a pasar. Apilados, además, no se cortan con la
+              letra grande del sistema. */}
           <GhostButton
-            title={subiendoTipo === opcion?.tipo ? "Subiendo…" : "Tomar foto del documento"}
+            title="Tomar foto del documento"
             icon={<Camera color={colors.indigo} size={18} />}
             disabled={ocupado}
             onPress={conCamara}
           />
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <GhostButton
-              title="Galería"
-              icon={<Images color={colors.indigo} size={18} />}
-              disabled={ocupado}
-              onPress={conGaleria}
-              style={{ flex: 1 }}
-            />
-            <GhostButton
-              title="Archivo"
-              icon={<FileUp color={colors.indigo} size={18} />}
-              disabled={ocupado}
-              onPress={conArchivo}
-              style={{ flex: 1 }}
-            />
-          </View>
+          <GhostButton
+            title="Elegir foto de la galería"
+            icon={<Images color={colors.indigo} size={18} />}
+            disabled={ocupado}
+            onPress={conGaleria}
+          />
+          <GhostButton
+            title="Elegir archivo PDF o imagen"
+            icon={<FileUp color={colors.indigo} size={18} />}
+            disabled={ocupado}
+            onPress={conArchivo}
+          />
+          {subiendoTipo && subiendoTipo === opcion?.tipo ? (
+            <View
+              style={estilos.subiendo}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel="Subiendo el documento"
+              accessibilityLiveRegion="polite"
+            >
+              <ActivityIndicator color={colors.indigo} />
+              <Text style={font.tiny}>Subiendo el documento…</Text>
+            </View>
+          ) : null}
           {doc ? (
             <Text style={font.tiny}>
               Si subes uno nuevo, reemplaza al anterior y vuelve a revisión.
@@ -485,4 +691,5 @@ const estilos = StyleSheet.create({
     padding: 10,
     gap: 4,
   },
+  subiendo: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
 });

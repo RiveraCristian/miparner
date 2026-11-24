@@ -111,13 +111,14 @@ export async function solicitar(deportistaId: number, dto: SolicitarDto) {
   const filas = await prisma.$queryRaw<{ viaje_id: number }[]>`
     INSERT INTO viajes (
       viaje_deportista_id, viaje_estado, viaje_origen, viaje_destino,
-      viaje_origen_texto, viaje_destino_texto, viaje_necesidades,
+      viaje_origen_texto, viaje_destino_texto, viaje_destino_direccion, viaje_necesidades,
       viaje_comentario, viaje_programado_at, viaje_duracion_est_min, created_by
     ) VALUES (
       ${deportistaId}, 'solicitado',
       ST_SetSRID(ST_MakePoint(${dto.origen.lng}, ${dto.origen.lat}), 4326),
       ST_SetSRID(ST_MakePoint(${dto.destino.lng}, ${dto.destino.lat}), 4326),
       ${dto.origenTexto ?? null}, ${dto.destinoTexto ?? null},
+      ${dto.destinoDireccion?.length ? dto.destinoDireccion : null},
       ${JSON.stringify(dto.necesidades ?? [])}::jsonb,
       ${dto.comentario?.length ? dto.comentario : null},
       ${dto.programadoAt ? new Date(dto.programadoAt) : null},
@@ -291,6 +292,69 @@ export async function listarMios(actor: Actor) {
     },
   });
   return viajes;
+}
+
+/*
+ * Destinos frecuentes del deportista.
+ *
+ * Antes el inicio mostraba tres botones escritos en el código ("Entrenamiento",
+ * "Estadio", "Centro médico") que no decían qué lugar eran ni elegían nada: sólo
+ * abrían el formulario vacío. Ahora salen de sus propios viajes, con nombre,
+ * dirección y coordenadas, para que tocar uno deje el destino ya puesto.
+ *
+ * Cómo se agrupan, y por qué:
+ *
+ *  · Mismo nombre (sin distinguir mayúsculas) y coordenadas iguales a tres
+ *    decimales, que son unos 100 m. Elegir dos veces el mismo lugar en el
+ *    buscador da exactamente el mismo punto; el margen absorbe las variantes,
+ *    y el nombre evita juntar dos sitios distintos que quedan enfrente.
+ *  · De cada grupo se toman el nombre, el punto y la dirección del viaje más
+ *    reciente: si el lugar cambió de nombre en el buscador, manda lo último.
+ *  · Se ordena por cuántas veces se fue y, a igualdad, por la más reciente.
+ *  · Se excluyen los viajes cancelados (muchas veces son un destino mal
+ *    elegido) y los borrados. También los puntos marcados a mano en el mapa:
+ *    su texto es siempre el mismo y como botón sería otra etiqueta genérica.
+ */
+
+/** Texto que la app pone al destino cuando se marca tocando el mapa. */
+const TEXTO_PUNTO_MAPA = "Punto marcado en el mapa";
+const MAX_DESTINOS_FRECUENTES = 4;
+
+export async function destinosFrecuentes(deportistaId: number) {
+  return prisma.$queryRaw<
+    {
+      nombre: string;
+      direccion: string | null;
+      lat: number;
+      lng: number;
+      veces: number;
+      ultimaVez: Date;
+    }[]
+  >`
+    WITH base AS (
+      SELECT btrim(v.viaje_destino_texto)      AS nombre,
+             v.viaje_destino_direccion         AS direccion,
+             ST_Y(v.viaje_destino::geometry)   AS lat,
+             ST_X(v.viaje_destino::geometry)   AS lng,
+             v.viaje_solicitado_at             AS at
+        FROM viajes v
+       WHERE v.viaje_deportista_id = ${deportistaId}
+         AND v.is_deleted = false
+         AND v.viaje_estado <> 'cancelado'
+         AND v.viaje_destino_texto IS NOT NULL
+         AND btrim(v.viaje_destino_texto) <> ''
+         AND btrim(v.viaje_destino_texto) <> ${TEXTO_PUNTO_MAPA}
+    )
+    SELECT (array_agg(nombre ORDER BY at DESC))[1]                                       AS nombre,
+           (array_agg(direccion ORDER BY at DESC) FILTER (WHERE direccion IS NOT NULL))[1] AS direccion,
+           (array_agg(lat ORDER BY at DESC))[1]                                          AS lat,
+           (array_agg(lng ORDER BY at DESC))[1]                                          AS lng,
+           count(*)::int                                                                 AS veces,
+           max(at)                                                                       AS "ultimaVez"
+      FROM base
+     GROUP BY lower(nombre), round(lat::numeric, 3), round(lng::numeric, 3)
+     ORDER BY veces DESC, "ultimaVez" DESC
+     LIMIT ${MAX_DESTINOS_FRECUENTES}`;
 }
 
 // --- Matchmaking: voluntarios cercanos al origen (ST_DWithin) ---
